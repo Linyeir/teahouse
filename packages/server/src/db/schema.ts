@@ -54,6 +54,7 @@ export const messages = sqliteTable(
     chatId: text('chat_id')
       .notNull()
       .references(() => chats.id),
+    sceneId: text('scene_id'),
     parentId: text('parent_id'),
     role: text('role', { enum: ['user', 'assistant'] }).notNull(),
     content: text('content').notNull(),
@@ -65,3 +66,63 @@ export const messages = sqliteTable(
   },
   (t) => [index('messages_chat_idx').on(t.chatId), index('messages_parent_idx').on(t.parentId)],
 );
+
+export const scenes = sqliteTable(
+  'scenes',
+  {
+    id: text('id').primaryKey(),
+    chatId: text('chat_id')
+      .notNull()
+      .references(() => chats.id),
+    /** 1-based position in the chat. */
+    number: integer('number').notNull(),
+    status: text('status', { enum: ['active', 'closing', 'closed'] }).notNull(),
+    /** Character slugs present in the scene. */
+    cast: text('cast', { mode: 'json' }).$type<string[]>().notNull(),
+    /** Root message of the scene's message tree. */
+    startMessageId: text('start_message_id'),
+    /** Leaf of the path chosen when the scene was closed. */
+    closedLeafId: text('closed_leaf_id'),
+    /** World commit the scene's canon update produced, if any. */
+    canonCommit: text('canon_commit'),
+    ...syncColumns,
+  },
+  (t) => [index('scenes_chat_idx').on(t.chatId)],
+);
+
+export const memoryNodes = sqliteTable(
+  'memory_nodes',
+  {
+    id: text('id').primaryKey(),
+    sceneId: text('scene_id')
+      .notNull()
+      .references(() => scenes.id),
+    /** The summary covers the scene up to and including this message. */
+    messageId: text('message_id').notNull(),
+    content: text('content').notNull(),
+    ...syncColumns,
+  },
+  (t) => [index('memory_scene_idx').on(t.sceneId), index('memory_message_idx').on(t.messageId)],
+);
+
+export interface ProposalFile {
+  path: string;
+  /** Content at the proposal's base commit; null for new files. */
+  before: string | null;
+  /** Proposed content (possibly edited by the user). */
+  after: string;
+  decision: 'pending' | 'accepted' | 'rejected';
+}
+
+export const canonProposals = sqliteTable('canon_proposals', {
+  id: text('id').primaryKey(),
+  sceneId: text('scene_id')
+    .notNull()
+    .references(() => scenes.id),
+  status: text('status', { enum: ['generating', 'ready', 'failed', 'applied'] }).notNull(),
+  /** World commit the proposal was generated against, for the three-way merge. */
+  baseCommit: text('base_commit'),
+  files: text('files', { mode: 'json' }).$type<ProposalFile[]>().notNull(),
+  error: text('error'),
+  ...syncColumns,
+});

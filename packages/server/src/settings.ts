@@ -3,7 +3,15 @@ import { eq } from 'drizzle-orm';
 import type { Db } from './db/index.ts';
 import { settings } from './db/schema.ts';
 
-const DEFAULTS: Settings = { userName: 'User', outputLanguage: 'English', narratorProfileId: null };
+const DEFAULTS: Settings = {
+  userName: 'User',
+  outputLanguage: 'English',
+  narratorProfileId: null,
+  summaryProfileId: null,
+  canonProfileId: null,
+  sceneProfileId: null,
+  canonReview: true,
+};
 
 type Key = keyof Settings | 'passwordHash';
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -27,10 +35,16 @@ export function setSetting(db: Db | Tx, key: Key, value: unknown): void {
 export function getSettings(db: Db): Settings {
   const rows = db.select().from(settings).all();
   const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const pick = <K extends keyof Settings>(key: K): Settings[K] =>
+    (stored[key] as Settings[K] | undefined) ?? DEFAULTS[key];
   return {
-    userName: (stored.userName as string) ?? DEFAULTS.userName,
-    outputLanguage: (stored.outputLanguage as string) ?? DEFAULTS.outputLanguage,
-    narratorProfileId: (stored.narratorProfileId as string | null) ?? DEFAULTS.narratorProfileId,
+    userName: pick('userName'),
+    outputLanguage: pick('outputLanguage'),
+    narratorProfileId: pick('narratorProfileId'),
+    summaryProfileId: pick('summaryProfileId'),
+    canonProfileId: pick('canonProfileId'),
+    sceneProfileId: pick('sceneProfileId'),
+    canonReview: pick('canonReview'),
   };
 }
 

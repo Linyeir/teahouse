@@ -2,7 +2,17 @@
 
 Self-hostable AI roleplay in the style of a visual novel, with two-tier memory: Active Memory keeps long scenes in the context window, and a canon of Git-versioned Markdown files holds lasting world knowledge.
 
-**Status:** early development, v0.1 step 2 of 4. Teahouse has worlds as Markdown plus Git, Character Card import and a plain chat with one character against any OpenAI-compatible endpoint. Scenes and memory follow.
+**Status:** early development, v0.1 step 3 of 4. Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory and canon updates reviewed as diffs, against any OpenAI-compatible endpoint. The memory test run follows.
+
+## Scenes and memory
+
+A chat is a sequence of scenes. While a scene runs, **Active Memory** summarizes it in the background once the history reaches 80 % of the budget left after template, canon and response, folding in enough to get back to about 50 %. The scene's start message and the last three turns always stay verbatim. Editing a message that a summary covers drops that summary.
+
+The canon in the prompt gets 30 % of the context window, filled by priority: `world.md`, `user.md` and the present characters, then the last two events of the chat, then files whose tags, aliases or name appear in the recent story, then older events. Over budget, files are cut to their `summary`, then dropped; the first group is never dropped.
+
+When you **end a scene**, you choose with or without canon. With canon, an LLM proposes structured changes (a new `events/` file plus section and frontmatter edits); you accept, edit or reject each file as a diff, and the accepted ones become one commit. Files edited in the meantime are merged three-way with `git merge-file`. The next scene starts from a short brief: Teahouse proposes an opening and a cast.
+
+Each role (narrator, summary, canon, scene start) can use its own profile under **Settings**.
 
 ## Worlds
 

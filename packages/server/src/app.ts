@@ -4,17 +4,24 @@ import fastifyWebsocket from '@fastify/websocket';
 import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { resolveToken } from './auth/tokens.ts';
+import { CanonProposals, ProposalError } from './canon/proposals.ts';
 import { CardError } from './cards/parse.ts';
 import type { Db } from './db/index.ts';
 import { Generator, type StreamFn } from './generation.ts';
 import { Hub } from './hub.ts';
+import { complete } from './llm/client.ts';
+import { ModelOutputError } from './llm/json.ts';
+import { Memory } from './memory.ts';
+import { NoProfileError } from './roles.ts';
 import { authRoutes } from './routes/auth.ts';
 import { chatRoutes } from './routes/chats.ts';
 import { HttpError, type Services } from './routes/context.ts';
 import { profileRoutes } from './routes/profiles.ts';
+import { proposalRoutes } from './routes/proposals.ts';
 import { settingsRoutes } from './routes/settings.ts';
 import { worldRoutes } from './routes/worlds.ts';
 import { wsRoutes } from './routes/ws.ts';
+import { SceneError, Scenes } from './scenes.ts';
 import { PathError } from './worlds/paths.ts';
 import { WorldNotFoundError, type WorldService } from './worlds/service.ts';
 
@@ -32,23 +39,39 @@ export interface AppOptions {
   db: Db;
   worlds: WorldService;
   clientDir?: string | null;
-  /** Replaces the LLM call, for tests. */
+  /** Replace the LLM calls, for tests. */
   stream?: StreamFn;
+  complete?: typeof complete;
   logger?: FastifyServerOptions['logger'];
 }
 
-export async function buildApp({ db, worlds, clientDir, stream, logger = false }: AppOptions) {
+export async function buildApp({
+  db,
+  worlds,
+  clientDir,
+  stream,
+  complete: completeFn,
+  logger = false,
+}: AppOptions) {
   const app = Fastify({ logger });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.decorateRequest('deviceId', '');
 
   const hub = new Hub();
+  const memory = new Memory(db, worlds, completeFn ?? complete, (err) =>
+    app.log.warn({ err }, 'Active Memory summary failed'),
+  );
+  const generator = new Generator(db, hub, worlds, memory, stream);
+  const proposals = new CanonProposals({ db, worlds, hub, complete: completeFn });
   const services: Services = {
     db,
     hub,
     worlds,
-    generator: new Generator(db, hub, worlds, stream),
+    memory,
+    generator,
+    proposals,
+    scenes: new Scenes(db, worlds, hub, generator, proposals, completeFn),
   };
 
   app.addHook('onRequest', async (req, reply) => {
@@ -70,6 +93,19 @@ export async function buildApp({ db, worlds, clientDir, stream, logger = false }
     }
     if (err instanceof WorldNotFoundError) {
       return reply.code(404).send({ error: 'not_found', message: err.message });
+    }
+    if (err instanceof SceneError) {
+      const status = { not_found: 404, conflict: 409, invalid: 400 }[err.code];
+      return reply.code(status).send({ error: err.code, message: err.message });
+    }
+    if (err instanceof ProposalError) {
+      return reply.code(409).send({ error: 'conflict', message: err.message });
+    }
+    if (err instanceof ModelOutputError) {
+      return reply.code(502).send({ error: 'bad_model_output', message: err.message });
+    }
+    if (err instanceof NoProfileError) {
+      return reply.code(409).send({ error: 'no_profile', message: err.message });
     }
     if (err instanceof PathError || err instanceof CardError) {
       return reply.code(400).send({ error: 'invalid_request', message: err.message });
@@ -94,6 +130,7 @@ export async function buildApp({ db, worlds, clientDir, stream, logger = false }
     profileRoutes,
     worldRoutes,
     chatRoutes,
+    proposalRoutes,
     settingsRoutes,
     wsRoutes,
   ]) {
@@ -111,6 +148,9 @@ export async function buildApp({ db, worlds, clientDir, stream, logger = false }
     });
   }
 
-  app.addHook('onClose', () => services.generator.stopAll());
+  app.addHook('onClose', async () => {
+    await generator.stopAll();
+    await Promise.all([memory.idle(), proposals.idle()]);
+  });
   return app;
 }

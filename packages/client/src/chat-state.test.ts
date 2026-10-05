@@ -16,6 +16,9 @@ const msg = (id: string, parentId: string | null, content = ''): Message => ({
 
 const path: ChatPath = {
   chat: { id: 'c', title: 'T', worldId: 'w', characterSlug: 'x', activeLeafId: 'b', updatedAt: '' },
+  scene: null,
+  memory: [],
+  closedScenes: [],
   messages: [
     { ...msg('a', null, 'hi'), siblingIds: ['a'] },
     { ...msg('b', 'a', 'old'), siblingIds: ['b'] },

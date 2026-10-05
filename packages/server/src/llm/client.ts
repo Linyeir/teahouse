@@ -57,6 +57,83 @@ export async function* streamChat(
   }
 }
 
+export interface CompleteOptions {
+  signal?: AbortSignal;
+  /**
+   * Lower bound for `max_tokens`. The profile's limit is tuned for narrator replies; JSON
+   * answers cut off by it are useless.
+   */
+  minTokens?: number;
+  /** Asks for JSON matching this schema where the endpoint supports structured output. */
+  jsonSchema?: { name: string; schema: Record<string, unknown> };
+}
+
+/** Non-streaming completion, used by the summary, canon and scene start roles. */
+export async function complete(
+  profile: GenerationProfile,
+  messages: ChatMessage[],
+  options: CompleteOptions = {},
+): Promise<string> {
+  const client = createClient(profile);
+  const maxTokens =
+    profile.maxTokens !== null && options.minTokens !== undefined
+      ? Math.max(profile.maxTokens, options.minTokens)
+      : profile.maxTokens;
+  const base = {
+    model: profile.model,
+    messages,
+    ...(profile.temperature !== null && { temperature: profile.temperature }),
+    ...(profile.topP !== null && { top_p: profile.topP }),
+    ...(maxTokens !== null && { max_tokens: maxTokens }),
+  };
+  type Format = 'json_schema' | 'json_object' | 'none';
+  const responseFormat = (format: Format) =>
+    format === 'json_schema' && options.jsonSchema
+      ? { type: 'json_schema' as const, json_schema: { ...options.jsonSchema, strict: false } }
+      : format === 'json_object'
+        ? { type: 'json_object' as const }
+        : undefined;
+  const request = async (format: Format) => {
+    const response = await client.chat.completions.create(
+      { ...base, ...(responseFormat(format) && { response_format: responseFormat(format) }) },
+      { signal: options.signal },
+    );
+    return response.choices[0]?.message?.content ?? '';
+  };
+  if (!options.jsonSchema) return request('none');
+  // Support for `response_format` varies between servers and providers: try JSON schema,
+  // then plain JSON mode, then nothing (the prompt asks for JSON as well).
+  const formats: Format[] = ['json_schema', 'json_object', 'none'];
+  for (const [i, format] of formats.entries()) {
+    try {
+      return await request(format);
+    } catch (err) {
+      const unsupported =
+        err instanceof OpenAI.APIError &&
+        err.status !== undefined &&
+        err.status >= 400 &&
+        err.status < 500 &&
+        err.status !== 429;
+      if (!unsupported || i === formats.length - 1) throw err;
+    }
+  }
+  throw new Error('unreachable');
+}
+
+/** Extracts the first JSON object from model output (tolerates code fences and prose). */
+export function extractJson(text: string): unknown {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  const candidate = (fenced?.[1] ?? text).trim();
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start === -1 || end <= start) throw new Error('The model did not return JSON');
+    return JSON.parse(candidate.slice(start, end + 1));
+  }
+}
+
 function isOpenRouter(baseUrl: string): boolean {
   try {
     return new URL(baseUrl).hostname.endsWith('openrouter.ai');

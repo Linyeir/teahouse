@@ -24,6 +24,7 @@
     "drizzle-orm": "^0.45.3",
     "fastify": "^5.12.5",
     "fastify-type-provider-zod": "^7.0.0",
+    "gpt-tokenizer": "^4.0.0",
     "openai": "^7.28.0",
     "png-chunk-text": "^1.0.0",
     "png-chunks-extract": "^1.0.0",

@@ -12,7 +12,8 @@ export type ServerEvent =
       delta: string;
     }
   | { type: 'generation.finished'; chatId: string; message: Message }
-  | { type: 'chat.changed'; chatId: string };
+  | { type: 'chat.changed'; chatId: string }
+  | { type: 'proposal.changed'; chatId: string; sceneId: string };
 
 /** Client → server messages on the WebSocket. */
 export type ClientEvent = { type: 'generation.stop'; messageId: string };

@@ -86,15 +86,19 @@ describe('chat', () => {
       captured = String(messages[0]?.content);
       yield 'ok';
     });
-    await api('PUT', '/api/settings', {
+    const settings = await api<Record<string, unknown>>('GET', '/api/settings');
+    const saved = await api('PUT', '/api/settings', {
+      ...settings.body,
       userName: 'Ash',
       outputLanguage: 'German',
-      narratorProfileId: null,
     });
+    expect(saved.status).toBe(200);
     await api('POST', `/api/chats/${chat.chat.id}/generate`);
     await waitFor(() => captured !== '');
     expect(captured).toContain('Mira is a smuggler who distrusts Ash.');
-    expect(captured).toContain('<world>\nIt always rains here.\n</world>');
+    expect(captured).toContain(
+      '<file path="world.md" name="Rain Port">\nIt always rains here.\n</file>',
+    );
     expect(captured).toContain('Write in German.');
   });
 

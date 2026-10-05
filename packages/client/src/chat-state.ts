@@ -42,6 +42,7 @@ export function applyUpdate(path: ChatPath, update: PathUpdate): ChatPath | null
     if (message.parentId !== null && parentIndex === -1) return null;
     const previousSiblings = path.messages[parentIndex + 1]?.siblingIds ?? [];
     return {
+      ...path,
       chat: { ...path.chat, activeLeafId: message.id },
       messages: [
         ...path.messages.slice(0, parentIndex + 1),
