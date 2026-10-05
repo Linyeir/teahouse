@@ -1,45 +1,43 @@
-import { useQuery } from '@tanstack/react-query';
-import type { Character, Chat } from '@teahouse/shared';
+import type { World } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { api } from '../api.ts';
+import { CharacterRow } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
-import { useStartChat } from './CharactersView.tsx';
+import { useCharacters, useWorlds } from '../queries.ts';
 
 export function HomeView() {
   const { t } = useTranslation();
-  const chats = useQuery({ queryKey: ['chats'], queryFn: () => api.get<Chat[]>('/api/chats') });
-  const characters = useQuery({
-    queryKey: ['characters'],
-    queryFn: () => api.get<Character[]>('/api/characters'),
-  });
-  const startChat = useStartChat();
+  const worlds = useWorlds();
 
   return (
     <div className={ui.page}>
-      <p className={ui.muted}>{chats.data?.length ? t('chats.pick') : t('chats.empty')}</p>
-      {characters.data?.length ? (
-        <>
-          <h2 className={ui.title}>{t('chats.start')}</h2>
-          <ul className={ui.list}>
-            {characters.data.map((c) => (
-              <li key={c.id} className={ui.listItem}>
-                <span className={ui.grow}>{c.name}</span>
-                <button
-                  className={ui.primary}
-                  type="button"
-                  disabled={startChat.isPending}
-                  onClick={() => startChat.mutate(c.id)}
-                >
-                  {t('characters.startChat')}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
+      {worlds.data?.length === 0 ? (
+        <p className={ui.muted}>
+          {t('home.noWorlds')} <Link to="/worlds">{t('home.toWorlds')}</Link>
+        </p>
       ) : (
-        <Link to="/characters">{t('characters.new')}</Link>
+        <p className={ui.muted}>{t('chats.pick')}</p>
       )}
+      {worlds.data?.map((world) => (
+        <WorldCharacters key={world.id} world={world} />
+      ))}
     </div>
+  );
+}
+
+function WorldCharacters({ world }: { world: World }) {
+  const characters = useCharacters(world.id);
+  if (!characters.data?.length) return null;
+  return (
+    <>
+      <h2 className={ui.title}>
+        <Link to={`/worlds/${world.id}`}>{world.name}</Link>
+      </h2>
+      <ul className={ui.list}>
+        {characters.data.map((c) => (
+          <CharacterRow key={c.slug} worldId={world.id} character={c} />
+        ))}
+      </ul>
+    </>
   );
 }

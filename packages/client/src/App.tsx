@@ -4,12 +4,13 @@ import { Route, Routes } from 'react-router';
 import { getToken } from './api.ts';
 import { useServerEvents } from './events.ts';
 import { AuthView } from './views/AuthView.tsx';
-import { CharactersView } from './views/CharactersView.tsx';
 import { ChatView } from './views/ChatView.tsx';
 import { HomeView } from './views/HomeView.tsx';
 import { Layout } from './views/Layout.tsx';
 import { ProfilesView } from './views/ProfilesView.tsx';
 import { SettingsView } from './views/SettingsView.tsx';
+import { WorldsView } from './views/WorldsView.tsx';
+import { WorldView } from './views/WorldView.tsx';
 
 function useToken() {
   const [token, setTokenState] = useState(getToken);
@@ -37,7 +38,8 @@ export function App() {
       <Route element={<Layout connection={connection} />}>
         <Route index element={<HomeView />} />
         <Route path="chats/:chatId" element={<ChatView />} />
-        <Route path="characters" element={<CharactersView />} />
+        <Route path="worlds" element={<WorldsView />} />
+        <Route path="worlds/:worldId" element={<WorldView />} />
         <Route path="profiles" element={<ProfilesView />} />
         <Route path="settings" element={<SettingsView />} />
       </Route>

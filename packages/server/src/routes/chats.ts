@@ -6,11 +6,11 @@ import {
   selectLeafInput,
   sendMessageInput,
 } from '@teahouse/shared';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { desc, eq, isNull } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Db } from '../db/index.ts';
-import { characters, chats, messages } from '../db/schema.ts';
+import { chats, messages } from '../db/schema.ts';
 import { GenerationError } from '../generation.ts';
 import { newId, now } from '../time.ts';
 import { activePath, deepestLeaf, getChatRow, getMessageRow, toChat, toMessage } from '../tree.ts';
@@ -30,13 +30,13 @@ const generationHttpError = (err: unknown) => {
   return new HttpError(status, err.code, err.message);
 };
 
-export async function chatRoutes(app: FastifyInstance, { db, hub, generator }: Services) {
+export async function chatRoutes(app: FastifyInstance, { db, hub, generator, worlds }: Services) {
   const r = typed(app);
   const changed = (chatId: string) => hub.broadcast({ type: 'chat.changed', chatId });
 
-  const startGeneration = (chatId: string, parentId: string | null) => {
+  const startGeneration = async (chatId: string, parentId: string | null) => {
     try {
-      return generator.start(chatId, parentId);
+      return await generator.start(chatId, parentId);
     } catch (err) {
       throw generationHttpError(err);
     }
@@ -53,22 +53,20 @@ export async function chatRoutes(app: FastifyInstance, { db, hub, generator }: S
   );
 
   r.post('/api/chats', { schema: { body: chatInput } }, async ({ body }) => {
-    const character = db
-      .select()
-      .from(characters)
-      .where(and(eq(characters.id, body.characterId), isNull(characters.deletedAt)))
-      .get();
+    const character = await worlds.character(body.worldId, body.characterSlug);
     if (!character) throw notFound('Character');
+    const greeting = character.summary.greetings[body.greetingIndex] ?? '';
 
     const timestamp = now();
     const chatId = newId();
-    const greetingId = character.firstMessage.trim() ? newId() : null;
+    const greetingId = greeting.trim() ? newId() : null;
     db.transaction((tx) => {
       tx.insert(chats)
         .values({
           id: chatId,
-          title: body.title?.trim() || character.name,
-          characterId: character.id,
+          title: body.title?.trim() || character.summary.name,
+          worldId: body.worldId,
+          characterSlug: body.characterSlug,
           activeLeafId: greetingId,
           createdAt: timestamp,
           updatedAt: timestamp,
@@ -81,7 +79,7 @@ export async function chatRoutes(app: FastifyInstance, { db, hub, generator }: S
             chatId,
             parentId: null,
             role: 'assistant',
-            content: character.firstMessage,
+            content: greeting,
             status: 'complete',
             createdAt: timestamp,
             updatedAt: timestamp,
@@ -155,7 +153,7 @@ export async function chatRoutes(app: FastifyInstance, { db, hub, generator }: S
         });
         changed(chat.id);
       }
-      return { messageId: startGeneration(chat.id, messageId).id };
+      return { messageId: (await startGeneration(chat.id, messageId)).id };
     },
   );
 
@@ -163,7 +161,7 @@ export async function chatRoutes(app: FastifyInstance, { db, hub, generator }: S
   r.post('/api/chats/:id/generate', { schema: { params } }, async ({ params }) => {
     const chat = getChatRow(db, params.id);
     if (!chat) throw notFound('Chat');
-    return { messageId: startGeneration(chat.id, chat.activeLeafId).id };
+    return { messageId: (await startGeneration(chat.id, chat.activeLeafId)).id };
   });
 
   r.post('/api/chats/:id/leaf', { schema: { params, body: selectLeafInput } }, async (req) => {
@@ -181,7 +179,7 @@ export async function chatRoutes(app: FastifyInstance, { db, hub, generator }: S
   r.post('/api/messages/:id/regenerate', { schema: { params } }, async ({ params }) => {
     const message = getMessageRow(db, params.id);
     if (message?.role !== 'assistant') throw notFound('Assistant message');
-    return { messageId: startGeneration(message.chatId, message.parentId).id };
+    return { messageId: (await startGeneration(message.chatId, message.parentId)).id };
   });
 
   r.post('/api/messages/:id/stop', { schema: { params } }, async ({ params }) => ({

@@ -21,7 +21,8 @@ export const toMessage = (row: MessageRow): Message => ({
 export const toChat = (row: ChatRow): Chat => ({
   id: row.id,
   title: row.title,
-  characterId: row.characterId,
+  worldId: row.worldId,
+  characterSlug: row.characterSlug,
   activeLeafId: row.activeLeafId,
   updatedAt: row.updatedAt,
 });

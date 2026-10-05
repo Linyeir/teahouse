@@ -1,13 +1,15 @@
 import type { Message } from '@teahouse/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { Db } from './db/index.ts';
-import { characters, chats, messages, profiles } from './db/schema.ts';
+import { chats, messages, profiles } from './db/schema.ts';
 import type { Hub } from './hub.ts';
 import { type ChatMessage, type GenerationProfile, streamChat } from './llm/client.ts';
 import { buildNarratorMessages } from './prompt.ts';
 import { getSettings } from './settings.ts';
 import { newId, now } from './time.ts';
 import { activePath, getChatRow, toMessage } from './tree.ts';
+import { parseDocument } from './worlds/frontmatter.ts';
+import type { WorldService } from './worlds/service.ts';
 
 export class GenerationError extends Error {
   constructor(
@@ -32,6 +34,7 @@ export class Generator {
   constructor(
     private readonly db: Db,
     private readonly hub: Hub,
+    private readonly worlds: WorldService,
     private readonly stream: StreamFn = streamChat,
   ) {}
 
@@ -44,29 +47,35 @@ export class Generator {
    * Creates an assistant message under `parentId`, makes it the active leaf and streams the
    * reply into it in the background. Returns the new (still streaming) message.
    */
-  start(chatId: string, parentId: string | null): Message {
+  async start(chatId: string, parentId: string | null): Promise<Message> {
     const chat = getChatRow(this.db, chatId);
     if (!chat) throw new GenerationError('not_found', 'Chat not found');
-    if (this.isBusy(chatId))
-      throw new GenerationError('busy', 'A reply is already being generated');
+    this.#assertIdle(chatId);
 
     const profile = this.#narratorProfile();
-    const character = this.db
-      .select()
-      .from(characters)
-      .where(eq(characters.id, chat.characterId))
-      .get();
-    if (!character) throw new GenerationError('not_found', 'Character not found');
+    const character = await this.worlds
+      .character(chat.worldId, chat.characterSlug)
+      .catch(() => null);
+    if (!character) {
+      throw new GenerationError('not_found', `Character ${chat.characterSlug} not found`);
+    }
+    const canonBody = async (path: string) =>
+      parseDocument((await this.worlds.readIfExists(chat.worldId, path)) ?? '').body;
 
     const settings = getSettings(this.db);
     const history = parentId ? activePath(this.db, chatId, parentId) : [];
     const prompt = buildNarratorMessages({
-      characterName: character.name,
-      characterDescription: character.description,
+      characterName: character.summary.name,
+      world: await canonBody('world.md'),
+      persona: await canonBody('user.md'),
+      character: character.body,
       userName: settings.userName,
       language: settings.outputLanguage,
       history: history.map((m) => ({ role: m.role, content: m.content })),
     });
+    // Reading the canon was async: another request may have started a reply meanwhile.
+    // Everything from here to registering the run is synchronous.
+    this.#assertIdle(chatId);
 
     const timestamp = now();
     const row = {
@@ -96,6 +105,11 @@ export class Generator {
     this.hub.broadcast({ type: 'generation.started', chatId, message });
     void this.#run(message, profile, prompt, controller);
     return message;
+  }
+
+  #assertIdle(chatId: string): void {
+    if (this.isBusy(chatId))
+      throw new GenerationError('busy', 'A reply is already being generated');
   }
 
   stop(messageId: string): boolean {

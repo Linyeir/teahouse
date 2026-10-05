@@ -1,18 +1,22 @@
+import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { resolveToken } from './auth/tokens.ts';
+import { CardError } from './cards/parse.ts';
 import type { Db } from './db/index.ts';
 import { Generator, type StreamFn } from './generation.ts';
 import { Hub } from './hub.ts';
 import { authRoutes } from './routes/auth.ts';
-import { characterRoutes } from './routes/characters.ts';
 import { chatRoutes } from './routes/chats.ts';
 import { HttpError, type Services } from './routes/context.ts';
 import { profileRoutes } from './routes/profiles.ts';
 import { settingsRoutes } from './routes/settings.ts';
+import { worldRoutes } from './routes/worlds.ts';
 import { wsRoutes } from './routes/ws.ts';
+import { PathError } from './worlds/paths.ts';
+import { WorldNotFoundError, type WorldService } from './worlds/service.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -26,20 +30,26 @@ declare module 'fastify' {
 
 export interface AppOptions {
   db: Db;
+  worlds: WorldService;
   clientDir?: string | null;
   /** Replaces the LLM call, for tests. */
   stream?: StreamFn;
   logger?: FastifyServerOptions['logger'];
 }
 
-export async function buildApp({ db, clientDir, stream, logger = false }: AppOptions) {
+export async function buildApp({ db, worlds, clientDir, stream, logger = false }: AppOptions) {
   const app = Fastify({ logger });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.decorateRequest('deviceId', '');
 
   const hub = new Hub();
-  const services: Services = { db, hub, generator: new Generator(db, hub, stream) };
+  const services: Services = {
+    db,
+    hub,
+    worlds,
+    generator: new Generator(db, hub, worlds, stream),
+  };
 
   app.addHook('onRequest', async (req, reply) => {
     if (!req.url.startsWith('/api/') || req.routeOptions.config?.public) return;
@@ -58,6 +68,15 @@ export async function buildApp({ db, clientDir, stream, logger = false }: AppOpt
     if (err instanceof HttpError) {
       return reply.code(err.statusCode).send({ error: err.code, message: err.message });
     }
+    if (err instanceof WorldNotFoundError) {
+      return reply.code(404).send({ error: 'not_found', message: err.message });
+    }
+    if (err instanceof PathError || err instanceof CardError) {
+      return reply.code(400).send({ error: 'invalid_request', message: err.message });
+    }
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return reply.code(404).send({ error: 'not_found', message: 'File not found' });
+    }
     if ('validation' in err && err.validation) {
       return reply.code(400).send({ error: 'invalid_request', message: err.message });
     }
@@ -69,10 +88,11 @@ export async function buildApp({ db, clientDir, stream, logger = false }: AppOpt
   });
 
   await app.register(fastifyWebsocket);
+  await app.register(fastifyMultipart);
   for (const routes of [
     authRoutes,
     profileRoutes,
-    characterRoutes,
+    worldRoutes,
     chatRoutes,
     settingsRoutes,
     wsRoutes,

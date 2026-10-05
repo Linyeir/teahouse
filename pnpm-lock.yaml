@@ -63,6 +63,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@fastify/multipart':
+        specifier: ^10.1.2
+        version: 10.1.2
       '@fastify/rate-limit':
         specifier: ^11.2.0
         version: 11.2.0
@@ -75,12 +78,18 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.2.1
         version: 2.2.1
+      '@sindresorhus/slugify':
+        specifier: ^3.0.1
+        version: 3.0.1
       '@teahouse/shared':
         specifier: workspace:*
         version: link:../shared
       better-sqlite3:
         specifier: ^13.0.3
         version: 13.0.3
+      chokidar:
+        specifier: ^5.0.0
+        version: 5.0.0
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)
@@ -93,12 +102,24 @@ importers:
       openai:
         specifier: ^7.28.0
         version: 7.28.0(ws@8.22.0)(zod@4.6.5)
+      png-chunk-text:
+        specifier: ^1.0.0
+        version: 1.0.0
+      png-chunks-extract:
+        specifier: ^1.0.0
+        version: 1.0.0
+      simple-git:
+        specifier: ^4.0.2
+        version: 4.0.2
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
       uuid:
         specifier: ^14.0.2
         version: 14.0.2
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -109,12 +130,24 @@ importers:
       '@types/node':
         specifier: ^24.19.1
         version: 24.19.1
+      '@types/png-chunk-text':
+        specifier: ^1.0.3
+        version: 1.0.3
+      '@types/png-chunks-encode':
+        specifier: ^1.0.2
+        version: 1.0.2
+      '@types/png-chunks-extract':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+      png-chunks-encode:
+        specifier: ^1.0.0
+        version: 1.0.0
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -649,6 +682,12 @@ packages:
   '@fastify/ajv-compiler@4.0.6':
     resolution: {integrity: sha512-NtuzM0SfaMJbGlnjr9LWQUN5LzgSrbB8tf/wRZNas+4E1O/Nmzl53e7ruT61HDZyRCJGC6FxIogmNZO1c5ETBA==}
 
+  '@fastify/busboy@3.2.2':
+    resolution: {integrity: sha512-yXSS27qPExaXeuLvMRMXOLtpipzfQYNjG3FkunDWKGfMYjKuhFXko9CVzqxm8jcF+lmtS9Fd89QNdh9XDjnbNg==}
+
+  '@fastify/deepmerge@3.2.2':
+    resolution: {integrity: sha512-155eqA/WMQdN6gUD4RrhS2K0Pcz2Ou9pQ86L0sipOpP9ONbTA6oYw/hW4VdBjR4egcDHqmWUK9x80oUX7S1mDQ==}
+
   '@fastify/error@4.2.0':
     resolution: {integrity: sha512-RSo3sVDXfHskiBZKBPRgnQTtIqpi/7zhJOEmAxCiBcM7d0uwdGdxLlsCaLzGs8v8NnxIRlfG0N51p5yFaOentQ==}
 
@@ -660,6 +699,9 @@ packages:
 
   '@fastify/merge-json-schemas@0.2.1':
     resolution: {integrity: sha512-OA3KGBCy6KtIvLf8DINC5880o5iBlDX4SxzLQS8HorJAbqluzLRn80UXU0bxZn7UOFhFgpRJDasfwn9nG4FG4A==}
+
+  '@fastify/multipart@10.1.2':
+    resolution: {integrity: sha512-WHsqW5ffDXCbXXtdBQDryxu58fQvFPVGh4E4MlCO6hwCLNm0lYTCS6GKXUw2P64REDoECUNpMVvtMMstdIyBjQ==}
 
   '@fastify/proxy-addr@5.1.1':
     resolution: {integrity: sha512-zv07Y9GEuDsJPegZoDFd4SDWaZOW8N2pa0GSrYmKpId/tjt1Hgo3BjZBVjdVpfVrHaA+Qv5jawtS2O50J5xM9g==}
@@ -688,6 +730,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kwsites/file-exists@1.1.1':
+    resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
+
+  '@kwsites/promise-deferred@1.1.1':
+    resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -877,6 +925,20 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
+  '@simple-git/args-pathspec@1.0.4':
+    resolution: {integrity: sha512-EtMX6XjRWSastG2SdkmSQByPtJ9dx/NIjnHbpQPCYt62j4RmSx5rgLTGpw0YCjF5h191gZOmBfheOT23cRSFdw==}
+
+  '@simple-git/argv-parser@2.0.1':
+    resolution: {integrity: sha512-M++IaVWrN+vYalilOHfwvT2IL3wYZtVEBQpmX6DLSOJLtxbZ+SUeIDE3IiPogzhPACLajwtxfa5rp+ZX1FczzQ==}
+
+  '@sindresorhus/slugify@3.0.1':
+    resolution: {integrity: sha512-N1oPvN6sytRKZCskv0L+vSyvnUYi9JplPXZ90lT6EBsijjHrUdoXttb0Lna6pw1TWMe8vlajQnLDtU9KYHqtDg==}
+    engines: {node: '>=20'}
+
+  '@sindresorhus/transliterate@2.3.1':
+    resolution: {integrity: sha512-gVaaGtKYMYAMmI8buULVH3A2TXVJ98QiwGwI7ddrWGuGidGC2uRt4FHs22+8iROJ0QTzju9CuMjlVsrvpqsdhA==}
+    engines: {node: '>=20'}
+
   '@tanstack/query-core@5.104.1':
     resolution: {integrity: sha512-TiRghcrGkUTE+M4JBxvpPSpBhxvIzQairw+cksrHYGr+2uwC77yW1SY9nYxnYRYOppvucf8rEg6b5byoz4rTpw==}
 
@@ -899,6 +961,15 @@ packages:
 
   '@types/node@24.19.1':
     resolution: {integrity: sha512-aS3/DG0oM05K0RIXXP+hKjinGG5IgSSVGzswZxW3O0sS3pH4/fycXundUC9XsszgKCk4gHXylTEK6hyFxVxnoQ==}
+
+  '@types/png-chunk-text@1.0.3':
+    resolution: {integrity: sha512-7keEFz73uNJ9Ar1XMCNnHEXT9pICJnouMQCCYgBEmHMgdkXaQzSTmSvr6tUDSqgdEgmlRAxZd97wprgliyZoCg==}
+
+  '@types/png-chunks-encode@1.0.2':
+    resolution: {integrity: sha512-Dxn0aXEcSg1wVeHjvNlygm/+fKBDzWMCdxJYhjGUTeefFW/jYxWcrg+W7ppLBfH44iJMqeVBHtHBwtYQUeYvgw==}
+
+  '@types/png-chunks-extract@1.0.2':
+    resolution: {integrity: sha512-z6djfFIbrrddtunoMJBOPlyZrnmeuG1kkvHUNi2QfpOb+JMMLuLliHHTmMyRi7k7LiTAut0HbdGCF6ibDtQAHQ==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -985,6 +1056,10 @@ packages:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
     engines: {node: '>=18'}
 
+  chokidar@5.0.0:
+    resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
+    engines: {node: '>= 20.19.0'}
+
   content-disposition@3.0.0:
     resolution: {integrity: sha512-ZH/0Xs9rMIFWCOmGdmS9eHBTF62qqQYNz4nVjQhkdIO/a0fCP4UIM3mRz/wiqL0L14YgAz/1xio4OaSY4+ON/A==}
     engines: {node: '>=22'}
@@ -995,6 +1070,10 @@ packages:
   cookie@1.1.1:
     resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
     engines: {node: '>=18'}
+
+  crc-32@0.3.0:
+    resolution: {integrity: sha512-kucVIjOmMc1f0tv53BJ/5WIX+MGLcKuoBhnGqQrgKJNqLByb/sVMWfW/Aw6hw0jgcqjJ2pi9E5y32zOIpaUlsA==}
+    engines: {node: '>=0.8'}
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -1145,6 +1224,10 @@ packages:
 
   escape-html@1.0.3:
     resolution: {integrity: sha512-NiSupZ4OeuGwr68lGIeym/ksIZMJodUGOSCZ/FSnTxcrekbvqrgdUxlJOMpijaKZVjAJrWrGs/6Jy8OMuyj9ow==}
+
+  escape-string-regexp@5.0.0:
+    resolution: {integrity: sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==}
+    engines: {node: '>=12'}
 
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
@@ -1416,6 +1499,15 @@ packages:
     resolution: {integrity: sha512-bk1ZMTwG/Vymx+zPoa28MhNzucFvXJWp3csrSuxuHPSMeUettaCoQ5Jvg07mtC4JGNpcfTwz41oVCnNgBK9+vA==}
     hasBin: true
 
+  png-chunk-text@1.0.0:
+    resolution: {integrity: sha512-DEROKU3SkkLGWNMzru3xPVgxyd48UGuMSZvioErCure6yhOc/pRH2ZV+SEn7nmaf7WNf3NdIpH+UTrRdKyq9Lw==}
+
+  png-chunks-encode@1.0.0:
+    resolution: {integrity: sha512-J1jcHgbQRsIIgx5wxW9UmCymV3wwn4qCCJl6KYgEU/yHCh/L2Mwq/nMOkRPtmV79TLxRZj5w3tH69pvygFkDqA==}
+
+  png-chunks-extract@1.0.0:
+    resolution: {integrity: sha512-ZiVwF5EJ0DNZyzAqld8BP1qyJBaGOFaq9zl579qfbkcmOwWLLO4I9L8i2O4j3HkI6/35i0nKG2n+dZplxiT89Q==}
+
   postcss@8.5.29:
     resolution: {integrity: sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==}
     engines: {node: ^10 || ^12 || >=14}
@@ -1467,6 +1559,10 @@ packages:
   readable-stream@3.6.2:
     resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
     engines: {node: '>= 6'}
+
+  readdirp@5.1.1:
+    resolution: {integrity: sha512-Kko+Y5XQ6fM+Ce3dq3m9YGxnacYZYl9cA1wZjaF3Vbry2L3i1qVg8+CAgNPsXRArPMUMCaOR7oa9Nqntc43JKA==}
+    engines: {node: '>= 20.19.0'}
 
   real-require@1.0.0:
     resolution: {integrity: sha512-P4nbQYQfePJxRSmY+v/KINxVucm4NF3p3s7pJveMTtom52FR4YGltUQLB8idDXwDDWW+eYrWDFbuzUnjoWHF7g==}
@@ -1521,6 +1617,13 @@ packages:
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
+
+  simple-git@4.0.2:
+    resolution: {integrity: sha512-l0sIsv9VrPwovKELFDBOj/lhmIcbMvxBk2B+hRhsMM4/VL3gKtuZvYnBNixVo+N/0HnqQx2cBdLvxnAbygHpqA==}
+
+  sliced@1.0.1:
+    resolution: {integrity: sha512-VZBmZP8WU3sMOZm1bdgTadsQbcscK0UM8oKxKVBs4XAhUo2Xxzm/OFMGBkPusxw9xL3Uy8LrzEqGqJhclsr0yA==}
+    deprecated: Unsupported
 
   sonic-boom@4.2.1:
     resolution: {integrity: sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q==}
@@ -1995,6 +2098,10 @@ snapshots:
       ajv-formats: 3.0.1(ajv@8.20.0)
       fast-uri: 4.2.1
 
+  '@fastify/busboy@3.2.2': {}
+
+  '@fastify/deepmerge@3.2.2': {}
+
   '@fastify/error@4.2.0': {}
 
   '@fastify/fast-json-stringify-compiler@5.1.0':
@@ -2006,6 +2113,14 @@ snapshots:
   '@fastify/merge-json-schemas@0.2.1':
     dependencies:
       dequal: 2.0.3
+
+  '@fastify/multipart@10.1.2':
+    dependencies:
+      '@fastify/busboy': 3.2.2
+      '@fastify/deepmerge': 3.2.2
+      '@fastify/error': 4.2.0
+      fastify-plugin: 6.0.0
+      secure-json-parse: 4.1.0
 
   '@fastify/proxy-addr@5.1.1':
     dependencies:
@@ -2064,6 +2179,14 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@kwsites/file-exists@1.1.1':
+    dependencies:
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@kwsites/promise-deferred@1.1.1': {}
 
   '@lukeed/ms@2.0.2': {}
 
@@ -2175,6 +2298,19 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
+  '@simple-git/args-pathspec@1.0.4': {}
+
+  '@simple-git/argv-parser@2.0.1':
+    dependencies:
+      '@simple-git/args-pathspec': 1.0.4
+
+  '@sindresorhus/slugify@3.0.1':
+    dependencies:
+      '@sindresorhus/transliterate': 2.3.1
+      escape-string-regexp: 5.0.0
+
+  '@sindresorhus/transliterate@2.3.1': {}
+
   '@tanstack/query-core@5.104.1': {}
 
   '@tanstack/react-query@5.104.1(react@19.3.0)':
@@ -2198,6 +2334,12 @@ snapshots:
   '@types/node@24.19.1':
     dependencies:
       undici-types: 7.24.6
+
+  '@types/png-chunk-text@1.0.3': {}
+
+  '@types/png-chunks-encode@1.0.2': {}
+
+  '@types/png-chunks-extract@1.0.2': {}
 
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
@@ -2263,11 +2405,17 @@ snapshots:
 
   chai@6.3.0: {}
 
+  chokidar@5.0.0:
+    dependencies:
+      readdirp: 5.1.1
+
   content-disposition@3.0.0: {}
 
   cookie-es@3.1.1: {}
 
   cookie@1.1.1: {}
+
+  crc-32@0.3.0: {}
 
   csstype@3.2.3: {}
 
@@ -2390,6 +2538,8 @@ snapshots:
       '@esbuild/win32-x64': 0.28.2
 
   escape-html@1.0.3: {}
+
+  escape-string-regexp@5.0.0: {}
 
   estree-walker@3.0.3:
     dependencies:
@@ -2630,6 +2780,17 @@ snapshots:
       sonic-boom: 4.2.1
       thread-stream: 4.2.0
 
+  png-chunk-text@1.0.0: {}
+
+  png-chunks-encode@1.0.0:
+    dependencies:
+      crc-32: 0.3.0
+      sliced: 1.0.1
+
+  png-chunks-extract@1.0.0:
+    dependencies:
+      crc-32: 0.3.0
+
   postcss@8.5.29:
     dependencies:
       nanoid: 3.3.20
@@ -2673,6 +2834,8 @@ snapshots:
       inherits: 2.0.4
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
+
+  readdirp@5.1.1: {}
 
   real-require@1.0.0: {}
 
@@ -2724,6 +2887,18 @@ snapshots:
   set-cookie-parser@2.7.2: {}
 
   setprototypeof@1.2.0: {}
+
+  simple-git@4.0.2:
+    dependencies:
+      '@kwsites/file-exists': 1.1.1
+      '@kwsites/promise-deferred': 1.1.1
+      '@simple-git/args-pathspec': 1.0.4
+      '@simple-git/argv-parser': 2.0.1
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
+  sliced@1.0.1: {}
 
   sonic-boom@4.2.1:
     dependencies:
