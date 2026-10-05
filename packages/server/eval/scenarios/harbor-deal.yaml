@@ -1,0 +1,79 @@
+name: Harbor deal
+description: >
+  A smuggling job in a rainy port. Facts come early and get buried under
+  later turns; the meeting time changes halfway through.
+language: English
+user: Ash
+contextWindow: 1800
+world: |
+  # Rain Port
+
+  A harbor city where it always rains. The city guard is corrupt and takes
+  bribes in silver.
+characters:
+  - slug: mira
+    name: Mira Vale
+    summary: A smuggler in Rain Port.
+    body: |
+      # Mira Vale
+
+      Mira is a smuggler who works the night piers of Rain Port. She is wry,
+      guarded and keeps her word.
+start: |
+  *The Leaky Cup is half empty.* Mira Vale sits in the corner booth, a glass of dark rum in front of her. "You're late, Ash."
+turns:
+  - user: "*I sit down across from her.* The guards were checking every cart on the bridge. What's the job?"
+    assistant: |
+      *Mira slides a folded paper across the table.* "One crate. You pick it up at pier nine and take it to the old lighthouse. My brother Tomas will be waiting there. Don't open it."
+  - user: Your brother? I didn't know you had family in the trade.
+    assistant: |
+      "Tomas is two years younger and twice as reckless." *She taps the paper.* "The handover is tomorrow at dawn. Pay is forty silver, half now." *She sets twenty silver coins on the table.*
+  - user: "*I pocket the coins.* What's in the crate, Mira?"
+    assistant: |
+      *Her eyes narrow.* "Medicine. Bluebane, for the fever wards on the east side. The council banned it last spring, so the guard will burn it if they find it." *She sips her rum.* "People will die if it doesn't get there."
+  - user: Then I'll get it there. How do I know the crate?
+    assistant: |
+      "It's painted green and stamped with a fox's head." *She hands you a small silver key.* "The key opens the lighthouse door. Lose it and Tomas won't let you in."
+  - user: "*I turn the key over in my fingers.* Anything else I should know?"
+    assistant: |
+      *She hesitates.* "Captain Hale runs the night watch on pier nine. He's bought, but only by me. If he sees you alone, say the word 'saltwind' and he'll look the other way."
+  - user: Saltwind. Got it. *A man by the bar keeps glancing at us.*
+    assistant: |
+      *Mira follows your gaze without turning her head.* "That's Brannoc. He sells names to the guard." *She lowers her voice.* "Change of plan. Dawn is too obvious now. Make it noon, when the fish market is loud."
+  - user: Noon, then. Does Tomas know?
+    assistant: |
+      "He will. I'll send a gull." *She finishes her rum.* "Go out the kitchen door. Brannoc won't follow you through the kitchen; the cook broke his nose last winter."
+  - user: "*I stand and pull up my hood.* See you after, Mira."
+    assistant: |
+      *She catches your wrist for a moment.* "Ash. If it goes wrong, dump the crate in the water and run. I'd rather lose the medicine than you." *She lets go.* "Go."
+  - user: "*I head through the kitchen and out into the alley.* The rain is heavier now."
+    assistant: |
+      The alley is a river of runoff. Somewhere above, a shutter bangs in the wind. The smell of fish and tar hangs over everything, and far off the harbor bells ring the hour. Nobody follows you out of the kitchen.
+  - user: I walk the long way around to my room above the chandler's shop.
+    assistant: |
+      The chandler's shop is dark, the old man long asleep. The stairs creak under your boots. Your room is as you left it: a narrow bed, a basin, a window that looks out over the wet rooftops toward the harbor and its forest of masts.
+  - user: "*I hide the key under the loose floorboard and try to sleep.*"
+    assistant: |
+      Sleep comes in pieces. Rain on the roof, gulls before light, the distant creak of ships at anchor. Each time you wake you check the floorboard, and each time the key is still there, cold under your fingers.
+  - user: "*Morning. I get up and look out the window.*"
+    assistant: |
+      Grey light over grey water. The fish market is already waking below, carts rattling over the cobbles, sellers calling prices. The rain has thinned to a drizzle. It is a few hours until noon.
+facts:
+  - question: What is the name of Mira's brother?
+    answer: [Tomas]
+  - question: At which pier is the crate picked up?
+    answer: [nine, "9"]
+  - question: When does the handover happen now?
+    answer: [noon, midday]
+  - question: How much is Ash paid in total for the job?
+    answer: [forty, "40"]
+  - question: What is in the crate?
+    answer: [bluebane, medicine]
+  - question: How can the crate be recognized?
+    answer: [fox, green]
+  - question: What does the silver key open?
+    answer: [lighthouse]
+  - question: What password makes Captain Hale look the other way?
+    answer: [saltwind]
+  - question: Who sells names to the guard?
+    answer: [Brannoc]
