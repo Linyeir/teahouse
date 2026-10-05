@@ -61,7 +61,13 @@ export type ModelList = z.infer<typeof modelList>;
 export const settings = z.object({
   userName: z.string().min(1).max(100),
   outputLanguage: z.string().min(1).max(50),
+  /** Profiles per role. Null falls back to the narrator profile, then to the first profile. */
   narratorProfileId: id.nullable(),
+  summaryProfileId: id.nullable(),
+  canonProfileId: id.nullable(),
+  sceneProfileId: id.nullable(),
+  /** Review canon proposals as diffs before they are committed. */
+  canonReview: z.boolean(),
 });
 export type Settings = z.infer<typeof settings>;
 
@@ -109,8 +115,78 @@ export const pathMessage = message.extend({
 });
 export type PathMessage = z.infer<typeof pathMessage>;
 
-export const chatPath = z.object({ chat, messages: z.array(pathMessage) });
+export const sceneStatus = z.enum(['active', 'closing', 'closed']);
+export type SceneStatus = z.infer<typeof sceneStatus>;
+
+export const scene = z.object({
+  id,
+  number: z.number().int(),
+  status: sceneStatus,
+  cast: z.array(z.string()),
+  startMessageId: id.nullable(),
+  canonCommit: z.string().nullable(),
+});
+export type Scene = z.infer<typeof scene>;
+
+/** Active Memory: a summary of the scene up to and including `messageId`. */
+export const memoryNode = z.object({
+  id,
+  messageId: id,
+  content: z.string(),
+  updatedAt: z.string(),
+});
+export type MemoryNode = z.infer<typeof memoryNode>;
+
+export const closedScene = z.object({ scene, messages: z.array(pathMessage) });
+export type ClosedScene = z.infer<typeof closedScene>;
+
+export const chatPath = z.object({
+  chat,
+  /** The current scene: active, closing, or the last closed one. */
+  scene: scene.nullable(),
+  /** Active path of the current scene. */
+  messages: z.array(pathMessage),
+  /** Memory nodes on the active path, oldest first. */
+  memory: z.array(memoryNode),
+  closedScenes: z.array(closedScene),
+});
 export type ChatPath = z.infer<typeof chatPath>;
+
+export const closeSceneInput = z.object({ withCanon: z.boolean() });
+export type CloseSceneInput = z.infer<typeof closeSceneInput>;
+
+export const sceneProposalInput = z.object({ brief: z.string().max(5000) });
+export type SceneProposalInput = z.infer<typeof sceneProposalInput>;
+
+export const sceneStartInput = z.object({
+  startMessage: z.string().max(20_000),
+  cast: z.array(z.string().min(1)).min(1),
+});
+export type SceneStartInput = z.infer<typeof sceneStartInput>;
+
+export const proposalFile = z.object({
+  path: z.string(),
+  before: z.string().nullable(),
+  after: z.string(),
+  decision: z.enum(['pending', 'accepted', 'rejected']),
+});
+export type ProposalFileView = z.infer<typeof proposalFile>;
+
+export const canonProposal = z.object({
+  id,
+  sceneId: id,
+  status: z.enum(['generating', 'ready', 'failed', 'applied']),
+  error: z.string().nullable(),
+  files: z.array(proposalFile),
+});
+export type CanonProposal = z.infer<typeof canonProposal>;
+
+export const proposalFileUpdate = z.object({
+  path: z.string(),
+  decision: z.enum(['pending', 'accepted', 'rejected']),
+  after: z.string().max(1_000_000).optional(),
+});
+export type ProposalFileUpdate = z.infer<typeof proposalFileUpdate>;
 
 export const sendMessageInput = z.object({
   /** Client-generated UUIDv7, so a retried request does not duplicate the message. */

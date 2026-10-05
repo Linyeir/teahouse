@@ -69,7 +69,12 @@
     "devices": "Signed-in devices",
     "thisDevice": "this device",
     "revoke": "Sign out device",
-    "saved": "Saved"
+    "saved": "Saved",
+    "summaryProfile": "Memory summary profile",
+    "canonProfile": "Canon update profile",
+    "sceneProfile": "Scene start profile",
+    "sameAsNarrator": "Same as narrator",
+    "canonReview": "Review canon changes as diffs before they are committed"
   },
   "home": {
     "noWorlds": "No worlds yet.",
@@ -101,5 +106,49 @@
     "backToCurrent": "Back to current",
     "restore": "Restore this version",
     "discard": "Discard changes"
+  },
+  "scenes": {
+    "title": "Scene %{n}",
+    "story": "Story",
+    "end": "End scene",
+    "endTitle": "End this scene?",
+    "endHint": "The current path is frozen. With canon, Teahouse proposes changes to the world files for you to review.",
+    "endWithCanon": "End and update canon",
+    "endWithoutCanon": "End without canon",
+    "closed": "closed",
+    "closedWithCanon": "closed, canon updated",
+    "status": {
+      "closing": "waiting for canon",
+      "closed": "closed",
+      "active": "active"
+    },
+    "memoryUpToHere": "Active Memory: summary up to here",
+    "generating": "Writing the canon proposal…",
+    "reviewTitle": "Canon changes",
+    "reviewHint": "Accept, edit or reject each file. Accepted files are committed together.",
+    "newFile": "new",
+    "changed": "changed",
+    "conflict": "conflict",
+    "resolveFirst": "Edit the file and resolve the conflict markers first",
+    "decision": {
+      "pending": "undecided",
+      "accepted": "accepted",
+      "rejected": "rejected"
+    },
+    "accept": "Accept",
+    "reject": "Reject",
+    "saveAndAccept": "Save and accept",
+    "regenerate": "Propose again",
+    "apply": "Commit %{count} files and close the scene",
+    "closeWithoutChanges": "Close without changes",
+    "decideAll": "Decide on every file first",
+    "nextTitle": "Scene %{n}",
+    "brief": "Brief",
+    "briefHint": "A few words on what happens next. Teahouse proposes an opening and a cast.",
+    "propose": "Propose opening",
+    "proposing": "Proposing…",
+    "startMessage": "Opening",
+    "cast": "Present",
+    "start": "Start scene"
   }
 }

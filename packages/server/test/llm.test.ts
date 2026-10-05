@@ -1,5 +1,6 @@
+import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { listModels, streamChat } from '../src/llm/client.ts';
+import { complete, extractJson, listModels, streamChat } from '../src/llm/client.ts';
 import {
   contextFromLlamaProps,
   contextFromModelEntry,
@@ -79,5 +80,46 @@ describe('context window detection', () => {
     expect(await detectContextWindow({ baseUrl: bare.baseUrl, apiKey: null }, 'mock-model')).toBe(
       131072,
     );
+  });
+});
+
+describe('structured output fallback', () => {
+  it('falls back from json_schema to json_object to no format', async () => {
+    const seen: (string | undefined)[] = [];
+    const server = Fastify();
+    servers.push(server);
+    server.post('/v1/chat/completions', async (req, reply) => {
+      const format = (req.body as { response_format?: { type: string } }).response_format?.type;
+      seen.push(format);
+      if (format === 'json_schema')
+        return reply.code(400).send({ error: { message: 'json_schema not supported' } });
+      return {
+        id: 'x',
+        object: 'chat.completion',
+        created: 0,
+        model: 'm',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: { role: 'assistant', content: '{"ok":true}' },
+          },
+        ],
+      };
+    });
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const text = await complete(
+      { ...profile(`${address}/v1`), maxTokens: 100 },
+      [{ role: 'user', content: 'Hi' }],
+      { jsonSchema: { name: 'x', schema: { type: 'object' } }, minTokens: 500 },
+    );
+    expect(text).toBe('{"ok":true}');
+    expect(seen).toEqual(['json_schema', 'json_object']);
+  });
+
+  it('extracts JSON from fenced or chatty answers', () => {
+    expect(extractJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
+    expect(extractJson('Sure! {"a":{"b":2}} Hope that helps.')).toEqual({ a: { b: 2 } });
+    expect(() => extractJson('no json here')).toThrow();
   });
 });

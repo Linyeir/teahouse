@@ -72,20 +72,39 @@ export function SettingsView() {
             />
           </Field>
         </div>
-        <Field label={t('settings.narratorProfile')}>
-          <select
-            className={ui.input}
-            value={draft.narratorProfileId ?? ''}
-            onChange={(e) => setDraft({ ...draft, narratorProfileId: e.target.value || null })}
-          >
-            <option value="">{t('settings.firstProfile')}</option>
-            {profiles.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className={ui.row}>
+          {(
+            [
+              ['narratorProfileId', 'settings.narratorProfile', 'settings.firstProfile'],
+              ['summaryProfileId', 'settings.summaryProfile', 'settings.sameAsNarrator'],
+              ['canonProfileId', 'settings.canonProfile', 'settings.sameAsNarrator'],
+              ['sceneProfileId', 'settings.sceneProfile', 'settings.sameAsNarrator'],
+            ] as const
+          ).map(([key, label, fallback]) => (
+            <Field key={key} label={t(label)}>
+              <select
+                className={ui.input}
+                value={draft[key] ?? ''}
+                onChange={(e) => setDraft({ ...draft, [key]: e.target.value || null })}
+              >
+                <option value="">{t(fallback)}</option>
+                {profiles.data?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ))}
+        </div>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={draft.canonReview}
+            onChange={(e) => setDraft({ ...draft, canonReview: e.target.checked })}
+          />
+          {t('settings.canonReview')}
+        </label>
         <ErrorText error={save.error} />
         <div className={ui.actions}>
           {save.isSuccess && <span className={ui.muted}>{t('settings.saved')}</span>}

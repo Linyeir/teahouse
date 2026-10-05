@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ChatPath, PathMessage } from '@teahouse/shared';
-import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import type { ChatPath, MemoryNode, PathMessage } from '@teahouse/shared';
+import { Fragment, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
@@ -11,6 +11,8 @@ import ui from '../components/ui.module.css';
 import { streamBuffers } from '../events.ts';
 import { useCharacters } from '../queries.ts';
 import styles from './ChatView.module.css';
+import sceneStyles from './Scene.module.css';
+import { EndScene, MemoryMarker, NewScene, ProposalReview } from './SceneParts.tsx';
 
 /** Renders `*action*` spans in italics. */
 function formatStory(text: string): ReactNode[] {
@@ -37,7 +39,7 @@ export function ChatView() {
       mergeFetched(await api.get<ChatPath>(`/api/chats/${chatId}`), streamBuffers),
   });
   const characters = useCharacters(path.data?.chat.worldId);
-  const character = characters.data?.find((c) => c.slug === path.data?.chat.characterSlug);
+  const [ending, setEnding] = useState(false);
 
   const refresh = (data?: ChatPath) => {
     if (data && 'chat' in data) queryClient.setQueryData(key, data);
@@ -100,19 +102,36 @@ export function ChatView() {
   if (path.error) return <ErrorText error={path.error} />;
   if (!path.data) return <div className={ui.page}>{t('common.loading')}</div>;
 
-  const characterName = character?.name ?? path.data.chat.characterSlug;
+  const data = path.data;
+  const scene = data.scene;
+  const active = scene?.status === 'active';
+  const castNames = (scene?.cast ?? [data.chat.characterSlug]).map(
+    (slug) => characters.data?.find((c) => c.slug === slug)?.name ?? slug,
+  );
+  const speaker = castNames.length === 1 ? (castNames[0] ?? '') : t('scenes.story');
   const actionError = send.error ?? generate.error ?? regenerate.error ?? edit.error;
-  const canGenerate = !streaming && (!last || last.role === 'user');
+  const canGenerate = active && !streaming && (!last || last.role === 'user');
+  const memoryAt = new Map(data.memory.map((node) => [node.messageId, node]));
 
   return (
     <>
       <header className={styles.header}>
-        <h2 className={styles.title}>{path.data.chat.title}</h2>
+        <h2 className={styles.title}>{data.chat.title}</h2>
+        {active && (
+          <button
+            className={ui.button}
+            type="button"
+            disabled={Boolean(streaming)}
+            onClick={() => setEnding(true)}
+          >
+            {t('scenes.end')}
+          </button>
+        )}
         <button
           className={ui.ghost}
           type="button"
           onClick={() => {
-            const title = window.prompt(t('chats.rename'), path.data.chat.title)?.trim();
+            const title = window.prompt(t('chats.rename'), data.chat.title)?.trim();
             if (title) rename.mutate(title);
           }}
         >
@@ -122,7 +141,7 @@ export function ChatView() {
           className={ui.ghost}
           type="button"
           onClick={() => {
-            if (window.confirm(t('common.confirmDelete', { name: path.data.chat.title }))) {
+            if (window.confirm(t('common.confirmDelete', { name: data.chat.title }))) {
               remove.mutate();
             }
           }}
@@ -131,16 +150,44 @@ export function ChatView() {
         </button>
       </header>
       <div className={styles.messages} ref={scroller}>
+        {data.closedScenes.map((closed) => (
+          <details key={closed.scene.id} className={sceneStyles.closed}>
+            <summary>
+              {t('scenes.title', { n: closed.scene.number })} ·{' '}
+              {closed.scene.canonCommit ? t('scenes.closedWithCanon') : t('scenes.closed')}
+            </summary>
+            {closed.messages.map((message) => (
+              <MessageView
+                key={message.id}
+                message={message}
+                speaker={message.role === 'user' ? '' : speaker}
+                readOnly
+              />
+            ))}
+          </details>
+        ))}
+        {scene && (
+          <div className={sceneStyles.sceneHeader}>
+            {t('scenes.title', { n: scene.number })}
+            {scene.status !== 'active' && ` · ${t(`scenes.status.${scene.status}`)}`}
+          </div>
+        )}
         {messages.map((message) => (
-          <MessageView
-            key={message.id}
-            message={message}
-            speaker={message.role === 'user' ? '' : characterName}
-            isLast={message === last}
-            onSelect={(id) => selectLeaf.mutate(id)}
-            onRegenerate={() => regenerate.mutate(message.id)}
-            onEdit={(content) => edit.mutate({ id: message.id, content })}
-          />
+          <Fragment key={message.id}>
+            <MessageView
+              message={message}
+              speaker={message.role === 'user' ? '' : speaker}
+              isLast={message === last}
+              readOnly={!active}
+              canRegenerate={message.id !== scene?.startMessageId}
+              onSelect={(id) => selectLeaf.mutate(id)}
+              onRegenerate={() => regenerate.mutate(message.id)}
+              onEdit={(content) => edit.mutate({ id: message.id, content })}
+            />
+            {memoryAt.has(message.id) && (
+              <MemoryMarker node={memoryAt.get(message.id) as MemoryNode} />
+            )}
+          </Fragment>
         ))}
         {canGenerate && last && (
           <div className={styles.message}>
@@ -158,12 +205,17 @@ export function ChatView() {
             }
           />
         </div>
+        {ending && active && <EndScene chatId={chatId} onDone={() => setEnding(false)} />}
+        {scene?.status === 'closing' && <ProposalReview chatId={chatId} sceneId={scene.id} />}
+        {scene?.status === 'closed' && <NewScene key={scene.id} path={data} />}
       </div>
-      <Composer
-        streaming={Boolean(streaming)}
-        onSend={(content) => send.mutate(content)}
-        onStop={() => streaming && stop.mutate(streaming.id)}
-      />
+      {active && (
+        <Composer
+          streaming={Boolean(streaming)}
+          onSend={(content) => send.mutate(content)}
+          onStop={() => streaming && stop.mutate(streaming.id)}
+        />
+      )}
     </>
   );
 }
@@ -171,17 +223,21 @@ export function ChatView() {
 function MessageView({
   message,
   speaker,
-  isLast,
-  onSelect,
-  onRegenerate,
-  onEdit,
+  isLast = false,
+  readOnly = false,
+  canRegenerate = true,
+  onSelect = () => {},
+  onRegenerate = () => {},
+  onEdit = () => {},
 }: {
   message: PathMessage;
   speaker: string;
-  isLast: boolean;
-  onSelect: (id: string) => void;
-  onRegenerate: () => void;
-  onEdit: (content: string) => void;
+  isLast?: boolean;
+  readOnly?: boolean;
+  canRegenerate?: boolean;
+  onSelect?: (id: string) => void;
+  onRegenerate?: () => void;
+  onEdit?: (content: string) => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
@@ -225,7 +281,7 @@ function MessageView({
         <p className={ui.error}>{t('chats.error', { message: message.error })}</p>
       )}
       {message.status === 'stopped' && <p className={ui.hint}>{t('chats.stopped')}</p>}
-      {!streaming && draft === null && (
+      {!streaming && !readOnly && draft === null && (
         <div className={styles.tools}>
           {count > 1 && (
             <>
@@ -253,7 +309,7 @@ function MessageView({
           <button className={ui.ghost} type="button" onClick={() => setDraft(message.content)}>
             {t('common.edit')}
           </button>
-          {isLast && message.role === 'assistant' && message.parentId !== null && (
+          {isLast && canRegenerate && message.role === 'assistant' && message.parentId !== null && (
             <button className={ui.ghost} type="button" onClick={onRegenerate}>
               {t('chats.regenerate')}
             </button>

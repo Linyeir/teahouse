@@ -6,6 +6,7 @@ import { onTestFinished } from 'vitest';
 import { buildApp } from '../src/app.ts';
 import { openDb } from '../src/db/index.ts';
 import type { StreamFn } from '../src/generation.ts';
+import type { CompleteFn } from '../src/memory.ts';
 import { WorldService } from '../src/worlds/service.ts';
 
 /** A world service on a fresh temporary folder, removed after the test. */
@@ -17,10 +18,10 @@ export async function tempWorlds(): Promise<WorldService> {
   return worlds;
 }
 
-export async function createTestApp(stream?: StreamFn) {
+export async function createTestApp(stream?: StreamFn, complete?: CompleteFn) {
   const db = openDb(':memory:');
   const worlds = await tempWorlds();
-  const app = await buildApp({ db, worlds, stream });
+  const app = await buildApp({ db, worlds, stream, complete });
   onTestFinished(() => app.close());
   await app.ready();
   const { token } = (

@@ -69,7 +69,12 @@
     "devices": "Angemeldete Geräte",
     "thisDevice": "dieses Gerät",
     "revoke": "Gerät abmelden",
-    "saved": "Gespeichert"
+    "saved": "Gespeichert",
+    "summaryProfile": "Profil für Zusammenfassungen",
+    "canonProfile": "Profil für Canon-Updates",
+    "sceneProfile": "Profil für Szenenstarts",
+    "sameAsNarrator": "Wie Erzähler",
+    "canonReview": "Canon-Änderungen vor dem Commit als Diff prüfen"
   },
   "home": {
     "noWorlds": "Noch keine Welten.",
@@ -101,5 +106,49 @@
     "backToCurrent": "Zurück zum aktuellen Stand",
     "restore": "Diesen Stand wiederherstellen",
     "discard": "Änderungen verwerfen"
+  },
+  "scenes": {
+    "title": "Szene %{n}",
+    "story": "Geschichte",
+    "end": "Szene beenden",
+    "endTitle": "Diese Szene beenden?",
+    "endHint": "Der aktuelle Pfad wird eingefroren. Mit Canon schlägt Teahouse Änderungen an den Welt-Dateien vor, die du prüfst.",
+    "endWithCanon": "Beenden und Canon aktualisieren",
+    "endWithoutCanon": "Ohne Canon beenden",
+    "closed": "beendet",
+    "closedWithCanon": "beendet, Canon aktualisiert",
+    "status": {
+      "closing": "wartet auf Canon",
+      "closed": "beendet",
+      "active": "aktiv"
+    },
+    "memoryUpToHere": "Active Memory: Zusammenfassung bis hier",
+    "generating": "Canon-Vorschlag wird geschrieben …",
+    "reviewTitle": "Canon-Änderungen",
+    "reviewHint": "Nimm jede Datei an, bearbeite oder verwirf sie. Angenommene Dateien werden gemeinsam committet.",
+    "newFile": "neu",
+    "changed": "geändert",
+    "conflict": "Konflikt",
+    "resolveFirst": "Bearbeite die Datei und löse zuerst die Konfliktmarker auf",
+    "decision": {
+      "pending": "offen",
+      "accepted": "angenommen",
+      "rejected": "verworfen"
+    },
+    "accept": "Annehmen",
+    "reject": "Verwerfen",
+    "saveAndAccept": "Speichern und annehmen",
+    "regenerate": "Neu vorschlagen",
+    "apply": "%{count} Dateien committen und Szene beenden",
+    "closeWithoutChanges": "Ohne Änderungen beenden",
+    "decideAll": "Entscheide zuerst über jede Datei",
+    "nextTitle": "Szene %{n}",
+    "brief": "Vorgabe",
+    "briefHint": "Ein paar Worte dazu, was als Nächstes passiert. Teahouse schlägt Eröffnung und Besetzung vor.",
+    "propose": "Eröffnung vorschlagen",
+    "proposing": "Schlage vor …",
+    "startMessage": "Eröffnung",
+    "cast": "Anwesend",
+    "start": "Szene beginnen"
   }
 }
