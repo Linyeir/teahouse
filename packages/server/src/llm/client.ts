@@ -57,7 +57,7 @@ export async function* streamChat(
   }
 }
 
-/** Budget for the retry when a reasoning model used up `max_tokens` before answering. */
+/** Budget for the retry when an answer was cut off by `max_tokens`. */
 const REASONING_RETRY_TOKENS = 4096;
 const MAX_RETRY_TOKENS = 16_384;
 
@@ -111,8 +111,9 @@ export async function complete(
       return { content: choice?.message?.content ?? '', finish: choice?.finish_reason };
     };
     const first = await send(maxTokens);
-    // Reasoning models can spend the whole budget thinking and return no answer at all.
-    if (!first.content.trim() && first.finish === 'length' && maxTokens !== null) {
+    // A cut-off answer is useless here (broken JSON, a summary that stops mid-sentence), and
+    // reasoning models can spend most of the budget thinking: retry once with more room.
+    if (first.finish === 'length' && maxTokens !== null) {
       return (
         await send(Math.min(Math.max(maxTokens * 4, REASONING_RETRY_TOKENS), MAX_RETRY_TOKENS))
       ).content;

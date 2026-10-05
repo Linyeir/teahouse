@@ -55,17 +55,25 @@ turns:
 facts:
   - question: Was ist auf dem Mikrofilm?
     answer: [Bilanz, Kessler]
+    turn: 1
   - question: Wem soll der Mikrofilm übergeben werden?
     answer: [Lund]
+    turn: 1
   - question: Wo findet die Übergabe jetzt statt?
     answer: [Meerjungfrau, Hafen]
+    turn: 5
   - question: Um wie viel Uhr ist die Übergabe?
     answer: [zehn, "10"]
+    turn: 2
   - question: Wo ist der Mikrofilm versteckt?
     answer: [Uhr]
+    turn: 3
   - question: Woran erkennt Jens Lund den Kurier?
     answer: [Karte, Möwe]
+    turn: 2
   - question: Wer sucht Lene im Zug?
     answer: [Brandt]
+    turn: 4
   - question: Welche Tarnung soll Ash benutzen, wenn Brandt ihn anspricht?
     answer: [Uhrmacher]
+    turn: 6

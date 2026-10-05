@@ -61,19 +61,28 @@ turns:
 facts:
   - question: What is the name of Mira's brother?
     answer: [Tomas]
+    turn: 1
   - question: At which pier is the crate picked up?
     answer: [nine, "9"]
+    turn: 1
   - question: When does the handover happen now?
     answer: [noon, midday]
+    turn: 6
   - question: How much is Ash paid in total for the job?
     answer: [forty, "40"]
+    turn: 2
   - question: What is in the crate?
     answer: [bluebane, medicine]
+    turn: 3
   - question: How can the crate be recognized?
     answer: [fox, green]
+    turn: 4
   - question: What does the silver key open?
     answer: [lighthouse]
+    turn: 4
   - question: What password makes Captain Hale look the other way?
     answer: [saltwind]
+    turn: 5
   - question: Who sells names to the guard?
     answer: [Brannoc]
+    turn: 6

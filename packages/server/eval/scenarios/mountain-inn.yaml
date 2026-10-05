@@ -68,17 +68,25 @@ turns:
 facts:
   - question: Which of Ash's ankles is hurt?
     answer: [right]
+    turn: 1
   - question: How many days until the pass opens, if the wind turns?
     answer: [nine, "9"]
+    turn: 2
   - question: What does Rook really carry in his satchel?
     answer: [map]
+    turn: 6
   - question: Whose army does Rook's seal belong to?
     answer: [border, eagle]
+    turn: 6
   - question: What did Ash promise Edda?
     answer: [watch, keep an eye]
+    turn: 5
   - question: What did Edda give Ash?
     answer: [bell]
+    turn: 5
   - question: What happened to Rook's maps?
     answer: [burn]
+    turn: 8
   - question: Where did Rook hide the maps?
     answer: [stone, hearth]
+    turn: 6

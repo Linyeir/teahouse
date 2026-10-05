@@ -53,9 +53,16 @@ describe('memory eval harness', () => {
       expect(result.canonFiles[0], scenario.name).toMatch(/^events\//);
       // A lossless fake must score full marks on both stages, or the harness is wrong.
       expect(
-        result.memory?.facts.filter((f) => !f.pass).map((f) => f.question),
+        result.memory?.facts.filter((f) => f.status === 'fail').map((f) => f.question),
         scenario.name,
       ).toEqual([]);
+      expect(result.memory?.score, scenario.name).toBe(1);
+      // Facts from turns the summary does not cover yet are skipped, not failed.
+      const covered = Math.floor(result.summarizedMessages / 2);
+      for (const f of result.memory?.facts ?? []) {
+        const turn = scenario.facts.find((x) => x.question === f.question)?.turn ?? 0;
+        expect(f.status === 'skipped', f.question).toBe(turn > covered);
+      }
       expect(result.canon?.score, scenario.name).toBe(1);
     }
   }, 30_000);

@@ -89,11 +89,15 @@ function report(model: string, all: ScenarioResult[]): string {
         lines.push(`${label}: not run.`, '');
         continue;
       }
-      lines.push(`### ${label} (${pct(stage.score)}, ${stage.noteTokens} tokens of notes)`, '');
+      const skipped = stage.facts.filter((f) => f.status === 'skipped').length;
+      lines.push(
+        `### ${label} (${pct(stage.score)}, ${stage.noteTokens} tokens of notes${skipped ? `, ${skipped} facts not summarized yet` : ''})`,
+        '',
+      );
       lines.push('| | Question | Expected | Answer |', '|---|---|---|---|');
       for (const f of stage.facts) {
         lines.push(
-          `| ${f.pass ? '✓' : '✗'} | ${f.question} | ${f.expected.join(', ')} | ${f.answer.replace(/\s+/g, ' ').replaceAll('|', '\\|')} |`,
+          `| ${{ pass: '✓', fail: '✗', skipped: '–' }[f.status]} | ${f.question} | ${f.expected.join(', ')} | ${f.answer.replace(/\s+/g, ' ').replaceAll('|', '\\|')} |`,
         );
       }
       lines.push(

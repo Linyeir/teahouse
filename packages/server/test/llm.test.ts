@@ -117,7 +117,7 @@ describe('structured output fallback', () => {
     expect(seen).toEqual(['json_schema', 'json_object']);
   });
 
-  it('retries with a larger budget when a reasoning model returns nothing', async () => {
+  it('retries with a larger budget when the answer was cut off', async () => {
     const limits: number[] = [];
     const server = Fastify();
     servers.push(server);

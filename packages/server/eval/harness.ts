@@ -40,7 +40,16 @@ export const scenarioSchema = z.object({
     .min(1),
   start: z.string(),
   turns: z.array(z.object({ user: z.string(), assistant: z.string() })).min(1),
-  facts: z.array(z.object({ question: z.string(), answer: z.array(z.string()).min(1) })).min(1),
+  facts: z
+    .array(
+      z.object({
+        question: z.string(),
+        answer: z.array(z.string()).min(1),
+        /** Turn (1-based) that establishes the fact; later summaries must still hold it. */
+        turn: z.number().int().positive(),
+      }),
+    )
+    .min(1),
 });
 export type Scenario = z.infer<typeof scenarioSchema>;
 
@@ -55,7 +64,8 @@ export interface FactResult {
   question: string;
   expected: string[];
   answer: string;
-  pass: boolean;
+  /** `skipped`: the memory summary does not cover the fact's turn yet (it is still verbatim). */
+  status: 'pass' | 'fail' | 'skipped';
 }
 
 export interface StageResult {
@@ -268,7 +278,11 @@ export async function runScenario(
     const last = nodes.at(-1);
     result.summaries = nodes.length;
     result.summarizedMessages = last ? path.findIndex((m) => m.id === last.messageId) : 0;
-    if (last) result.memory = await ask(completeFn, profile, scenario, last.content);
+    if (last) {
+      // Message index 1 + 2(n-1) is the user message of turn n, +1 the reply.
+      const coveredTurns = Math.floor(result.summarizedMessages / 2);
+      result.memory = await ask(completeFn, profile, scenario, last.content, coveredTurns);
+    }
 
     // End the scene with canon (review is off, so it is applied right away).
     scenes.close(chatId, true);
@@ -286,7 +300,7 @@ export async function runScenario(
       recentText: '',
       budget: Math.floor(scenario.canonContextWindow * CANON_BUDGET_SHARE),
     });
-    result.canon = await ask(completeFn, profile, scenario, canon.text);
+    result.canon = await ask(completeFn, profile, scenario, canon.text, Number.POSITIVE_INFINITY);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     result.error = result.error ? `${result.error}; ${message}` : message;
@@ -302,34 +316,44 @@ async function ask(
   profile: EvalProfile,
   scenario: Scenario,
   notes: string,
+  coveredTurns: number,
 ): Promise<StageResult> {
   const system = ANSWER_PROMPT.replace('{{language}}', scenario.language);
   const facts: FactResult[] = [];
   for (const fact of scenario.facts) {
-    const answer = (
-      await completeFn(
-        { ...profile, topP: null, maxTokens: 200, temperature: 0 },
-        [
-          { role: 'system', content: system },
-          {
-            role: 'user',
-            content: `<notes>\n${notes.replaceAll('{{user}}', scenario.user)}\n</notes>\n\nQuestion: ${fact.question}`,
-          },
-        ],
-        { minTokens: 200 },
-      )
-    ).trim();
+    if (fact.turn > coveredTurns) {
+      facts.push({ question: fact.question, expected: fact.answer, answer: '', status: 'skipped' });
+      continue;
+    }
+    let answer = '';
+    // Free endpoints occasionally return an empty answer; that says nothing about memory.
+    for (let attempt = 0; attempt < 3 && !answer; attempt++) {
+      answer = (
+        await completeFn(
+          { ...profile, topP: null, maxTokens: 200, temperature: 0 },
+          [
+            { role: 'system', content: system },
+            {
+              role: 'user',
+              content: `<notes>\n${notes.replaceAll('{{user}}', scenario.user)}\n</notes>\n\nQuestion: ${fact.question}`,
+            },
+          ],
+          { minTokens: 200 },
+        )
+      ).trim();
+    }
     facts.push({
       question: fact.question,
       expected: fact.answer,
       answer,
-      pass: grade(answer, fact.answer),
+      status: grade(answer, fact.answer) ? 'pass' : 'fail',
     });
   }
+  const graded = facts.filter((f) => f.status !== 'skipped');
   return {
     notes,
     noteTokens: countTokens(notes),
     facts,
-    score: facts.filter((f) => f.pass).length / facts.length,
+    score: graded.length ? graded.filter((f) => f.status === 'pass').length / graded.length : 0,
   };
 }
