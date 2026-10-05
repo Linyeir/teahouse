@@ -1,0 +1,82 @@
+{
+  "app": { "name": "Teahouse", "offline": "Verbindung verloren, verbinde neu …" },
+  "nav": {
+    "chats": "Chats",
+    "characters": "Figuren",
+    "profiles": "Profile",
+    "settings": "Einstellungen",
+    "newChat": "Neuer Chat"
+  },
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Anlegen",
+    "loading": "Lädt …",
+    "confirmDelete": "„%{name}“ löschen?"
+  },
+  "auth": {
+    "setupTitle": "Willkommen bei Teahouse",
+    "setupHint": "Wähle ein Passwort für diesen Server. Damit meldest du dich auf jedem Gerät an.",
+    "loginTitle": "Anmelden",
+    "password": "Passwort",
+    "deviceName": "Gerätename",
+    "setup": "Passwort festlegen",
+    "login": "Anmelden",
+    "logout": "Abmelden"
+  },
+  "chats": {
+    "empty": "Noch keine Chats. Lege eine Figur an, um einen zu beginnen.",
+    "pick": "Wähle einen Chat oder beginne einen neuen.",
+    "start": "Chat beginnen mit …",
+    "placeholder": "Schreib deine Antwort. *Sternchen* markieren Handlung.",
+    "send": "Senden",
+    "stop": "Stopp",
+    "regenerate": "Neu erzeugen",
+    "retry": "Antwort erzeugen",
+    "rename": "Umbenennen",
+    "error": "Erzeugung fehlgeschlagen: %{message}",
+    "stopped": "Gestoppt",
+    "noProfile": "Lege zuerst ein Profil an."
+  },
+  "characters": {
+    "new": "Neue Figur",
+    "name": "Name",
+    "description": "Beschreibung",
+    "descriptionHint": "Persönlichkeit, Aussehen, Hintergrund. {{char}} und {{user}} werden ersetzt.",
+    "firstMessage": "Erste Nachricht",
+    "empty": "Noch keine Figuren.",
+    "startChat": "Chat beginnen"
+  },
+  "profiles": {
+    "new": "Neues Profil",
+    "name": "Name",
+    "preset": "Vorlage",
+    "baseUrl": "Basis-URL",
+    "apiKey": "API-Schlüssel",
+    "apiKeyStored": "Ein Schlüssel ist gespeichert. Leer lassen, um ihn zu behalten.",
+    "model": "Modell",
+    "loadModels": "Modelle laden",
+    "temperature": "Temperatur",
+    "topP": "Top P",
+    "maxTokens": "Max. Antwort-Tokens",
+    "contextOverride": "Kontextfenster überschreiben",
+    "detected": "Erkanntes Kontextfenster: %{value}",
+    "notDetected": "Kontextfenster nicht erkannt",
+    "detect": "Erneut erkennen",
+    "empty": "Noch keine Profile. Ein Profil legt fest, welcher Endpunkt und welches Modell genutzt werden.",
+    "optional": "optional"
+  },
+  "settings": {
+    "userName": "Dein Name ({{user}})",
+    "outputLanguage": "Sprache der Geschichte",
+    "narratorProfile": "Profil für den Erzähler",
+    "firstProfile": "Erstes Profil",
+    "uiLanguage": "Sprache der Oberfläche",
+    "devices": "Angemeldete Geräte",
+    "thisDevice": "dieses Gerät",
+    "revoke": "Gerät abmelden",
+    "saved": "Gespeichert"
+  }
+}
