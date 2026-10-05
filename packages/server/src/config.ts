@@ -6,6 +6,7 @@ export interface Config {
   host: string;
   port: number;
   dataDir: string;
+  worldsDir: string;
   /** Built web client to serve, or null when it is not built (development). */
   clientDir: string | null;
 }
@@ -20,6 +21,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     host: env.TEAHOUSE_HOST ?? '0.0.0.0',
     port: Number(env.TEAHOUSE_PORT ?? 8787),
     dataDir,
+    worldsDir: resolve(env.TEAHOUSE_WORLDS_DIR ?? `${dataDir}/worlds`),
     clientDir: existsSync(clientDir) ? clientDir : null,
   };
 }

@@ -1,11 +1,13 @@
 {
-  "app": { "name": "Teahouse", "offline": "Verbindung verloren, verbinde neu …" },
+  "app": {
+    "name": "Teahouse",
+    "offline": "Verbindung verloren, verbinde neu …"
+  },
   "nav": {
     "chats": "Chats",
-    "characters": "Figuren",
     "profiles": "Profile",
     "settings": "Einstellungen",
-    "newChat": "Neuer Chat"
+    "worlds": "Welten"
   },
   "common": {
     "save": "Speichern",
@@ -27,9 +29,8 @@
     "logout": "Abmelden"
   },
   "chats": {
-    "empty": "Noch keine Chats. Lege eine Figur an, um einen zu beginnen.",
+    "empty": "Noch keine Chats.",
     "pick": "Wähle einen Chat oder beginne einen neuen.",
-    "start": "Chat beginnen mit …",
     "placeholder": "Schreib deine Antwort. *Sternchen* markieren Handlung.",
     "send": "Senden",
     "stop": "Stopp",
@@ -39,15 +40,6 @@
     "error": "Erzeugung fehlgeschlagen: %{message}",
     "stopped": "Gestoppt",
     "noProfile": "Lege zuerst ein Profil an."
-  },
-  "characters": {
-    "new": "Neue Figur",
-    "name": "Name",
-    "description": "Beschreibung",
-    "descriptionHint": "Persönlichkeit, Aussehen, Hintergrund. {{char}} und {{user}} werden ersetzt.",
-    "firstMessage": "Erste Nachricht",
-    "empty": "Noch keine Figuren.",
-    "startChat": "Chat beginnen"
   },
   "profiles": {
     "new": "Neues Profil",
@@ -78,5 +70,36 @@
     "thisDevice": "dieses Gerät",
     "revoke": "Gerät abmelden",
     "saved": "Gespeichert"
+  },
+  "home": {
+    "noWorlds": "Noch keine Welten.",
+    "toWorlds": "Lege eine Welt an oder importiere eine Charakterkarte."
+  },
+  "worlds": {
+    "empty": "Noch keine Welten. Eine Welt ist ein Ordner mit Markdown-Dateien und eigenem Git-Verlauf.",
+    "new": "Neue Welt",
+    "name": "Name",
+    "importCard": "Charakterkarte importieren",
+    "importHint": "PNG oder JSON, Character Card V1–V3. Lorebook-Einträge werden Dateien in lore/.",
+    "cardFile": "Kartendatei",
+    "target": "In",
+    "newWorldFromCard": "Eine neue Welt",
+    "import": "Importieren",
+    "files": "Dateien",
+    "characters": "Figuren",
+    "noCharacters": "Noch keine Figuren. Importiere eine Karte oder lege eine Datei in characters/ an.",
+    "startChat": "Chat beginnen",
+    "greeting": "Begrüßung",
+    "greetingN": "Begrüßung %{n}",
+    "folder": "Ordner",
+    "newFileName": "Name der neuen Datei",
+    "newFile": "Neue Datei",
+    "fileExists": "%{path} existiert bereits",
+    "history": "Verlauf",
+    "view": "Ansehen",
+    "versionFrom": "Stand vom %{date}",
+    "backToCurrent": "Zurück zum aktuellen Stand",
+    "restore": "Diesen Stand wiederherstellen",
+    "discard": "Änderungen verwerfen"
   }
 }

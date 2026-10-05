@@ -58,16 +58,6 @@ export type EndpointProbeInput = z.infer<typeof endpointProbeInput>;
 export const modelList = z.object({ models: z.array(z.string()) });
 export type ModelList = z.infer<typeof modelList>;
 
-export const characterInput = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(50_000),
-  firstMessage: z.string().max(20_000),
-});
-export type CharacterInput = z.infer<typeof characterInput>;
-
-export const character = characterInput.extend({ id, updatedAt: z.string() });
-export type Character = z.infer<typeof character>;
-
 export const settings = z.object({
   userName: z.string().min(1).max(100),
   outputLanguage: z.string().min(1).max(50),
@@ -75,13 +65,20 @@ export const settings = z.object({
 });
 export type Settings = z.infer<typeof settings>;
 
-export const chatInput = z.object({ characterId: id, title: z.string().max(200).optional() });
+export const chatInput = z.object({
+  worldId: id,
+  characterSlug: z.string().min(1).max(200),
+  /** Which of the character's greetings starts the chat. */
+  greetingIndex: z.number().int().min(0).default(0),
+  title: z.string().max(200).optional(),
+});
 export type ChatInput = z.infer<typeof chatInput>;
 
 export const chat = z.object({
   id,
   title: z.string(),
-  characterId: id,
+  worldId: id,
+  characterSlug: z.string(),
   activeLeafId: id.nullable(),
   updatedAt: z.string(),
 });

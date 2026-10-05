@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Character, ChatPath, PathMessage } from '@teahouse/shared';
+import type { ChatPath, PathMessage } from '@teahouse/shared';
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
@@ -9,6 +9,7 @@ import { mergeFetched } from '../chat-state.ts';
 import { ErrorText } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 import { streamBuffers } from '../events.ts';
+import { useCharacters } from '../queries.ts';
 import styles from './ChatView.module.css';
 
 /** Renders `*action*` spans in italics. */
@@ -35,12 +36,8 @@ export function ChatView() {
     queryFn: async () =>
       mergeFetched(await api.get<ChatPath>(`/api/chats/${chatId}`), streamBuffers),
   });
-  const character = useQuery({
-    queryKey: ['characters'],
-    queryFn: () => api.get<Character[]>('/api/characters'),
-    select: (list) => list.find((c) => c.id === path.data?.chat.characterId),
-    enabled: Boolean(path.data),
-  });
+  const characters = useCharacters(path.data?.chat.worldId);
+  const character = characters.data?.find((c) => c.slug === path.data?.chat.characterSlug);
 
   const refresh = (data?: ChatPath) => {
     if (data && 'chat' in data) queryClient.setQueryData(key, data);
@@ -103,7 +100,7 @@ export function ChatView() {
   if (path.error) return <ErrorText error={path.error} />;
   if (!path.data) return <div className={ui.page}>{t('common.loading')}</div>;
 
-  const characterName = character.data?.name ?? '…';
+  const characterName = character?.name ?? path.data.chat.characterSlug;
   const actionError = send.error ?? generate.error ?? regenerate.error ?? edit.error;
   const canGenerate = !streaming && (!last || last.role === 'user');
 

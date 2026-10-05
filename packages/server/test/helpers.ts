@@ -1,11 +1,27 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { onTestFinished } from 'vitest';
 import { buildApp } from '../src/app.ts';
 import { openDb } from '../src/db/index.ts';
 import type { StreamFn } from '../src/generation.ts';
+import { WorldService } from '../src/worlds/service.ts';
+
+/** A world service on a fresh temporary folder, removed after the test. */
+export async function tempWorlds(): Promise<WorldService> {
+  const root = await mkdtemp(join(tmpdir(), 'teahouse-worlds-'));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  const worlds = new WorldService(root);
+  await worlds.init();
+  return worlds;
+}
 
 export async function createTestApp(stream?: StreamFn) {
   const db = openDb(':memory:');
-  const app = await buildApp({ db, stream });
+  const worlds = await tempWorlds();
+  const app = await buildApp({ db, worlds, stream });
+  onTestFinished(() => app.close());
   await app.ready();
   const { token } = (
     await app.inject({
@@ -24,7 +40,7 @@ export async function createTestApp(stream?: StreamFn) {
     });
     return { status: res.statusCode, body: res.json() as T };
   };
-  return { app, db, token, api };
+  return { app, db, worlds, token, api };
 }
 
 /** Minimal OpenAI-compatible server for adapter tests. */

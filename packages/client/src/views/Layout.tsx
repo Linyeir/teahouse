@@ -15,8 +15,8 @@ export function Layout({ connection }: { connection: ConnectionState }) {
       <aside className={styles.sidebar}>
         <h1 className={styles.brand}>{t('app.name')}</h1>
         <nav className={styles.nav}>
-          <NavLink className={styles.navLink} to="/characters">
-            {t('nav.characters')}
+          <NavLink className={styles.navLink} to="/worlds">
+            {t('nav.worlds')}
           </NavLink>
           <NavLink className={styles.navLink} to="/profiles">
             {t('nav.profiles')}

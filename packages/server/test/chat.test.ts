@@ -1,27 +1,37 @@
 import type { ChatPath, Profile, ServerEvent } from '@teahouse/shared';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import type { StreamFn } from '../src/generation.ts';
 import { createTestApp, profileBody, startMockEndpoint } from './helpers.ts';
-
-const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => {
-  await Promise.all(cleanups.splice(0).map((fn) => fn()));
-});
 
 async function setup(stream: StreamFn) {
   const mock = await startMockEndpoint({ models: [{ id: 'mock-model', context_length: 8192 }] });
   const ctx = await createTestApp(stream);
-  cleanups.push(
-    () => mock.server.close(),
-    () => ctx.app.close(),
-  );
+  onTestFinished(() => mock.server.close());
   const profile = await ctx.api<Profile>('POST', '/api/profiles', profileBody(mock.baseUrl));
-  const character = await ctx.api<{ id: string }>('POST', '/api/characters', {
-    name: 'Mira',
-    description: '{{char}} is a smuggler who distrusts {{user}}.',
-    firstMessage: 'Mira looks up. "You again."',
+  const world = await ctx.worlds.create('Rain Port');
+  await ctx.worlds.write(
+    world.id,
+    'characters/mira.md',
+    [
+      '---',
+      'type: character',
+      'name: Mira',
+      'greetings:',
+      '  - Mira looks up. "You again."',
+      '---',
+      '',
+      '{{char}} is a smuggler who distrusts {{user}}.',
+    ].join('\n'),
+  );
+  await ctx.worlds.write(
+    world.id,
+    'world.md',
+    `---\nid: ${world.id}\ntype: world\nname: Rain Port\n---\n\nIt always rains here.`,
+  );
+  const chat = await ctx.api<ChatPath>('POST', '/api/chats', {
+    worldId: world.id,
+    characterSlug: 'mira',
   });
-  const chat = await ctx.api<ChatPath>('POST', '/api/chats', { characterId: character.body.id });
   return { ...ctx, profile: profile.body, chat: chat.body };
 }
 
@@ -70,7 +80,7 @@ describe('chat', () => {
     ]);
   });
 
-  it('renders {{char}} and {{user}} into the prompt', async () => {
+  it('puts world canon and character into the prompt, rendering {{char}} and {{user}}', async () => {
     let captured = '';
     const { api, chat } = await setup(async function* (_p, messages) {
       captured = String(messages[0]?.content);
@@ -84,6 +94,7 @@ describe('chat', () => {
     await api('POST', `/api/chats/${chat.chat.id}/generate`);
     await waitFor(() => captured !== '');
     expect(captured).toContain('Mira is a smuggler who distrusts Ash.');
+    expect(captured).toContain('<world>\nIt always rains here.\n</world>');
     expect(captured).toContain('Write in German.');
   });
 

@@ -1,0 +1,21 @@
+.avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  background: var(--color-surface-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-story);
+}
+
+.greeting {
+  width: auto;
+  max-width: 220px;
+  flex: 0 1 220px;
+  text-overflow: ellipsis;
+}

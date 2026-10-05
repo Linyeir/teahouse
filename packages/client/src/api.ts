@@ -32,13 +32,14 @@ export class RequestError extends Error {
 
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = getToken();
+  const isForm = body instanceof FormData;
   const response = await fetch(path, {
     method,
     headers: {
-      ...(body !== undefined && { 'content-type': 'application/json' }),
+      ...(body !== undefined && !isForm && { 'content-type': 'application/json' }),
       ...(token && { authorization: `Bearer ${token}` }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
@@ -59,4 +60,15 @@ export const api = {
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
+  upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
 };
+
+/** URL of a world asset for <img>, which cannot send the Authorization header. */
+export function assetUrl(worldId: string, file: string): string {
+  const rel = file
+    .replace(/^assets\//, '')
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/');
+  return `/api/worlds/${worldId}/assets/${rel}?token=${encodeURIComponent(getToken() ?? '')}`;
+}
