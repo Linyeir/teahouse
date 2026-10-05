@@ -5,7 +5,8 @@
  *   pnpm --filter @teahouse/server eval:memory -- --model inclusionai/ling-3.1-flash
  *
  * Options: --base-url (default OpenRouter), --model, --api-key (or TEAHOUSE_EVAL_API_KEY /
- * OPENROUTER_API_KEY), --scenario <name> (repeatable), --min-score <0..1>, --out <dir>.
+ * OPENROUTER_API_KEY), --answer-model (model that answers the fact questions, same endpoint;
+ * defaults to --model), --scenario <name> (repeatable), --min-score <0..1>, --out <dir>.
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -18,6 +19,7 @@ const { values } = parseArgs({
   options: {
     'base-url': { type: 'string', default: 'https://openrouter.ai/api/v1' },
     model: { type: 'string', default: 'inclusionai/ling-3.1-flash' },
+    'answer-model': { type: 'string' },
     'api-key': { type: 'string' },
     scenario: { type: 'string', multiple: true, default: [] },
     'min-score': { type: 'string', default: '0' },
@@ -28,13 +30,14 @@ const { values } = parseArgs({
 const apiKey =
   values['api-key'] ?? process.env.TEAHOUSE_EVAL_API_KEY ?? process.env.OPENROUTER_API_KEY ?? null;
 const profile = { baseUrl: values['base-url'], apiKey, model: values.model, temperature: 0.3 };
+const answerProfile = { ...profile, model: values['answer-model'] ?? values.model };
 const scenarios = await loadScenarios(join(here, 'scenarios'), values.scenario);
 if (scenarios.length === 0) throw new Error('No scenarios matched');
 
 const results: ScenarioResult[] = [];
 for (const scenario of scenarios) {
   process.stdout.write(`${scenario.name} … `);
-  const result = await runScenario(scenario, profile);
+  const result = await runScenario(scenario, profile, undefined, answerProfile);
   results.push(result);
   console.log(
     result.error ? `error: ${result.error}` : `${(result.durationMs / 1000).toFixed(0)}s`,
@@ -47,8 +50,10 @@ const rows = results.map((r) => ({
   scenario: r.scenario,
   summaries: r.summaries,
   covered: `${r.summarizedMessages}/${r.totalMessages}`,
-  memory: pct(r.memory?.score),
-  canon: pct(r.canon?.score),
+  'memory recall': pct(r.memory?.recall),
+  'memory answers': pct(r.memory?.score),
+  'canon recall': pct(r.canon?.recall),
+  'canon answers': pct(r.canon?.score),
   error: r.error ?? '',
 }));
 console.table(rows);
@@ -71,11 +76,21 @@ const failed = results.some((r) => r.error) || average < Number(values['min-scor
 process.exitCode = failed ? 1 : 0;
 
 function report(model: string, all: ScenarioResult[]): string {
-  const lines = [`# Memory test run`, '', `Model: \`${model}\`, ${new Date().toISOString()}`, ''];
-  lines.push('| Scenario | Summaries | Covered | Memory | Canon |', '|---|---|---|---|---|');
+  const lines = [
+    `# Memory test run`,
+    '',
+    `Model: \`${model}\`, answers by \`${answerProfile.model}\`, ${new Date().toISOString()}`,
+    '',
+    'Recall: the expected keyword appears in the notes. Answers: the question was answered correctly from the notes.',
+    '',
+  ];
+  lines.push(
+    '| Scenario | Summaries | Covered | Memory recall | Memory answers | Canon recall | Canon answers |',
+    '|---|---|---|---|---|---|---|',
+  );
   for (const r of all) {
     lines.push(
-      `| ${r.scenario} | ${r.summaries} | ${r.summarizedMessages}/${r.totalMessages} | ${pct(r.memory?.score)} | ${pct(r.canon?.score)} |`,
+      `| ${r.scenario} | ${r.summaries} | ${r.summarizedMessages}/${r.totalMessages} | ${pct(r.memory?.recall)} | ${pct(r.memory?.score)} | ${pct(r.canon?.recall)} | ${pct(r.canon?.score)} |`,
     );
   }
   for (const r of all) {
@@ -94,10 +109,10 @@ function report(model: string, all: ScenarioResult[]): string {
         `### ${label} (${pct(stage.score)}, ${stage.noteTokens} tokens of notes${skipped ? `, ${skipped} facts not summarized yet` : ''})`,
         '',
       );
-      lines.push('| | Question | Expected | Answer |', '|---|---|---|---|');
+      lines.push('| | Question | Expected | In notes | Answer |', '|---|---|---|---|---|');
       for (const f of stage.facts) {
         lines.push(
-          `| ${{ pass: '✓', fail: '✗', skipped: '–' }[f.status]} | ${f.question} | ${f.expected.join(', ')} | ${f.answer.replace(/\s+/g, ' ').replaceAll('|', '\\|')} |`,
+          `| ${{ pass: '✓', fail: '✗', skipped: '–' }[f.status]} | ${f.question} | ${f.expected.join(', ')} | ${f.inNotes ? 'yes' : 'no'} | ${f.answer.replace(/\s+/g, ' ').replaceAll('|', '\\|')} |`,
         );
       }
       lines.push(

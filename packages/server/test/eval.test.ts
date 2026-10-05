@@ -57,6 +57,7 @@ describe('memory eval harness', () => {
         scenario.name,
       ).toEqual([]);
       expect(result.memory?.score, scenario.name).toBe(1);
+      expect(result.memory?.recall, scenario.name).toBe(1);
       // Facts from turns the summary does not cover yet are skipped, not failed.
       const covered = Math.floor(result.summarizedMessages / 2);
       for (const f of result.memory?.facts ?? []) {

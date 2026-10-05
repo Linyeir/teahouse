@@ -66,6 +66,8 @@ export interface FactResult {
   answer: string;
   /** `skipped`: the memory summary does not cover the fact's turn yet (it is still verbatim). */
   status: 'pass' | 'fail' | 'skipped';
+  /** An expected keyword appears in the notes, independent of how well the question was answered. */
+  inNotes: boolean;
 }
 
 export interface StageResult {
@@ -73,7 +75,10 @@ export interface StageResult {
   notes: string;
   noteTokens: number;
   facts: FactResult[];
+  /** Share of covered facts answered correctly. */
   score: number;
+  /** Share of covered facts whose keyword appears in the notes (deterministic). */
+  recall: number;
 }
 
 export interface ScenarioResult {
@@ -141,6 +146,9 @@ export async function runScenario(
   scenario: Scenario,
   profile: EvalProfile,
   completeFn: CompleteFn = withRetry(complete),
+  /** Model that answers the fact questions; defaults to the profile. A strong, steady model
+   * here keeps answering noise out of the memory score. */
+  answerProfile: EvalProfile = profile,
 ): Promise<ScenarioResult> {
   const started = Date.now();
   const root = await mkdtemp(join(tmpdir(), 'teahouse-eval-'));
@@ -281,7 +289,7 @@ export async function runScenario(
     if (last) {
       // Message index 1 + 2(n-1) is the user message of turn n, +1 the reply.
       const coveredTurns = Math.floor(result.summarizedMessages / 2);
-      result.memory = await ask(completeFn, profile, scenario, last.content, coveredTurns);
+      result.memory = await ask(completeFn, answerProfile, scenario, last.content, coveredTurns);
     }
 
     // End the scene with canon (review is off, so it is applied right away).
@@ -300,7 +308,13 @@ export async function runScenario(
       recentText: '',
       budget: Math.floor(scenario.canonContextWindow * CANON_BUDGET_SHARE),
     });
-    result.canon = await ask(completeFn, profile, scenario, canon.text, Number.POSITIVE_INFINITY);
+    result.canon = await ask(
+      completeFn,
+      answerProfile,
+      scenario,
+      canon.text,
+      Number.POSITIVE_INFINITY,
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     result.error = result.error ? `${result.error}; ${message}` : message;
@@ -322,7 +336,13 @@ async function ask(
   const facts: FactResult[] = [];
   for (const fact of scenario.facts) {
     if (fact.turn > coveredTurns) {
-      facts.push({ question: fact.question, expected: fact.answer, answer: '', status: 'skipped' });
+      facts.push({
+        question: fact.question,
+        expected: fact.answer,
+        answer: '',
+        status: 'skipped',
+        inNotes: grade(notes, fact.answer),
+      });
       continue;
     }
     let answer = '';
@@ -347,13 +367,17 @@ async function ask(
       expected: fact.answer,
       answer,
       status: grade(answer, fact.answer) ? 'pass' : 'fail',
+      inNotes: grade(notes, fact.answer),
     });
   }
   const graded = facts.filter((f) => f.status !== 'skipped');
+  const share = (pick: (f: FactResult) => boolean) =>
+    graded.length ? graded.filter(pick).length / graded.length : 0;
   return {
     notes,
     noteTokens: countTokens(notes),
     facts,
-    score: graded.length ? graded.filter((f) => f.status === 'pass').length / graded.length : 0,
+    score: share((f) => f.status === 'pass'),
+    recall: share((f) => f.inNotes),
   };
 }
