@@ -36,21 +36,13 @@ export const profiles = sqliteTable('profiles', {
   ...syncColumns,
 });
 
-// Placeholder until characters move into world folders (v0.1 step 2).
-export const characters = sqliteTable('characters', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  description: text('description').notNull(),
-  firstMessage: text('first_message').notNull(),
-  ...syncColumns,
-});
-
 export const chats = sqliteTable('chats', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
-  characterId: text('character_id')
-    .notNull()
-    .references(() => characters.id),
+  /** ID from the world's `world.md`. Worlds are folders, not rows. */
+  worldId: text('world_id').notNull(),
+  /** File slug of the character: `characters/<slug>.md`. */
+  characterSlug: text('character_slug').notNull(),
   activeLeafId: text('active_leaf_id'),
   ...syncColumns,
 });

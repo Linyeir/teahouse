@@ -1,0 +1,109 @@
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--space);
+  height: 100%;
+  padding: var(--space);
+  min-height: 0;
+}
+
+.files {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.group h4 {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.fileList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fileButton {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileButton[aria-current="true"] {
+  background: var(--color-surface);
+}
+
+.fileButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+}
+
+.warning {
+  color: var(--color-danger);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.editorHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.path {
+  flex: 1;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+
+.textarea {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  flex: 1;
+  min-height: 50vh;
+  tab-size: 2;
+}
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.history li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.sha {
+  font-family: ui-monospace, monospace;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}

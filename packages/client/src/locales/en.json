@@ -1,11 +1,13 @@
 {
-  "app": { "name": "Teahouse", "offline": "Connection lost, reconnecting…" },
+  "app": {
+    "name": "Teahouse",
+    "offline": "Connection lost, reconnecting…"
+  },
   "nav": {
     "chats": "Chats",
-    "characters": "Characters",
     "profiles": "Profiles",
     "settings": "Settings",
-    "newChat": "New chat"
+    "worlds": "Worlds"
   },
   "common": {
     "save": "Save",
@@ -27,9 +29,8 @@
     "logout": "Sign out"
   },
   "chats": {
-    "empty": "No chats yet. Create a character to start one.",
+    "empty": "No chats yet.",
     "pick": "Pick a chat or start a new one.",
-    "start": "Start a chat with…",
     "placeholder": "Write your reply. *Asterisks* mark actions.",
     "send": "Send",
     "stop": "Stop",
@@ -39,15 +40,6 @@
     "error": "Generation failed: %{message}",
     "stopped": "Stopped",
     "noProfile": "Add a profile before chatting."
-  },
-  "characters": {
-    "new": "New character",
-    "name": "Name",
-    "description": "Description",
-    "descriptionHint": "Personality, appearance, background. {{char}} and {{user}} are replaced.",
-    "firstMessage": "First message",
-    "empty": "No characters yet.",
-    "startChat": "Start chat"
   },
   "profiles": {
     "new": "New profile",
@@ -78,5 +70,36 @@
     "thisDevice": "this device",
     "revoke": "Sign out device",
     "saved": "Saved"
+  },
+  "home": {
+    "noWorlds": "No worlds yet.",
+    "toWorlds": "Create a world or import a character card."
+  },
+  "worlds": {
+    "empty": "No worlds yet. A world is a folder of Markdown files with its own Git history.",
+    "new": "New world",
+    "name": "Name",
+    "importCard": "Import character card",
+    "importHint": "PNG or JSON, Character Card V1–V3. Lorebook entries become files in lore/.",
+    "cardFile": "Card file",
+    "target": "Into",
+    "newWorldFromCard": "A new world",
+    "import": "Import",
+    "files": "Files",
+    "characters": "Characters",
+    "noCharacters": "No characters yet. Import a card or add a file in characters/.",
+    "startChat": "Start chat",
+    "greeting": "Greeting",
+    "greetingN": "Greeting %{n}",
+    "folder": "Folder",
+    "newFileName": "Name of the new file",
+    "newFile": "New file",
+    "fileExists": "%{path} already exists",
+    "history": "History",
+    "view": "View",
+    "versionFrom": "Version from %{date}",
+    "backToCurrent": "Back to current",
+    "restore": "Restore this version",
+    "discard": "Discard changes"
   }
 }

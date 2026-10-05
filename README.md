@@ -2,7 +2,24 @@
 
 Self-hostable AI roleplay in the style of a visual novel, with two-tier memory: Active Memory keeps long scenes in the context window, and a canon of Git-versioned Markdown files holds lasting world knowledge.
 
-**Status:** early development, v0.1 step 1 of 4. Today Teahouse is a plain chat with one character against any OpenAI-compatible endpoint. Worlds, scenes and memory follow. See [the concept](docs/concept.md) for where this is going.
+**Status:** early development, v0.1 step 2 of 4. Teahouse has worlds as Markdown plus Git, Character Card import and a plain chat with one character against any OpenAI-compatible endpoint. Scenes and memory follow.
+
+## Worlds
+
+A world is a folder of Markdown files with its own Git repository, under `<data>/worlds/`:
+
+```
+rain-port/
+  world.md        ground rules, tone, setting
+  user.md         what the world knows about your persona
+  characters/     one file per character
+  places/  events/  lore/
+  assets/         images (not in Git)
+```
+
+Every save in Teahouse is a commit, and so is every edit made directly in the folder, e.g. with Obsidian. Teahouse watches the folders and commits changes after two quiet seconds. Each file has YAML frontmatter (`type`, `name`, `tags`, `aliases`, `summary`; characters also `greetings` and `images`).
+
+Character Cards (PNG or JSON, V1 to V3) import into a new or an existing world: one file in `characters/`, one file in `lore/` per lorebook entry, and the card image as the character's default image. See [the concept](docs/concept.md) for where this is going.
 
 ## Run with Docker
 
@@ -46,7 +63,8 @@ Node's `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set. Set i
 |---|---|---|
 | `TEAHOUSE_PORT` | `8787` | HTTP port |
 | `TEAHOUSE_HOST` | `0.0.0.0` | Bind address |
-| `TEAHOUSE_DATA_DIR` | `./data` | SQLite database (later also worlds and assets) |
+| `TEAHOUSE_DATA_DIR` | `./data` | SQLite database and, by default, worlds |
+| `TEAHOUSE_WORLDS_DIR` | `<data>/worlds` | World folders |
 | `TEAHOUSE_CLIENT_DIR` | `packages/client/dist` | Built web client to serve |
 
 ### Layout
@@ -54,7 +72,8 @@ Node's `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set. Set i
 ```
 packages/
   shared/   API schemas (zod), WebSocket event types, template rendering
-  server/   Fastify API, SQLite via Drizzle, OpenAI-compatible adapter (openai SDK)
+  server/   Fastify API, SQLite via Drizzle, OpenAI-compatible adapter (openai SDK),
+            worlds (simple-git, chokidar, yaml), card import
   client/   React web app (Vite, TanStack Query, i18next)
 ```
 
