@@ -68,7 +68,7 @@ Sync kommt später, das Schema muss ihn aber jetzt schon tragen:
 - **Szene:** Hat eine Startnachricht, eine Besetzung und einen Status:
   - `aktiv` – Nachrichten bilden einen Baum (Forks, Swipes, Edits)
   - `wird abgeschlossen` – Canon-Vorschlag wird erzeugt und geprüft
-  - `abgeschlossen` – der gewählte Pfad ist eingefroren, alle anderen Äste werden verworfen
+  - `abgeschlossen` – der gewählte Pfad ist eingefroren, alle anderen Äste werden ausgeblendet und bleiben nur lesbar erhalten
 - **Nachricht:** Knoten im Baum der aktiven Szene. Eine KI-Nachricht besteht aus mehreren Beats.
 - **Beat:** Ein Abschnitt einer Nachricht, entweder Erzählung oder Dialog einer Figur mit Gesichtsausdruck, oder ein Hintergrundwechsel.
 - **Active-Memory-Knoten:** Zusammenfassung, die an der Nachricht hängt, bis zu der sie zusammenfasst.
@@ -136,7 +136,7 @@ Der Prompt wird in fester Reihenfolge gebaut, Statisches zuerst, damit lokale Se
 5. Startnachricht der Szene
 6. Verlauf der Szene
 
-Der Canon hat ein eigenes Budget (Anteil am Kontextfenster, pro Welt einstellbar). Gefüllt wird nach Priorität:
+Der Canon hat ein eigenes Budget, standardmäßig 30 % des Kontextfensters, pro Welt einstellbar. Gefüllt wird nach Priorität:
 
 1. `world.md`, `user.md`, Dateien aller anwesenden Figuren
 2. Die letzten zwei `events/`-Dateien dieses Chats
@@ -199,7 +199,8 @@ Swipe eines einzelnen Beats (Neugenerierung ab einem Beat per Assistant-Prefill)
 
 - Ein Chat ist eine Folge von Szenen.
 - **Nur der Nutzer beendet eine Szene**, per Knopf.
-- Beim Beenden wählt der Nutzer den Pfad, falls die Szene Forks hat. Alle anderen Äste werden verworfen.
+- Beim Beenden wählt der Nutzer den Pfad, falls die Szene Forks hat. Alle anderen Äste werden ausgeblendet, nicht gelöscht.
+- Eine Szene kann **mit oder ohne Canon** geschlossen werden. Ohne Canon (z. B. für Nebenszenen) entsteht keine `events/`-Datei und kein Commit, die Szene ist sofort abgeschlossen.
 - **Startnachricht und Besetzung** einer neuen Szene schlägt die Rolle Szenen-Start vor, auf Basis einer kurzen Vorgabe des Nutzers. Der Nutzer kann beides editieren. Beim ersten Chat mit einer importierten Karte dient deren `first_mes` als Startnachricht, `alternate_greetings` werden als Alternativen angeboten.
 - Eine neue Szene sieht den Canon und ihre Startnachricht. Über die Event-Priorität (Abschnitt 5) ist die vorige Szene garantiert im Kontext.
 
@@ -221,7 +222,7 @@ Swipe eines einzelnen Beats (Neugenerierung ab einem Beat per Assistant-Prefill)
 
 - Markdown-Dateien der Welt, Quelle der Wahrheit ist das Dateisystem
 - Ein einziger Git-Branch `main` pro Welt
-- **Entsteht beim Schließen einer Szene.** Ein LLM schlägt Änderungen vor, mindestens eine neue `events/`-Datei mit `summary`.
+- **Entsteht beim Schließen einer Szene**, sofern der Nutzer nicht „ohne Canon schließen“ wählt. Ein LLM schlägt Änderungen vor, mindestens eine neue `events/`-Datei mit `summary`.
 - **Format der Vorschläge:** strukturierte Operationen statt freiem Text, damit das LLM keine Inhalte still verliert:
   - `create(path, frontmatter, body)`
   - `append_section(path, heading, text)`
@@ -323,13 +324,7 @@ Nicht übernommen werden Lorebook-Logik wie sekundäre Schlüssel, `selective`, 
 
 Nach Schritt 4 ist das Kernversprechen testbar und kann früh veröffentlicht werden.
 
-## 14. Offene Fragen
-
-- Soll eine Szene sich ohne Canon schließen lassen (z. B. für Nebenszenen ohne Bedeutung)?
-- Werden beim Schließen verworfene Äste wirklich gelöscht oder nur ausgeblendet aufbewahrt?
-- Standardwert für das Canon-Budget (Vorschlag: 30 % des Kontextfensters)
-
-## 15. Bekannte Nachbarprojekte
+## 14. Bekannte Nachbarprojekte
 
 - **SillyTavern:** Vorbild. Eine Umsetzung als ST-Erweiterung wurde verworfen, weil Szenenmodell und Sync gegen die ST-Architektur arbeiten würden.
 - **Marinara Engine:** Eigenständige TypeScript-Codebasis (AGPL-3.0) mit Sprites, Hintergründen und KI-Agenten. Apps sind PWA bzw. WebView-Hüllen, kein Sync mit entferntem Server. Referenz für die Sprite-Umsetzung.
