@@ -57,6 +57,10 @@ export async function* streamChat(
   }
 }
 
+/** Budget for the retry when a reasoning model used up `max_tokens` before answering. */
+const REASONING_RETRY_TOKENS = 4096;
+const MAX_RETRY_TOKENS = 16_384;
+
 export interface CompleteOptions {
   signal?: AbortSignal;
   /**
@@ -94,11 +98,26 @@ export async function complete(
         ? { type: 'json_object' as const }
         : undefined;
   const request = async (format: Format) => {
-    const response = await client.chat.completions.create(
-      { ...base, ...(responseFormat(format) && { response_format: responseFormat(format) }) },
-      { signal: options.signal },
-    );
-    return response.choices[0]?.message?.content ?? '';
+    const send = async (limit: number | null) => {
+      const response = await client.chat.completions.create(
+        {
+          ...base,
+          ...(limit !== null && { max_tokens: limit }),
+          ...(responseFormat(format) && { response_format: responseFormat(format) }),
+        },
+        { signal: options.signal },
+      );
+      const choice = response.choices[0];
+      return { content: choice?.message?.content ?? '', finish: choice?.finish_reason };
+    };
+    const first = await send(maxTokens);
+    // Reasoning models can spend the whole budget thinking and return no answer at all.
+    if (!first.content.trim() && first.finish === 'length' && maxTokens !== null) {
+      return (
+        await send(Math.min(Math.max(maxTokens * 4, REASONING_RETRY_TOKENS), MAX_RETRY_TOKENS))
+      ).content;
+    }
+    return first.content;
   };
   if (!options.jsonSchema) return request('none');
   // Support for `response_format` varies between servers and providers: try JSON schema,
