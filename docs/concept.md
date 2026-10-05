@@ -237,7 +237,7 @@ Swipe eines einzelnen Beats (Neugenerierung ab einem Beat per Assistant-Prefill)
 - **Nachträgliche Pflege:** Der Nutzer kann den Canon jederzeit von Hand bearbeiten. Entstehen dadurch Lücken in der Kontinuität, ist das seine Entscheidung.
 - **Bearbeitung:** In den Apps über einen Markdown-Editor gegen die Server-API (nur online). Jede Speicherung ist ein Commit. Direkte Änderungen im Dateisystem erkennt ein File-Watcher und committet sie ebenfalls (entprellt, temporäre Editor-Dateien ignoriert).
 - **Git-Warteschlange:** Alle Git-Operationen einer Welt laufen seriell über eine Warteschlange, damit sich API, Watcher und Canon-Commits nicht blockieren.
-- Git liefert Verlauf, Diff-Ansicht und Rückgängig. Ein späteres Feature „Welt forken“ darf Branches nutzen.
+- **Wozu Git:** Nachvollziehbarkeit und Rückgängig, nicht Verzweigung. Vor allem lassen sich Canon-Änderungen des LLM, die erst Szenen später auffallen, gezielt pro Szene zurücknehmen. Dazu kommen Diff-Ansicht, 3-Wege-Merge mit Handänderungen, Backup per `git push` und Teilen von Welten als Repository. Ein späteres Feature „Welt forken“ darf Branches nutzen.
 
 ## 9. Sync und Offline
 
@@ -300,29 +300,26 @@ Nicht übernommen werden Lorebook-Logik wie sekundäre Schlüssel, `selective`, 
 - **Welt-Export:** Archiv aus Git-Repository, Assets und zugehörigen Chats. Das ist zugleich das Austauschformat zum Teilen von Welten.
 - **Server-Backup:** Sichern des Daten-Volumes
 
-## 13. Umfang v0.1
+## 13. Versionen
 
-- OpenAI-kompatibler Adapter mit Profilen
-- Welten als Markdown plus Git
-- Import von Character Cards (V2, V3)
-- Promptanpassung über Template-Schichten
-- Szenen mit Active Memory und Canon inklusive Diff-Bestätigung
-- Tag-Markup mit getrennter Darstellung von Erzählung und Dialog, Charakterbilder und Hintergründe
-- Web-Client
+Jede Version endet mit etwas, das sich tatsächlich benutzen lässt.
 
-**Später:** Sync mit Android- und Desktop-Apps, Plugins und Themes, Beat-Swipes, Embeddings, Welt forken, Text Completion, ST-Preset-Import, ST-Chatimport.
+| Version | Inhalt | Ergebnis |
+|---|---|---|
+| **v0.1** | Server, Profile, OpenAI-kompatibler Adapter, Welten als Markdown plus Git, Kartenimport, Template-Schichten, Szenen, Active Memory, Canon mit Diff-Bestätigung, Memory-Testlauf, schlichter Web-Chat | Das Kernversprechen Memory ist testbar |
+| **v0.2** | Tag-Markup und Parser, VN-Ansicht mit Charakterbildern und Hintergründen, Token-Schicht für Themes, Welt-Export | Es fühlt sich an wie eine Visual Novel |
+| **v0.3** | Tauri-Apps für Desktop und Android, Sync, Offline-Nutzung, Gerätekopplung per QR-Code | Spielen auf mehreren Geräten |
+| **v0.4** | Plugins und Themes als Plugins, ST-Chatimport, Beat-Swipes, eventuell ein Aufruf für Posen und Bildwahl | Erweiterbarkeit |
+| **danach** | Embeddings, Welt forken, Text Completion, ST-Preset-Import | — |
 
-### Reihenfolge
+### Reihenfolge in v0.1
 
 1. Server-Grundgerüst, Profile, OpenAI-kompatibler Adapter, schlichter Chat mit einer Figur
 2. Welten als Markdown plus Git, Kartenimport
 3. Szenen, Active Memory, Canon-Vorschlag mit Diff-Bestätigung
 4. **Memory-Testlauf:** einige Referenz-Chats mit Faktenfragen („Wie heißt Miras Bruder?“), die nach Zusammenfassung und Canon-Update automatisch geprüft werden. Grundlage für jedes spätere Tuning der Prompts.
-5. Tag-Markup, Parser, getrennte Darstellung
-6. Visual-Novel-Ansicht mit Bildern und Hintergründen
-7. Welt-Export
 
-Nach Schritt 4 ist das Kernversprechen testbar und kann früh veröffentlicht werden.
+In v0.1 schreibt der Erzähler Fließtext ohne Tags. Der Web-Chat zeigt ihn unverändert an.
 
 ## 14. Bekannte Nachbarprojekte
 
