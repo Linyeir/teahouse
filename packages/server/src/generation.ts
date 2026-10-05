@@ -1,19 +1,19 @@
 import type { Message } from '@teahouse/shared';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { buildTurnContext, currentScene, narratorPrompt } from './context/turn.ts';
 import type { Db } from './db/index.ts';
-import { chats, messages, profiles } from './db/schema.ts';
+import { chats, messages } from './db/schema.ts';
 import type { Hub } from './hub.ts';
 import { type ChatMessage, type GenerationProfile, streamChat } from './llm/client.ts';
-import { buildNarratorMessages } from './prompt.ts';
-import { getSettings } from './settings.ts';
+import type { Memory } from './memory.ts';
+import { NoProfileError, profileFor } from './roles.ts';
 import { newId, now } from './time.ts';
-import { activePath, getChatRow, toMessage } from './tree.ts';
-import { parseDocument } from './worlds/frontmatter.ts';
+import { getChatRow, toMessage } from './tree.ts';
 import type { WorldService } from './worlds/service.ts';
 
 export class GenerationError extends Error {
   constructor(
-    readonly code: 'no_profile' | 'busy' | 'not_found',
+    readonly code: 'no_profile' | 'busy' | 'not_found' | 'scene_closed',
     message: string,
   ) {
     super(message);
@@ -35,6 +35,7 @@ export class Generator {
     private readonly db: Db,
     private readonly hub: Hub,
     private readonly worlds: WorldService,
+    private readonly memory: Memory,
     private readonly stream: StreamFn = streamChat,
   ) {}
 
@@ -51,29 +52,30 @@ export class Generator {
     const chat = getChatRow(this.db, chatId);
     if (!chat) throw new GenerationError('not_found', 'Chat not found');
     this.#assertIdle(chatId);
-
-    const profile = this.#narratorProfile();
-    const character = await this.worlds
-      .character(chat.worldId, chat.characterSlug)
-      .catch(() => null);
-    if (!character) {
-      throw new GenerationError('not_found', `Character ${chat.characterSlug} not found`);
+    const scene = currentScene(this.db, chatId);
+    if (scene?.status !== 'active') {
+      throw new GenerationError('scene_closed', 'Start a new scene to continue');
     }
-    const canonBody = async (path: string) =>
-      parseDocument((await this.worlds.readIfExists(chat.worldId, path)) ?? '').body;
+    let profile: ReturnType<typeof profileFor>;
+    try {
+      profile = profileFor(this.db, 'narrator');
+    } catch (err) {
+      if (err instanceof NoProfileError) throw new GenerationError('no_profile', err.message);
+      throw err;
+    }
+    for (const slug of scene.cast) {
+      if (!(await this.worlds.character(chat.worldId, slug).catch(() => null))) {
+        throw new GenerationError('not_found', `Character ${slug} not found`);
+      }
+    }
 
-    const settings = getSettings(this.db);
-    const history = parentId ? activePath(this.db, chatId, parentId) : [];
-    const prompt = buildNarratorMessages({
-      characterName: character.summary.name,
-      world: await canonBody('world.md'),
-      persona: await canonBody('user.md'),
-      character: character.body,
-      userName: settings.userName,
-      language: settings.outputLanguage,
-      history: history.map((m) => ({ role: m.role, content: m.content })),
-    });
-    // Reading the canon was async: another request may have started a reply meanwhile.
+    let ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile);
+    // History over budget: wait for (or run) a summary, then rebuild with it.
+    if (await this.memory.ensureFits(chatId, ctx)) {
+      ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile);
+    }
+    const prompt = narratorPrompt(this.db, ctx);
+    // Building the context was async: another request may have started a reply meanwhile.
     // Everything from here to registering the run is synchronous.
     this.#assertIdle(chatId);
 
@@ -81,6 +83,7 @@ export class Generator {
     const row = {
       id: newId(),
       chatId,
+      sceneId: scene.id,
       parentId,
       role: 'assistant' as const,
       content: '',
@@ -170,6 +173,7 @@ export class Generator {
     if (updated) {
       this.hub.broadcast({ type: 'generation.finished', chatId: message.chatId, message: updated });
     }
+    if (status === 'complete') this.memory.maybeSummarize(message.chatId);
   }
 
   #persist(
@@ -183,19 +187,5 @@ export class Generator {
       .returning()
       .get();
     return row ? toMessage(row) : null;
-  }
-
-  #narratorProfile(): GenerationProfile & { id: string } {
-    const { narratorProfileId } = getSettings(this.db);
-    const active = isNull(profiles.deletedAt);
-    const row = narratorProfileId
-      ? this.db
-          .select()
-          .from(profiles)
-          .where(and(eq(profiles.id, narratorProfileId), active))
-          .get()
-      : this.db.select().from(profiles).where(active).orderBy(profiles.createdAt).get();
-    if (!row) throw new GenerationError('no_profile', 'No profile is configured for the narrator');
-    return row;
   }
 }

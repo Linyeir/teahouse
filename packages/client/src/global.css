@@ -9,6 +9,8 @@
   --color-accent-text: #ffffff;
   --color-danger: #a33b2b;
   --color-user-bubble: #e8dfd2;
+  --color-diff-add: #dcefd9;
+  --color-diff-remove: #f5dcd7;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-story: Georgia, "Iowan Old Style", serif;
   --radius: 8px;
@@ -28,6 +30,8 @@
     --color-accent-text: #1b1916;
     --color-danger: #e0715f;
     --color-user-bubble: #34302a;
+    --color-diff-add: #23392a;
+    --color-diff-remove: #45272a;
     color-scheme: dark;
   }
 }

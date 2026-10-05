@@ -36,6 +36,11 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
       socket.onmessage = (message) => {
         const event = JSON.parse(String(message.data)) as ServerEvent;
         const key = ['chat', event.chatId];
+        if (event.type === 'proposal.changed') {
+          void queryClient.invalidateQueries({ queryKey: ['proposal', event.sceneId] });
+          void queryClient.invalidateQueries({ queryKey: key });
+          return;
+        }
         const current = queryClient.getQueryData<ChatPath>(key);
         const cachedText =
           event.type === 'generation.delta'

@@ -1,8 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { CanonProposals } from '../canon/proposals.ts';
 import type { Db } from '../db/index.ts';
 import type { Generator } from '../generation.ts';
 import type { Hub } from '../hub.ts';
+import type { Memory } from '../memory.ts';
+import type { Scenes } from '../scenes.ts';
 import type { WorldService } from '../worlds/service.ts';
 
 export interface Services {
@@ -10,6 +13,9 @@ export interface Services {
   hub: Hub;
   generator: Generator;
   worlds: WorldService;
+  memory: Memory;
+  scenes: Scenes;
+  proposals: CanonProposals;
 }
 
 export const typed = (app: FastifyInstance) => app.withTypeProvider<ZodTypeProvider>();

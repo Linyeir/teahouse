@@ -67,7 +67,8 @@ export function activePath(db: Db, chatId: string, leafId: string | null): PathM
   const path: PathMessage[] = [];
   let current = leafId ? byId.get(leafId) : undefined;
   while (current) {
-    const siblings = children.get(current.parentId) ?? [current];
+    // Each scene's start message is a root of its own; roots of other scenes are not siblings.
+    const siblings = current.parentId ? (children.get(current.parentId) ?? [current]) : [current];
     path.push({ ...toMessage(current), siblingIds: siblings.map((s) => s.id) });
     current = current.parentId ? byId.get(current.parentId) : undefined;
   }
