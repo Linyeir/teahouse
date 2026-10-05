@@ -1,0 +1,62 @@
+import type { ApiError } from '@teahouse/shared';
+
+const TOKEN_KEY = 'teahouse.token';
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string | null): void {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Storage unavailable (private mode): the session lasts until reload.
+  }
+  window.dispatchEvent(new Event('teahouse:auth'));
+}
+
+export class RequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const token = getToken();
+  const response = await fetch(path, {
+    method,
+    headers: {
+      ...(body !== undefined && { 'content-type': 'application/json' }),
+      ...(token && { authorization: `Bearer ${token}` }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const err = (data ?? {}) as Partial<ApiError>;
+    if (response.status === 401 && token) setToken(null);
+    throw new RequestError(
+      response.status,
+      err.error ?? 'unknown',
+      err.message ?? response.statusText,
+    );
+  }
+  return data as T;
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
+  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  delete: <T>(path: string) => request<T>('DELETE', path),
+};

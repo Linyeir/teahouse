@@ -1,0 +1,135 @@
+import { z } from 'zod';
+
+export const id = z.uuid();
+
+export const credentialsInput = z.object({
+  password: z.string().min(8).max(256),
+  deviceName: z.string().min(1).max(100),
+});
+export type CredentialsInput = z.infer<typeof credentialsInput>;
+
+export const authStatus = z.object({ passwordSet: z.boolean() });
+export type AuthStatus = z.infer<typeof authStatus>;
+
+export const tokenResponse = z.object({ token: z.string(), deviceId: id });
+export type TokenResponse = z.infer<typeof tokenResponse>;
+
+export const device = z.object({
+  id,
+  name: z.string(),
+  createdAt: z.string(),
+  lastSeenAt: z.string().nullable(),
+  current: z.boolean(),
+});
+export type Device = z.infer<typeof device>;
+
+export const samplingParams = z.object({
+  temperature: z.number().min(0).max(2).nullable(),
+  topP: z.number().min(0).max(1).nullable(),
+  maxTokens: z.number().int().positive().nullable(),
+});
+
+export const profileInput = samplingParams.extend({
+  name: z.string().min(1).max(100),
+  baseUrl: z.url(),
+  /** Omitted on update keeps the stored key, an empty string clears it. */
+  apiKey: z.string().max(1000).optional(),
+  model: z.string().min(1).max(200),
+  contextWindowOverride: z.number().int().positive().nullable(),
+});
+export type ProfileInput = z.infer<typeof profileInput>;
+
+export const profile = profileInput.omit({ apiKey: true }).extend({
+  id,
+  hasApiKey: z.boolean(),
+  detectedContextWindow: z.number().int().nullable(),
+  updatedAt: z.string(),
+});
+export type Profile = z.infer<typeof profile>;
+
+export const endpointProbeInput = z.object({
+  baseUrl: z.url(),
+  apiKey: z.string().max(1000).optional(),
+  /** Reuse the key stored on this profile when apiKey is omitted. */
+  profileId: id.optional(),
+});
+export type EndpointProbeInput = z.infer<typeof endpointProbeInput>;
+
+export const modelList = z.object({ models: z.array(z.string()) });
+export type ModelList = z.infer<typeof modelList>;
+
+export const characterInput = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(50_000),
+  firstMessage: z.string().max(20_000),
+});
+export type CharacterInput = z.infer<typeof characterInput>;
+
+export const character = characterInput.extend({ id, updatedAt: z.string() });
+export type Character = z.infer<typeof character>;
+
+export const settings = z.object({
+  userName: z.string().min(1).max(100),
+  outputLanguage: z.string().min(1).max(50),
+  narratorProfileId: id.nullable(),
+});
+export type Settings = z.infer<typeof settings>;
+
+export const chatInput = z.object({ characterId: id, title: z.string().max(200).optional() });
+export type ChatInput = z.infer<typeof chatInput>;
+
+export const chat = z.object({
+  id,
+  title: z.string(),
+  characterId: id,
+  activeLeafId: id.nullable(),
+  updatedAt: z.string(),
+});
+export type Chat = z.infer<typeof chat>;
+
+export const messageRole = z.enum(['user', 'assistant']);
+export type MessageRole = z.infer<typeof messageRole>;
+
+export const messageStatus = z.enum(['complete', 'streaming', 'stopped', 'error']);
+export type MessageStatus = z.infer<typeof messageStatus>;
+
+export const message = z.object({
+  id,
+  chatId: id,
+  parentId: id.nullable(),
+  role: messageRole,
+  content: z.string(),
+  status: messageStatus,
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Message = z.infer<typeof message>;
+
+/** A message on the active path, with its position among its siblings. */
+export const pathMessage = message.extend({
+  siblingIds: z.array(id),
+});
+export type PathMessage = z.infer<typeof pathMessage>;
+
+export const chatPath = z.object({ chat, messages: z.array(pathMessage) });
+export type ChatPath = z.infer<typeof chatPath>;
+
+export const sendMessageInput = z.object({
+  /** Client-generated UUIDv7, so a retried request does not duplicate the message. */
+  id: id.optional(),
+  content: z.string().min(1).max(50_000),
+});
+export type SendMessageInput = z.infer<typeof sendMessageInput>;
+
+export const editMessageInput = z.object({ content: z.string().max(50_000) });
+export type EditMessageInput = z.infer<typeof editMessageInput>;
+
+export const selectLeafInput = z.object({ messageId: id });
+export type SelectLeafInput = z.infer<typeof selectLeafInput>;
+
+export const generationStarted = z.object({ messageId: id });
+export type GenerationStarted = z.infer<typeof generationStarted>;
+
+export const apiError = z.object({ error: z.string(), message: z.string() });
+export type ApiError = z.infer<typeof apiError>;

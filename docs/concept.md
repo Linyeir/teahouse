@@ -1,337 +1,321 @@
-# Teahouse – Konzept v1
+# Teahouse – Concept v1
 
-Teahouse ist eine selbsthostbare Open-Source-Software für KI-Rollenspiel im Stil einer Visual Novel. Sie besteht aus einem Server und Clients für Web, Desktop und Android. Vorbild ist SillyTavern, Teahouse ist aber ein eigenständiges Projekt ohne gemeinsamen Code.
+Teahouse is self-hostable open-source software for AI roleplay in the style of a visual novel. It consists of a server and clients for web, desktop and Android. It is modeled on SillyTavern, but is an independent project with no shared code.
 
-Dieses Dokument hält die getroffenen Konzeptentscheidungen fest. Es ist die Grundlage für Architektur und Implementierung.
+This document records the concept decisions made so far. It is the basis for architecture and implementation.
 
-## Änderungen gegenüber v0
+## 1. Distinguishing features
 
-- **Regie-Pipeline gestrichen.** Ein Zug ist ein einziger Generierungsaufruf, der Erzählung, Dialog, Gesichtsausdrücke und Hintergrundwechsel als Tag-Markup liefert.
-- **Abgeschlossene Szenen sind unveränderlich.** Keine Forks, Swipes oder Edits in abgeschlossenen Szenen. Forks gibt es nur innerhalb der aktiven Szene.
-- **Canon entsteht beim Schließen der Szene**, nicht über eine Warteschlange. Die nächste Szene beginnt erst danach.
-- **Canon-Budget** mit Kurzzusammenfassungen im Frontmatter.
-- **Parallele Chats in einer Welt** werden nicht gegeneinander abgesichert. Widersprüche verantwortet der Nutzer.
-- Technische Präzisierungen aus dem Review: Memory-Auslöser mit Hysterese, strukturierte Canon-Änderungen, Git-Warteschlange, sync-fähiges Schema von Anfang an.
+1. **Two-tier memory.** Active Memory keeps long scenes within the context window, a canon holds lasting world knowledge as Git-versioned Markdown files.
+2. **Separate presentation of narration and dialogue** in a visual-novel-style view with character images and backgrounds.
+3. **Scenes as the unit of play.** The user closes scenes, and canon is derived from them. What is closed stays closed.
+4. **Sync between devices** through the user's own server, with offline use of the apps.
 
-## 1. Alleinstellungsmerkmale
+## 2. Constraints
 
-1. **Zweistufiges Memory.** Active Memory hält lange Szenen im Kontextfenster, ein Canon bildet das dauerhafte Weltwissen als Git-versionierte Markdown-Dateien.
-2. **Getrennte Darstellung von Erzählung und Dialog** in einer Visual-Novel-artigen Ansicht mit Charakterbildern und Hintergründen.
-3. **Szenen als Einheit.** Der Nutzer schließt Szenen ab, daraus entsteht Canon. Abgeschlossenes bleibt abgeschlossen.
-4. **Sync zwischen Geräten** über einen eigenen Server, mit Offline-Nutzung der Apps.
-
-## 2. Rahmenbedingungen
-
-| Thema | Entscheidung |
+| Topic | Decision |
 |---|---|
-| Lizenz | AGPL-3.0 für Teahouse und eigene Plugins. Für Drittplugins erwartet, nicht erzwungen. |
-| Zielgruppe | Technikaffine Self-Hoster |
-| Nutzer | Ein Nutzer pro Instanz |
-| Plattformen | Web, Desktop (Windows, macOS, Linux), Android als APK ohne Store. Kein iOS. |
-| Generierung | Ausschließlich über externe APIs, nur Chat Completion |
-| Kompatibilität | LM Studio, llama.cpp (`llama-server`), OpenRouter, allgemein OpenAI-kompatible Endpunkte |
-| Sprache | i18n von Anfang an, Englisch und Deutsch. Standard-Prompts auf Englisch mit Template-Variable für die Ausgabesprache. |
-| Feature-Parität zu ST | Ausdrücklich nicht angestrebt |
+| License | AGPL-3.0 for Teahouse and first-party plugins. Expected, not enforced, for third-party plugins. |
+| Audience | Technically minded self-hosters |
+| Users | One user per instance |
+| Platforms | Web, desktop (Windows, macOS, Linux), Android as an APK outside the store. No iOS. |
+| Generation | External APIs only, chat completion only |
+| Compatibility | LM Studio, llama.cpp (`llama-server`), OpenRouter, OpenAI-compatible endpoints in general |
+| Language | i18n from the start, English and German. Default prompts in English with a template variable for the output language. |
+| Feature parity with ST | Explicitly not a goal |
 
-## 3. Technischer Stack
+## 3. Technical stack
 
-- **Server:** TypeScript auf Node.js, Fastify für REST-API und WebSocket (Streaming, Sync-Benachrichtigungen). Das Hook-Modell von Fastify passt zum späteren Plugin-System.
-- **Datenbank:** SQLite mit Drizzle ORM (Chats, Szenen, Nachrichtenbaum, Active Memory, Einstellungen, Profile)
-- **Weltdaten:** Markdown-Dateien im Dateisystem, versioniert mit dem `git`-Binary über `simple-git`
-- **Client:** React-Web-App, verpackt mit Tauri 2 für Desktop und Android
-- **Repository:** pnpm-Monorepo
+- **Server:** TypeScript on Node.js, Fastify for REST API and WebSocket (streaming, sync notifications). Fastify's hook model fits the later plugin system.
+- **LLM access:** the official `openai` npm SDK against any OpenAI-compatible base URL. No home-grown HTTP/SSE client.
+- **Database:** SQLite with Drizzle ORM (chats, scenes, message tree, Active Memory, settings, profiles)
+- **World data:** Markdown files on disk, versioned with the `git` binary via `simple-git`
+- **Client:** React web app (Vite), packaged with Tauri 2 for desktop and Android
+- **Repository:** pnpm monorepo
 
 ```
 packages/
-  server/       API, Prompt-Bau, Git, File-Watcher, Plugins
-  client/       React-App (Web, Tauri)
-  shared/       gemeinsame Typen, Tag-Parser, Sync-Protokoll
-  plugin-sdk/   Typen und Hilfen für Plugin-Autoren (später)
+  server/       API, prompt building, Git, file watcher, plugins
+  client/       React app (web, Tauri)
+  shared/       shared types, tag parser, sync protocol
+  plugin-sdk/   types and helpers for plugin authors (later)
 ```
 
-- **Betrieb:** Docker-Image mit Git, Daten-Volume für SQLite, Welten und Assets
-- **Zugang:** Passwort beim ersten Login, danach ein widerrufbares Token pro Gerät, Kopplung per QR-Code. HTTPS übernimmt der Reverse-Proxy oder Tailscale des Nutzers.
+- **Operations:** Docker image with Git, data volume for SQLite, worlds and assets
+- **Access:** password on first login, then one revocable token per device, pairing via QR code. HTTPS is handled by the user's reverse proxy or Tailscale.
 
-### Schema-Regeln ab Tag 1
+### Schema rules from day one
 
-Sync kommt später, das Schema muss ihn aber jetzt schon tragen:
+Sync comes later, but the schema has to support it now:
 
-- Alle IDs sind client-erzeugbare UUIDv7
-- Jede synchronisierte Zeile hat `updated_at` und einen Revisionszähler
-- Löschen ist ein Soft-Delete (Tombstone)
+- All IDs are client-generatable UUIDv7
+- Every synced row has `updated_at` and a revision counter
+- Deletion is a soft delete (tombstone)
 
-## 4. Domänenmodell
+## 4. Domain model
 
-- **Welt:** Ein Ordner mit Canon-Dateien, Assets und einem Git-Repository. Jede Figur gehört zu einer Welt.
-- **Figur:** Eine Datei in `characters/` plus Charakterbilder mit freien Labels (z. B. `neutral`, `amused`).
-- **Chat:** Gehört zu genau einer Welt. Ist eine lineare Folge von Szenen.
-- **Szene:** Hat eine Startnachricht, eine Besetzung und einen Status:
-  - `aktiv` – Nachrichten bilden einen Baum (Forks, Swipes, Edits)
-  - `wird abgeschlossen` – Canon-Vorschlag wird erzeugt und geprüft
-  - `abgeschlossen` – der gewählte Pfad ist eingefroren, alle anderen Äste werden verworfen
-- **Nachricht:** Knoten im Baum der aktiven Szene. Eine KI-Nachricht besteht aus mehreren Beats.
-- **Beat:** Ein Abschnitt einer Nachricht, entweder Erzählung oder Dialog einer Figur mit Gesichtsausdruck, oder ein Hintergrundwechsel.
-- **Active-Memory-Knoten:** Zusammenfassung, die an der Nachricht hängt, bis zu der sie zusammenfasst.
-- **Profil:** Benannte Kombination aus Endpunkt, Modell und Parametern, die Rollen zugewiesen wird.
+- **World:** A folder with canon files, assets and a Git repository. Every character belongs to a world.
+- **Character:** A file in `characters/` plus character images with free-form labels (e.g. `neutral`, `amused`).
+- **Chat:** Belongs to exactly one world. A linear sequence of scenes.
+- **Scene:** Has a start message, a cast and a status:
+  - `active` – messages form a tree (forks, swipes, edits)
+  - `closing` – a canon proposal is being generated and reviewed
+  - `closed` – the chosen path is frozen, all other branches are hidden and kept read-only
+- **Message:** A node in the tree of the active scene. An AI message consists of several beats.
+- **Beat:** A section of a message: narration, a character's line with facial expression, or a background change.
+- **Active Memory node:** A summary attached to the message up to which it summarizes.
+- **Profile:** A named combination of endpoint, model and parameters that is assigned to roles.
 
-Pro Chat ist immer höchstens eine Szene aktiv. Mehrere Chats in derselben Welt sind erlaubt und teilen sich den Canon ohne Absicherung.
+Each chat has at most one active scene at a time. Several chats in the same world are allowed and share the canon without any safeguards.
 
-### Ordnerstruktur einer Welt
+### Folder structure of a world
 
 ```
-welt-name/
+world-name/
   .git/
-  .gitignore        enthält assets/ und .obsidian/
-  world.md          Grundregeln, Ton, Setting
-  user.md           Wissen über die Persona des Nutzers
-  characters/       eine Datei pro Figur, inklusive Beziehungen
+  .gitignore        contains assets/ and .obsidian/
+  world.md          ground rules, tone, setting
+  user.md           knowledge about the user's persona
+  characters/       one file per character, including relationships
   places/
-  events/           Chronik, eine Datei pro abgeschlossener Szene
-  lore/             aus Lorebooks importierte Einträge
-  assets/           Charakterbilder, Hintergründe (nicht in Git)
+  events/           chronicle, one file per closed scene
+  lore/             entries imported from lorebooks
+  assets/           character images, backgrounds (not in Git)
 ```
 
 ### Frontmatter
 
-Jede Markdown-Datei hat YAML-Frontmatter:
+Every Markdown file has YAML frontmatter:
 
-| Feld | Pflicht | Zweck |
+| Field | Required | Purpose |
 |---|---|---|
-| `type` | ja | `world`, `user`, `character`, `place`, `event`, `lore` |
-| `tags` | ja | Schlagwörter für die Kontextauswahl |
-| `aliases` | ja | Alternative Namen, ebenfalls für die Kontextauswahl |
-| `summary` | ja | Kurzfassung in 1–3 Sätzen, wird bei knappem Budget statt des Volltexts verwendet |
-| `images` | nein | Stabile Bild-IDs mit Labels (Figuren, Orte) |
-| `chat`, `scene`, `order` | bei `event` | Herkunft und Reihenfolge in der Chronik |
+| `type` | yes | `world`, `user`, `character`, `place`, `event`, `lore` |
+| `tags` | yes | Keywords for context selection |
+| `aliases` | yes | Alternative names, also for context selection |
+| `summary` | yes | 1–3 sentence short form, used instead of the full text when the budget is tight |
+| `images` | no | Stable image IDs with labels (characters, places) |
+| `chat`, `scene`, `order` | for `event` | Origin and position in the chronicle |
 
-Verknüpfungen laufen über Wikilinks (`[[mira]]`), damit der Ordner auch in Obsidian funktioniert.
+Links use wikilinks (`[[mira]]`) so the folder also works in Obsidian.
 
-## 5. Prompt-System
+## 5. Prompt system
 
-### Rollen
+### Roles
 
-Jede Rolle hat ein eigenes Prompt-Template und ein zuweisbares Profil. Standard ist ein Profil für alles.
+Each role has its own prompt template and an assignable profile. By default one profile is used for everything.
 
-1. **Erzähler** – erzeugt den gesamten Zug: Erzählung, Dialog aller Figuren, Gesichtsausdrücke, Hintergrundwechsel
-2. **Szenen-Start** – schlägt Startnachricht und Besetzung einer neuen Szene vor
-3. **Active-Memory-Zusammenfassung**
-4. **Canon-Aktualisierung**
+1. **Narrator** – generates the whole turn: narration, dialogue of all characters, facial expressions, background changes
+2. **Scene start** – proposes start message and cast of a new scene
+3. **Active Memory summary**
+4. **Canon update**
 
 ### Templates
 
-- Template-Sprache mit Platzhaltern wie `{{char}}`, `{{user}}`, `{{memory}}`, `{{scene}}`
-- Schichten: global, Welt, Figur, Chat. Spätere Schichten überschreiben frühere.
-- `{{user}}` ist überall der Name der Nutzer-Persona.
-- `{{char}}` ist ST-kompatibel und bezeichnet innerhalb einer Figurendatei bzw. eines Figuren-Templates die jeweilige Figur. In Rollen-Templates ohne Figurenbezug ist `{{char}}` leer und erzeugt eine Warnung im Template-Editor.
-- Kein Import von ST-Presets in v0.1
+- Template language with placeholders such as `{{char}}`, `{{user}}`, `{{memory}}`, `{{scene}}`
+- Layers: global, world, character, chat. Later layers override earlier ones.
+- `{{user}}` is always the name of the user's persona.
+- `{{char}}` is ST-compatible and, inside a character file or character template, refers to that character. In role templates without a character reference `{{char}}` is empty and the template editor shows a warning.
+- No import of ST presets in v0.1
 
-### Kontextauswahl und Budget
+### Context selection and budget
 
-Der Prompt wird in fester Reihenfolge gebaut, Statisches zuerst, damit lokale Server den KV-Cache wiederverwenden können:
+The prompt is built in a fixed order, static parts first, so local servers can reuse their KV cache:
 
-1. Rollen-Template (global → Welt → Chat)
+1. Role template (global → world → chat)
 2. Canon
-3. Figurenliste der Welt (Name, `summary`, verfügbare Labels) und Hintergrundliste mit Kurzbeschreibung
-4. Active Memory der Szene
-5. Startnachricht der Szene
-6. Verlauf der Szene
+3. World character list (name, `summary`, available labels) and background list with short descriptions
+4. Active Memory of the scene
+5. Start message of the scene
+6. Scene history
 
-Der Canon hat ein eigenes Budget (Anteil am Kontextfenster, pro Welt einstellbar). Gefüllt wird nach Priorität:
+The canon has its own budget, 30 % of the context window by default, configurable per world. It is filled by priority:
 
-1. `world.md`, `user.md`, Dateien aller anwesenden Figuren
-2. Die letzten zwei `events/`-Dateien dieses Chats
-3. Über Schlagwörter und Aliase im Frontmatter: weitere Dateien
-4. Ältere `events/`-Dateien
+1. `world.md`, `user.md`, files of all present characters
+2. The last two `events/` files of this chat
+3. Further files matched by tags and aliases in the frontmatter
+4. Older `events/` files
 
-Reicht das Budget nicht, wird von unten nach oben auf `summary` heruntergestuft, danach weggelassen. Stufe 1 wird zuletzt heruntergestuft und nie weggelassen.
+If the budget does not suffice, entries are downgraded to their `summary` from the bottom up, then dropped. Priority 1 is downgraded last and never dropped.
 
-Optional später: Embedding-Suche für große Welten.
+Later, optionally: embedding search for large worlds.
 
-Es gibt keine Wissenstrennung zwischen Figuren.
+There is no knowledge separation between characters.
 
-### Token-Zählung
+### Token counting
 
-- Wo der Endpunkt tokenisieren kann (llama.cpp `/tokenize`), wird gezählt.
-- Sonst wird geschätzt, mit einer pro Profil einstellbaren Sicherheitsmarge.
-- Das Kontextfenster wird pro Profil automatisch ausgelesen (OpenRouter-Metadaten, llama.cpp `/props`, LM Studio Modellinfo) und ist überschreibbar. Maßgeblich ist der geladene Kontext, nicht das Maximum des Modells.
+- Where the endpoint can tokenize (llama.cpp `/tokenize`), tokens are counted.
+- Otherwise they are estimated, with a safety margin configurable per profile.
+- The context window is read automatically per profile (OpenRouter metadata, llama.cpp `/props`, LM Studio model info) and can be overridden. What counts is the loaded context, not the model's maximum.
 
-## 6. Ablauf eines Zugs
+## 6. Flow of a turn
 
-1. Der Nutzer schreibt eine Eingabe. `*Sternchen*` markieren Handlung, der Rest ist Rede. Ein Normalisierer übersetzt das in Tags, danach läuft die Eingabe durch denselben Parser wie KI-Antworten.
-2. **Ein Erzähler-Aufruf** erzeugt den gesamten Zug und wird gestreamt. Das Modell entscheidet selbst, welche Figuren handeln und sprechen. Nicht jede Figur muss in jedem Zug vorkommen.
-3. Die Ausgabe nutzt ein Tag-Markup, das beim Streamen sofort geparst wird:
+1. The user writes an input. `*Asterisks*` mark action, the rest is speech. A normalizer turns this into tags, then the input runs through the same parser as AI replies.
+2. **One narrator call** generates the whole turn and is streamed. The model decides which characters act and speak. Not every character has to appear in every turn.
+3. The output uses a tag markup that is parsed immediately while streaming:
 
 ```
-<bg id="taverne-nacht"/>
-<narration>Der Regen trommelt gegen die Scheiben. Mira sieht von ihrem Glas auf.</narration>
-<say who="mira" mood="amused">Du bist ja doch gekommen.</say>
+<bg id="tavern-night"/>
+<narration>Rain drums against the windows. Mira looks up from her glass.</narration>
+<say who="mira" mood="amused">So you came after all.</say>
 <leave who="tomas"/>
 ```
 
-| Tag | Bedeutung |
+| Tag | Meaning |
 |---|---|
-| `<narration>` | Erzähltext |
-| `<say who mood>` | Rede einer Figur. `mood` ist ein Label aus ihrer Bildliste. |
-| `<bg id/>` | Hintergrundwechsel, `id` aus der Hintergrundliste der Welt |
-| `<leave who/>` | Figur verlässt die Szene, ihr Bild verschwindet |
+| `<narration>` | Narrative text |
+| `<say who mood>` | A character's line. `mood` is a label from their image list. |
+| `<bg id/>` | Background change, `id` from the world's background list |
+| `<leave who/>` | Character leaves the scene, their image disappears |
 
-Eine Figur betritt die Szene implizit mit ihrem ersten `<say>`.
+A character enters the scene implicitly with their first `<say>`.
 
-### Robustheit des Parsers
+### Parser robustness
 
-- Text außerhalb von Tags wird als Erzählung behandelt
-- Nicht geschlossene Tags werden am Ende des Streams geschlossen
-- Unbekanntes `who` wird als Erzählung mit Sprechername angezeigt und markiert
-- Unbekanntes `mood` oder `bg` fällt auf das Standardbild bzw. den aktuellen Hintergrund zurück
-- Der Erzähler-Prompt verbietet, für `{{user}}` zu sprechen. Zusätzlich bricht der Parser ab, sobald `<say who="{{user}}">` erscheint.
+- Text outside tags is treated as narration
+- Unclosed tags are closed at the end of the stream
+- An unknown `who` is shown as narration with a speaker name and flagged
+- An unknown `mood` or `bg` falls back to the default image or the current background
+- The narrator prompt forbids speaking for `{{user}}`. In addition, the parser stops as soon as `<say who="{{user}}">` appears.
 
-### Swipes und Edits
+### Swipes and edits
 
-Nur innerhalb der aktiven Szene:
+Only within the active scene:
 
-- **Swipe:** Die ganze KI-Nachricht wird neu erzeugt
-- **Edits:** Jede Nachricht der aktiven Szene ist editierbar, auch die des Nutzers und die Startnachricht
-- **Forks:** An jeder Nachricht der aktiven Szene möglich
+- **Swipe:** the whole AI message is regenerated
+- **Edits:** every message of the active scene is editable, including the user's and the start message
+- **Forks:** possible at any message of the active scene
 
-Swipe eines einzelnen Beats (Neugenerierung ab einem Beat per Assistant-Prefill) ist auf später verschoben, weil nicht alle Endpunkte Prefill unterstützen.
+Swiping a single beat (regenerating from a beat via assistant prefill) is postponed because not all endpoints support prefill.
 
-## 7. Szenen
+## 7. Scenes
 
-- Ein Chat ist eine Folge von Szenen.
-- **Nur der Nutzer beendet eine Szene**, per Knopf.
-- Beim Beenden wählt der Nutzer den Pfad, falls die Szene Forks hat. Alle anderen Äste werden verworfen.
-- **Startnachricht und Besetzung** einer neuen Szene schlägt die Rolle Szenen-Start vor, auf Basis einer kurzen Vorgabe des Nutzers. Der Nutzer kann beides editieren. Beim ersten Chat mit einer importierten Karte dient deren `first_mes` als Startnachricht, `alternate_greetings` werden als Alternativen angeboten.
-- Eine neue Szene sieht den Canon und ihre Startnachricht. Über die Event-Priorität (Abschnitt 5) ist die vorige Szene garantiert im Kontext.
+- A chat is a sequence of scenes.
+- **Only the user ends a scene**, with a button.
+- When ending, the user picks the path if the scene has forks. All other branches are hidden, not deleted.
+- A scene can be closed **with or without canon**. Without canon (e.g. for side scenes) no `events/` file and no commit is created, and the scene is closed immediately.
+- **Start message and cast** of a new scene are proposed by the scene start role, based on a short brief from the user. The user can edit both. For the first chat with an imported card, its `first_mes` is the start message and `alternate_greetings` are offered as alternatives.
+- A new scene sees the canon and its start message. The event priority (section 5) guarantees that the previous scene is in context.
 
 ## 8. Memory
 
-### Stufe 1: Active Memory
+### Tier 1: Active Memory
 
-- Kurzzusammenfassung der laufenden Szene, die in den Prompt kommt
-- Gespeichert als Knoten im Nachrichtenbaum in SQLite, nicht als Datei und nicht in Git
-- Forks und Swipes erben automatisch nur Zusammenfassungen, die vor ihrem Abzweig liegen
-- **Auslöser:** Nach einem Zug im Hintergrund, wenn der Verlauf 80 % des Restbudgets erreicht. Restbudget = Kontextfenster − reservierte Antwortlänge − Template − Canon.
-- **Ziel:** Es wird so viel zusammengefasst, dass der Verlauf danach bei etwa 50 % liegt. So löst die Zusammenfassung nicht bei jedem Zug aus.
-- **Notfall:** Ist die Zusammenfassung beim nächsten Zug noch nicht fertig und das Budget voll, wird synchron gewartet.
-- **Inkrementell:** Der Aufruf bekommt die bisherige Zusammenfassung und den Abschnitt, der neu herausfällt, nie den ganzen Verlauf
-- **Immer wörtlich im Kontext:** Startnachricht der Szene und die letzten drei Züge. Passen diese allein nicht ins Budget, werden die ältesten der drei Züge gekürzt.
-- **Edits:** Wird eine Nachricht editiert, die vor einem Zusammenfassungsknoten liegt, wird dieser als veraltet markiert und im Hintergrund neu berechnet.
+- Short summary of the running scene that goes into the prompt
+- Stored as a node in the message tree in SQLite, not as a file and not in Git
+- Forks and swipes automatically inherit only summaries that lie before their branch point
+- **Trigger:** in the background after a turn, when the history reaches 80 % of the remaining budget. Remaining budget = context window − reserved response length − template − canon.
+- **Target:** enough is summarized that the history ends up at about 50 %. This keeps the summary from firing on every turn.
+- **Fallback:** if the summary is not ready by the next turn and the budget is full, the turn waits for it.
+- **Incremental:** the call receives the previous summary and the section that is newly falling out, never the whole history
+- **Always verbatim in context:** the scene's start message and the last three turns. If these alone do not fit the budget, the oldest of the three turns is truncated.
+- **Edits:** if a message before a summary node is edited, the node is marked stale and recomputed in the background.
 
-### Stufe 2: Canon
+### Tier 2: Canon
 
-- Markdown-Dateien der Welt, Quelle der Wahrheit ist das Dateisystem
-- Ein einziger Git-Branch `main` pro Welt
-- **Entsteht beim Schließen einer Szene.** Ein LLM schlägt Änderungen vor, mindestens eine neue `events/`-Datei mit `summary`.
-- **Format der Vorschläge:** strukturierte Operationen statt freiem Text, damit das LLM keine Inhalte still verliert:
+- Markdown files of the world; the file system is the source of truth
+- A single Git branch `main` per world
+- **Created when a scene is closed**, unless the user chooses "close without canon". An LLM proposes changes, at least one new `events/` file with `summary`.
+- **Proposal format:** structured operations instead of free text, so the LLM cannot silently lose content:
   - `create(path, frontmatter, body)`
   - `append_section(path, heading, text)`
   - `replace_section(path, heading, text)`
   - `set_summary(path, text)`
   - `add_alias(path, alias)` / `add_tag(path, tag)`
 
-  Das Frontmatter verwaltet der Code. Die Diff-Ansicht wird aus dem Ergebnis der Operationen erzeugt.
-- **Bestätigung als Diff pro Datei:** annehmen, bearbeiten, verwerfen. Abschaltbar, dann werden Vorschläge automatisch übernommen.
-- Nach Bestätigung ein Commit, dessen Nachricht auf Chat und Szene verweist. Erst dann ist die Szene abgeschlossen und die nächste kann beginnen.
-- Wird der Canon vor der Bestätigung von außen geändert (Editor, File-Watcher), wird der Vorschlag per 3-Wege-Merge gegen den Basis-Commit abgeglichen. Konflikte zeigt die Diff-Ansicht.
-- **Nachträgliche Pflege:** Der Nutzer kann den Canon jederzeit von Hand bearbeiten. Entstehen dadurch Lücken in der Kontinuität, ist das seine Entscheidung.
-- **Bearbeitung:** In den Apps über einen Markdown-Editor gegen die Server-API (nur online). Jede Speicherung ist ein Commit. Direkte Änderungen im Dateisystem erkennt ein File-Watcher und committet sie ebenfalls (entprellt, temporäre Editor-Dateien ignoriert).
-- **Git-Warteschlange:** Alle Git-Operationen einer Welt laufen seriell über eine Warteschlange, damit sich API, Watcher und Canon-Commits nicht blockieren.
-- Git liefert Verlauf, Diff-Ansicht und Rückgängig. Ein späteres Feature „Welt forken“ darf Branches nutzen.
+  The frontmatter is managed by code. The diff view is generated from the result of the operations.
+- **Review as a per-file diff:** accept, edit, discard. Can be turned off, in which case proposals are applied automatically.
+- After review, one commit whose message references chat and scene. Only then is the scene closed and the next one can start.
+- If the canon is changed externally before review (editor, file watcher), the proposal is reconciled by a three-way merge against its base commit. Conflicts are shown in the diff view.
+- **Later maintenance:** the user can edit the canon by hand at any time. If that creates continuity gaps, it is the user's decision.
+- **Editing:** in the apps through a Markdown editor against the server API (online only). Every save is a commit. A file watcher detects direct changes on disk and commits them as well (debounced, ignoring temporary editor files).
+- **Git queue:** all Git operations of a world run serially through a queue, so API, watcher and canon commits do not collide.
+- **Why Git:** traceability and undo, not branching. Above all, canon changes by the LLM that only show up as wrong scenes later can be reverted per scene. On top of that: diff view, three-way merge with manual edits, backup via `git push`, and sharing worlds as repositories. A later "fork world" feature may use branches.
 
-## 9. Sync und Offline
+## 9. Sync and offline
 
-- Der Server ist maßgeblich. Clients halten eine lokale Kopie.
-- Synchronisiert werden **nur Chats und Active Memory**, keine Canon-Dateien
-- **Offline möglich:** Chats lesen, eine Nachricht vorschreiben (wird beim Wiederverbinden abgeschickt und generiert), Nachrichten der aktiven Szene editieren
-- **Konflikte:** Neue Nachrichten von mehreren Geräten werden zu Forks im Baum, nichts geht verloren. Bei Edits derselben Nachricht gewinnt die letzte Änderung, mit Warnung. Keine CRDTs.
-- Generierung ist offline nicht möglich, weil Schlüssel und Prompt-Bau auf dem Server liegen
+- The server is authoritative. Clients keep a local copy.
+- **Only chats and Active Memory** are synced, no canon files
+- **Possible offline:** reading chats, drafting one message (sent and generated on reconnect), editing messages of the active scene
+- **Conflicts:** new messages from several devices become forks in the tree, nothing is lost. For edits of the same message the last change wins, with a warning. No CRDTs.
+- Generation is not possible offline, because keys and prompt building live on the server
 
-## 10. Darstellung
+## 10. Presentation
 
-- Visual-Novel-artige Ansicht mit Ebenen für Hintergrund, Charakterbilder und Text
-- Sprecherzuordnung, Charakterbilder mit Gesichtsausdrücken aus `mood`, Hintergrundwechsel aus `<bg>`
-- **Keine Musik, keine Animation**
-- Freie Labels pro Figur und Welt, beim Hochladen wird ein Standard-Satz vorgeschlagen. Der Erzähler bekommt die Labelliste pro Figur und die Hintergrundliste der Welt mit Kurzbeschreibung.
-- Fehlt ein passendes Bild, wird ein Standardbild verwendet
-- Bilder werden hochgeladen oder importiert (ST-Karten, Sprite-Pakete). Bildgenerierung gibt es nur als Plugin.
-- Später denkbar: ein zusätzlicher Aufruf, der Posen oder Bildwahl aus der Handlung ableitet, wenn `mood` allein nicht reicht
+- Visual-novel-style view with layers for background, character images and text
+- Speaker attribution, character images with facial expressions from `mood`, background changes from `<bg>`
+- **No music, no animation**
+- Free-form labels per character and world; a default set is suggested on upload. The narrator receives the label list per character and the world's background list with short descriptions.
+- If no matching image exists, a default image is used
+- Images are uploaded or imported (ST cards, sprite packs). Image generation exists only as a plugin.
+- Conceivable later: an extra call that derives poses or image choice from the action when `mood` alone is not enough
 
 ### Themes
 
-- Die App definiert ab v0.1 eine Token-Schicht aus CSS-Variablen (Farben, Typografie, Textbox-Stil der VN-Ansicht)
-- Themes sind Plugins, die diese Variablen und optional Schriften und Layout-Varianten liefern (später)
-- Ein Theme kann pro Welt voreingestellt werden
+- From v0.2 the app defines a token layer of CSS variables (colors, typography, text box style of the VN view)
+- Themes are plugins that provide these variables and optionally fonts and layout variants (later)
+- A theme can be preset per world
 
-## 11. Plugins (später)
+## 11. Plugins (later)
 
-- **Voller Zugriff** auf Server und UI. Kein Sandboxing, keine Rechte-Deklaration.
-- Serverseitige Plugins laufen im Server-Prozess und hängen sich an Hooks (Prompt-Bau, Provider, Memory-Schritte, Importformate)
-- Clientseitige Plugins sind normaler Code in der React-App
-- Ein Plugin-Paket enthält optional einen Server-Teil und einen Client-Teil
-- **Installation** über Git-URL oder Zip im Server-UI. Der Server lädt seinen Teil und liefert das Client-Bundle an alle Apps, die es beim Start nachladen.
-- **Sicherheitsmodell, ausdrücklich:** Ein installiertes Plugin hat Zugriff auf API-Schlüssel und läuft in jeder verbundenen App, in Tauri inklusive der freigegebenen IPC-Befehle. Der Nutzer installiert nur, was er auch selbst ausführen würde.
-- **Versioniertes Plugin-API-Feld**, damit alte Plugins nach Updates nicht still kaputtgehen
+- **Full access** to server and UI. No sandboxing, no permission declarations.
+- Server-side plugins run in the server process and attach to hooks (prompt building, providers, memory steps, import formats)
+- Client-side plugins are ordinary code in the React app
+- A plugin package optionally contains a server part and a client part
+- **Installation** via Git URL or zip in the server UI. The server loads its part and serves the client bundle to all apps, which load it at startup.
+- **Security model, stated explicitly:** an installed plugin has access to API keys and runs in every connected app, in Tauri including the exposed IPC commands. Users install only what they would run themselves.
+- **Versioned plugin API field**, so old plugins do not silently break after updates
 
-## 12. Import und Export
+## 12. Import and export
 
-### Character Card V2 und V3
+### Character Card V2 and V3
 
-Beim Import fragt Teahouse, ob die Figur in eine bestehende oder eine neue Welt kommt.
+On import, Teahouse asks whether the character goes into an existing or a new world.
 
-| Kartenfeld | Ziel in Teahouse |
+| Card field | Target in Teahouse |
 |---|---|
-| `name` | Dateiname und Titel in `characters/` |
-| `description`, `personality` | Body der Figurendatei |
-| `scenario` | Abschnitt in `world.md` (bei neuer Welt) oder Hinweis in der Figurendatei |
-| `first_mes` | Startnachricht der ersten Szene |
-| `alternate_greetings` | Alternative Startnachrichten |
-| `mes_example` | Abschnitt „Beispieldialog“ in der Figurendatei |
-| `system_prompt`, `post_history_instructions` | Figuren-Template-Schicht |
-| `creator_notes` | Nicht im Prompt, nur in der UI sichtbar |
-| `tags` | `tags` im Frontmatter |
-| Eingebettetes Lorebook | Eine Datei pro Eintrag in `lore/`, `keys` werden zu `tags`/`aliases`. Der Nutzer kann Einträge danach nach `characters/` oder `places/` verschieben. |
+| `name` | File name and title in `characters/` |
+| `description`, `personality` | Body of the character file |
+| `scenario` | Section in `world.md` (for a new world) or a note in the character file |
+| `first_mes` | Start message of the first scene |
+| `alternate_greetings` | Alternative start messages |
+| `mes_example` | "Example dialogue" section in the character file |
+| `system_prompt`, `post_history_instructions` | Character template layer |
+| `creator_notes` | Not in the prompt, only shown in the UI |
+| `tags` | `tags` in the frontmatter |
+| Embedded lorebook | One file per entry in `lore/`, `keys` become `tags`/`aliases`. The user can move entries to `characters/` or `places/` afterwards. |
 
-Nicht übernommen werden Lorebook-Logik wie sekundäre Schlüssel, `selective`, `constant`, Tiefe, Reihenfolge und Rekursion. Karten, die mehrere Figuren oder ein ganzes Szenario beschreiben, werden als eine Datei importiert. Das Aufteilen übernimmt der Nutzer.
+Lorebook logic such as secondary keys, `selective`, `constant`, depth, order and recursion is not carried over. Cards describing several characters or a whole scenario are imported as one file. Splitting them is up to the user.
 
-### Weiteres
+### Other
 
-- **ST-Chatverläufe:** Import als eine abgeschlossene Szene, optional mit Canon-Vorschlag
-- **Welt-Export:** Archiv aus Git-Repository, Assets und zugehörigen Chats. Das ist zugleich das Austauschformat zum Teilen von Welten.
-- **Server-Backup:** Sichern des Daten-Volumes
+- **ST chat logs:** imported as one closed scene, optionally with a canon proposal
+- **World export:** archive of the Git repository, assets and related chats. This is also the exchange format for sharing worlds.
+- **Server backup:** back up the data volume
 
-## 13. Umfang v0.1
+## 13. Versions
 
-- OpenAI-kompatibler Adapter mit Profilen
-- Welten als Markdown plus Git
-- Import von Character Cards (V2, V3)
-- Promptanpassung über Template-Schichten
-- Szenen mit Active Memory und Canon inklusive Diff-Bestätigung
-- Tag-Markup mit getrennter Darstellung von Erzählung und Dialog, Charakterbilder und Hintergründe
-- Web-Client
+Each version ends with something that is actually usable.
 
-**Später:** Sync mit Android- und Desktop-Apps, Plugins und Themes, Beat-Swipes, Embeddings, Welt forken, Text Completion, ST-Preset-Import, ST-Chatimport.
+| Version | Content | Result |
+|---|---|---|
+| **v0.1** | Server, profiles, OpenAI-compatible adapter, worlds as Markdown plus Git, card import, template layers, scenes, Active Memory, canon with diff review, memory test run, plain web chat | The core memory promise is testable |
+| **v0.2** | Tag markup and parser, VN view with character images and backgrounds, theme token layer, world export | It feels like a visual novel |
+| **v0.3** | Tauri apps for desktop and Android, sync, offline use, device pairing via QR code | Playing across devices |
+| **v0.4** | Plugins and themes as plugins, ST chat import, beat swipes, possibly a call for poses and image choice | Extensibility |
+| **later** | Embeddings, fork world, text completion, ST preset import | — |
 
-### Reihenfolge
+### Order within v0.1
 
-1. Server-Grundgerüst, Profile, OpenAI-kompatibler Adapter, schlichter Chat mit einer Figur
-2. Welten als Markdown plus Git, Kartenimport
-3. Szenen, Active Memory, Canon-Vorschlag mit Diff-Bestätigung
-4. **Memory-Testlauf:** einige Referenz-Chats mit Faktenfragen („Wie heißt Miras Bruder?“), die nach Zusammenfassung und Canon-Update automatisch geprüft werden. Grundlage für jedes spätere Tuning der Prompts.
-5. Tag-Markup, Parser, getrennte Darstellung
-6. Visual-Novel-Ansicht mit Bildern und Hintergründen
-7. Welt-Export
+1. Server skeleton, profiles, OpenAI-compatible adapter, plain chat with one character
+2. Worlds as Markdown plus Git, card import
+3. Scenes, Active Memory, canon proposal with diff review
+4. **Memory test run:** a few reference chats with fact questions ("What is Mira's brother called?") that are checked automatically after summarization and canon update. The basis for any later prompt tuning.
 
-Nach Schritt 4 ist das Kernversprechen testbar und kann früh veröffentlicht werden.
+In v0.1 the narrator writes plain prose without tags. The web chat shows it as is.
 
-## 14. Offene Fragen
+## 14. Related projects
 
-- Soll eine Szene sich ohne Canon schließen lassen (z. B. für Nebenszenen ohne Bedeutung)?
-- Werden beim Schließen verworfene Äste wirklich gelöscht oder nur ausgeblendet aufbewahrt?
-- Standardwert für das Canon-Budget (Vorschlag: 30 % des Kontextfensters)
-
-## 15. Bekannte Nachbarprojekte
-
-- **SillyTavern:** Vorbild. Eine Umsetzung als ST-Erweiterung wurde verworfen, weil Szenenmodell und Sync gegen die ST-Architektur arbeiten würden.
-- **Marinara Engine:** Eigenständige TypeScript-Codebasis (AGPL-3.0) mit Sprites, Hintergründen und KI-Agenten. Apps sind PWA bzw. WebView-Hüllen, kein Sync mit entferntem Server. Referenz für die Sprite-Umsetzung.
-- **Basic Memory:** Markdown-Dateien als Gedächtnis für LLMs mit SQLite-Index (AGPL-3.0). Referenz für Dateiformat und Indexierung.
-- **ST-Erweiterungen Memory Books, Qvink MessageSummarize:** Referenzen für szenenbasierte Erinnerungen und Zusammenfassungen.
+- **SillyTavern:** the model. Building Teahouse as an ST extension was rejected because the scene model and sync would work against the ST architecture.
+- **Marinara Engine:** independent TypeScript codebase (AGPL-3.0) with sprites, backgrounds and AI agents. Apps are PWA or WebView shells, no sync with a remote server. Reference for the sprite implementation.
+- **Basic Memory:** Markdown files as LLM memory with an SQLite index (AGPL-3.0). Reference for file format and indexing.
+- **ST extensions Memory Books, Qvink MessageSummarize:** references for scene-based memories and summaries.
