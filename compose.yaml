@@ -1,0 +1,11 @@
+services:
+  teahouse:
+    build: .
+    ports:
+      - "8787:8787"
+    volumes:
+      - teahouse-data:/data
+    restart: unless-stopped
+
+volumes:
+  teahouse-data:

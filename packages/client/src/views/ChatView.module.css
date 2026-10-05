@@ -1,0 +1,85 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space);
+  padding: var(--space);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.message {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.speaker {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.body {
+  font-family: var(--font-story);
+  font-size: 1.05rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.user .body {
+  background: var(--color-user-bubble);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+.body em {
+  color: var(--color-text-muted);
+}
+
+.cursor::after {
+  content: "▍";
+  color: var(--color-text-muted);
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.composer {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space);
+}
+
+.composerInner {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  gap: var(--space);
+  align-items: flex-end;
+}
+
+.composerInner textarea {
+  min-height: 3em;
+  max-height: 40vh;
+}

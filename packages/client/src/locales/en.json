@@ -1,0 +1,82 @@
+{
+  "app": { "name": "Teahouse", "offline": "Connection lost, reconnecting…" },
+  "nav": {
+    "chats": "Chats",
+    "characters": "Characters",
+    "profiles": "Profiles",
+    "settings": "Settings",
+    "newChat": "New chat"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "loading": "Loading…",
+    "confirmDelete": "Delete “%{name}”?"
+  },
+  "auth": {
+    "setupTitle": "Welcome to Teahouse",
+    "setupHint": "Choose a password for this server. You will use it to sign in on each device.",
+    "loginTitle": "Sign in",
+    "password": "Password",
+    "deviceName": "Device name",
+    "setup": "Set password",
+    "login": "Sign in",
+    "logout": "Sign out"
+  },
+  "chats": {
+    "empty": "No chats yet. Create a character to start one.",
+    "pick": "Pick a chat or start a new one.",
+    "start": "Start a chat with…",
+    "placeholder": "Write your reply. *Asterisks* mark actions.",
+    "send": "Send",
+    "stop": "Stop",
+    "regenerate": "Regenerate",
+    "retry": "Generate reply",
+    "rename": "Rename",
+    "error": "Generation failed: %{message}",
+    "stopped": "Stopped",
+    "noProfile": "Add a profile before chatting."
+  },
+  "characters": {
+    "new": "New character",
+    "name": "Name",
+    "description": "Description",
+    "descriptionHint": "Personality, appearance, background. {{char}} and {{user}} are replaced.",
+    "firstMessage": "First message",
+    "empty": "No characters yet.",
+    "startChat": "Start chat"
+  },
+  "profiles": {
+    "new": "New profile",
+    "name": "Name",
+    "preset": "Preset",
+    "baseUrl": "Base URL",
+    "apiKey": "API key",
+    "apiKeyStored": "A key is stored. Leave empty to keep it.",
+    "model": "Model",
+    "loadModels": "Load models",
+    "temperature": "Temperature",
+    "topP": "Top P",
+    "maxTokens": "Max response tokens",
+    "contextOverride": "Context window override",
+    "detected": "Detected context window: %{value}",
+    "notDetected": "Context window not detected",
+    "detect": "Detect again",
+    "empty": "No profiles yet. A profile tells Teahouse which endpoint and model to use.",
+    "optional": "optional"
+  },
+  "settings": {
+    "userName": "Your name ({{user}})",
+    "outputLanguage": "Story language",
+    "narratorProfile": "Narrator profile",
+    "firstProfile": "First profile",
+    "uiLanguage": "Interface language",
+    "devices": "Signed-in devices",
+    "thisDevice": "this device",
+    "revoke": "Sign out device",
+    "saved": "Saved"
+  }
+}

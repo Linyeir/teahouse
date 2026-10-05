@@ -1,0 +1,23 @@
+{
+  "name": "teahouse",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @teahouse/server --filter @teahouse/client dev",
+    "build": "pnpm --filter @teahouse/client build",
+    "start": "pnpm --filter @teahouse/server start",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "typescript": "^5.9.3"
+  }
+}
