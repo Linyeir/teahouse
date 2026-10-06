@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ChatPath, ServerEvent } from '@teahouse/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getToken } from './api.ts';
 import { applyUpdate, type PathUpdate, StreamBuffers } from './chat-state.ts';
 
@@ -8,12 +8,35 @@ export const streamBuffers = new StreamBuffers();
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
 
+// The current connection state, readable outside the component that owns the socket.
+let connection: ConnectionState = 'connecting';
+const listeners = new Set<() => void>();
+function publish(state: ConnectionState) {
+  connection = state;
+  for (const listener of listeners) listener();
+}
+
+/** Whether live events arrive; views fall back to polling when they do not. */
+export function useConnection(): ConnectionState {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => connection,
+  );
+}
+
 /** Keeps a WebSocket to the server open and feeds its events into the query cache. */
 export function useServerEvents(queryClient: QueryClient, enabled: boolean): ConnectionState {
-  const [state, setState] = useState<ConnectionState>('connecting');
+  const [state, setLocalState] = useState<ConnectionState>('connecting');
 
   useEffect(() => {
     if (!enabled) return;
+    const setState = (next: ConnectionState) => {
+      setLocalState(next);
+      publish(next);
+    };
     let socket: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;

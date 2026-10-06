@@ -62,7 +62,7 @@ export async function buildApp({
   const memory = new Memory(db, worlds, completeFn ?? complete, (err) =>
     app.log.warn({ err }, 'Active Memory summary failed'),
   );
-  const generator = new Generator(db, hub, worlds, memory, stream);
+  const generator = new Generator(db, hub, worlds, memory, stream, app.log);
   const proposals = new CanonProposals({ db, worlds, hub, complete: completeFn });
   const services: Services = {
     db,
