@@ -155,7 +155,9 @@ describe('chat', () => {
     });
     await api('POST', `/api/chats/${chat.chat.id}/messages`, { content: 'Hi' });
     await waitForStatus(api, chat.chat.id, 'error');
-    expect((await lastMessage(api, chat.chat.id))?.error).toBe('model not loaded');
+    expect((await lastMessage(api, chat.chat.id))?.error).toBe(
+      'Mock (mock-model): model not loaded',
+    );
   });
 });
 

@@ -121,7 +121,7 @@ export class Generator {
     const controller = new AbortController();
     this.#running.set(row.id, { chatId, controller });
     this.hub.broadcast({ type: 'generation.started', chatId, message });
-    void this.#run(message, profile, prompt, controller);
+    void this.#run(message, profile, prompt, controller, profile.name);
     return message;
   }
 
@@ -152,6 +152,7 @@ export class Generator {
     profile: GenerationProfile,
     prompt: ChatMessage[],
     controller: AbortController,
+    profileName: string,
   ): Promise<void> {
     let content = '';
     let lastPersist = Date.now();
@@ -204,7 +205,8 @@ export class Generator {
         status = 'stopped';
       } else {
         status = 'error';
-        error = describeLlmError(err, profile.baseUrl);
+        // Name the profile: with several profiles it is not obvious which one a chat uses.
+        error = `${profileName} (${profile.model}): ${describeLlmError(err, profile.baseUrl)}`;
       }
     }
     if (controller.signal.aborted) status = 'stopped';
