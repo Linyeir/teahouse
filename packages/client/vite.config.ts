@@ -11,6 +11,8 @@ export default defineConfig({
     // and show the local copy. Service workers need HTTPS or localhost; the apps do not.
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered in main.tsx, and only in browsers: the apps ship the shell themselves.
+      injectRegister: null,
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
