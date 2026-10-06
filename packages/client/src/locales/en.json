@@ -41,7 +41,8 @@
     "stopped": "Stopped",
     "noProfile": "Add a profile before chatting.",
     "previousVersion": "Previous version",
-    "nextVersion": "Next version"
+    "nextVersion": "Next version",
+    "emptyReply": "The reply came back empty. Regenerate, or check the profile in the log view."
   },
   "profiles": {
     "new": "New profile",

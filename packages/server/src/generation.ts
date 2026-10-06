@@ -4,7 +4,12 @@ import { buildTurnContext, currentScene, narratorPrompt } from './context/turn.t
 import type { Db } from './db/index.ts';
 import { chats, messages } from './db/schema.ts';
 import type { Hub } from './hub.ts';
-import { type ChatMessage, type GenerationProfile, streamChat } from './llm/client.ts';
+import {
+  type ChatMessage,
+  describeLlmError,
+  type GenerationProfile,
+  streamChat,
+} from './llm/client.ts';
 import type { Memory } from './memory.ts';
 import { NoProfileError, profileFor } from './roles.ts';
 import { getSettings } from './settings.ts';
@@ -182,7 +187,7 @@ export class Generator {
         status = 'stopped';
       } else {
         status = 'error';
-        error = err instanceof Error ? err.message : String(err);
+        error = describeLlmError(err, profile.baseUrl);
       }
     }
     if (controller.signal.aborted) status = 'stopped';

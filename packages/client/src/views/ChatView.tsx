@@ -198,6 +198,7 @@ export function ChatView() {
               theme={worlds.data?.find((w) => w.id === worldId)?.theme ?? {}}
               userName={userName}
             />
+            {lastAssistant && !streaming && <ReplyNotice message={lastAssistant} />}
             {lastAssistant && active && !streaming && (
               <MessageTools
                 message={lastAssistant}
@@ -357,6 +358,27 @@ function MessageView({
       )}
     </div>
   );
+}
+
+/**
+ * The novel view only shows beats, so a reply that failed, was stopped or came back empty
+ * needs to be said out loud there.
+ */
+function ReplyNotice({ message }: { message: PathMessage }) {
+  const { t } = useTranslation();
+  if (message.status === 'error') {
+    return (
+      <p className={`${ui.error} ${styles.notice}`} role="alert">
+        {t('chats.error', { message: message.error })}
+      </p>
+    );
+  }
+  if (message.status === 'stopped')
+    return <p className={`${ui.hint} ${styles.notice}`}>{t('chats.stopped')}</p>;
+  if (messageBeats(message).length === 0) {
+    return <p className={`${ui.hint} ${styles.notice}`}>{t('chats.emptyReply')}</p>;
+  }
+  return null;
 }
 
 /** Swiping between siblings, edit and regenerate for one message. */

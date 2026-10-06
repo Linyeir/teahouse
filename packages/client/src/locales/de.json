@@ -41,7 +41,8 @@
     "stopped": "Gestoppt",
     "noProfile": "Lege zuerst ein Profil an.",
     "previousVersion": "Vorige Version",
-    "nextVersion": "Nächste Version"
+    "nextVersion": "Nächste Version",
+    "emptyReply": "Die Antwort kam leer zurück. Neu erzeugen oder das Profil im Verlauf prüfen."
   },
   "profiles": {
     "new": "Neues Profil",

@@ -1,6 +1,12 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { complete, extractJson, listModels, streamChat } from '../src/llm/client.ts';
+import {
+  complete,
+  describeLlmError,
+  extractJson,
+  listModels,
+  streamChat,
+} from '../src/llm/client.ts';
 import {
   contextFromLlamaProps,
   contextFromModelEntry,
@@ -152,4 +158,32 @@ describe('structured output fallback', () => {
     expect(extractJson('Sure! {"a":{"b":2}} Hope that helps.')).toEqual({ a: { b: 2 } });
     expect(() => extractJson('no json here')).toThrow();
   });
+});
+
+describe('describeLlmError', () => {
+  it('explains rate limits, bad keys and unreachable endpoints', async () => {
+    const server = Fastify();
+    servers.push(server);
+    server.post('/v1/chat/completions', async (req, reply) => {
+      const model = (req.body as { model: string }).model;
+      return reply
+        .code(model === 'busy' ? 429 : 401)
+        .send({ error: { message: 'Provider returned error' } });
+    });
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const fail = async (baseUrl: string, model: string) => {
+      try {
+        // maxTokens set so complete() does not retry; the SDK still retries 429 itself.
+        await complete({ ...profile(baseUrl), model }, [{ role: 'user', content: 'Hi' }]);
+      } catch (err) {
+        return describeLlmError(err, baseUrl);
+      }
+      return 'no error';
+    };
+    expect(await fail(`${address}/v1`, 'busy')).toContain('rate limiting');
+    expect(await fail(`${address}/v1`, 'other')).toContain('check the API key');
+    expect(await fail('http://127.0.0.1:9/v1', 'x')).toContain(
+      'Could not reach http://127.0.0.1:9/v1',
+    );
+  }, 30_000);
 });
