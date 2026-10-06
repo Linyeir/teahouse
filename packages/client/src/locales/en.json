@@ -39,7 +39,9 @@
     "rename": "Rename",
     "error": "Generation failed: %{message}",
     "stopped": "Stopped",
-    "noProfile": "Add a profile before chatting."
+    "noProfile": "Add a profile before chatting.",
+    "previousVersion": "Previous version",
+    "nextVersion": "Next version"
   },
   "profiles": {
     "new": "New profile",
@@ -150,5 +152,24 @@
     "startMessage": "Opening",
     "cast": "Present",
     "start": "Start scene"
+  },
+  "vn": {
+    "showLog": "Log",
+    "showNovel": "Novel",
+    "empty": "The scene has not started yet.",
+    "back": "Previous line",
+    "next": "Next line"
+  },
+  "images": {
+    "characterTitle": "Images of %{name}",
+    "remove": "Remove %{label}",
+    "missing": "Suggested labels without an image: %{labels}",
+    "label": "Label",
+    "file": "Image",
+    "upload": "Upload",
+    "backgroundsTitle": "Backgrounds",
+    "backgroundName": "Name",
+    "description": "Description",
+    "descriptionHint": "What the narrator should know about this place"
   }
 }

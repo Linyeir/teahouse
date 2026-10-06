@@ -94,3 +94,18 @@ describe('markupToText', () => {
     ).toBe('Rain.\nMira: Hi.\n(Mira leaves.)');
   });
 });
+
+describe('sanitizeTheme', () => {
+  it('keeps known tokens with plain values and drops everything else', async () => {
+    const { sanitizeTheme } = await import('./worlds.ts');
+    expect(
+      sanitizeTheme({
+        'vn-textbox-bg': '#102030cc',
+        '--vn-font-size': 18,
+        'vn-stage-bg': 'url(https://tracker.example/x.png)',
+        'vn-name-color': 'red; background: blue',
+        position: 'fixed',
+      }),
+    ).toEqual({ 'vn-textbox-bg': '#102030cc', 'vn-font-size': '18' });
+  });
+});

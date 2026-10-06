@@ -1,29 +1,47 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ChatPath, MemoryNode, PathMessage } from '@teahouse/shared';
-import { Fragment, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import type {
+  ChatPath,
+  MemoryNode,
+  PathMessage,
+  Settings,
+  WorldBackground,
+} from '@teahouse/shared';
+import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
 import { api } from '../api.ts';
 import { mergeFetched } from '../chat-state.ts';
+import { BeatsText, formatStory, messageBeats } from '../components/Beats.tsx';
 import { ErrorText } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 import { streamBuffers } from '../events.ts';
-import { useCharacters } from '../queries.ts';
+import { useCharacters, useWorlds } from '../queries.ts';
 import styles from './ChatView.module.css';
 import sceneStyles from './Scene.module.css';
 import { EndScene, MemoryMarker, NewScene, ProposalReview } from './SceneParts.tsx';
+import { VnStage } from './VnStage.tsx';
 
-/** Renders `*action*` spans in italics. */
-function formatStory(text: string): ReactNode[] {
-  return text.split(/(\*[^*\n]+\*)/g).map((part, i) =>
-    part.length > 2 && part.startsWith('*') && part.endsWith('*') ? (
-      // biome-ignore lint/suspicious/noArrayIndexKey: parts have no identity beyond position
-      <em key={i}>{part.slice(1, -1)}</em>
-    ) : (
-      part
-    ),
-  );
+type ViewMode = 'vn' | 'log';
+
+/** The chosen view, remembered per browser. */
+function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
+  const [mode, setMode] = useState<ViewMode>(() => {
+    try {
+      return localStorage.getItem('teahouse.view') === 'log' ? 'log' : 'vn';
+    } catch {
+      return 'vn';
+    }
+  });
+  const set = (next: ViewMode) => {
+    setMode(next);
+    try {
+      localStorage.setItem('teahouse.view', next);
+    } catch {
+      // Storage unavailable: the choice lasts until reload.
+    }
+  };
+  return [mode, set];
 }
 
 export function ChatView() {
@@ -38,8 +56,20 @@ export function ChatView() {
     queryFn: async () =>
       mergeFetched(await api.get<ChatPath>(`/api/chats/${chatId}`), streamBuffers),
   });
-  const characters = useCharacters(path.data?.chat.worldId);
+  const worldId = path.data?.chat.worldId;
+  const characters = useCharacters(worldId);
+  const worlds = useWorlds();
+  const backgrounds = useQuery({
+    queryKey: ['worlds', worldId, 'backgrounds'],
+    queryFn: () => api.get<WorldBackground[]>(`/api/worlds/${worldId}/backgrounds`),
+    enabled: Boolean(worldId),
+  });
+  const settings = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => api.get<Settings>('/api/settings'),
+  });
   const [ending, setEnding] = useState(false);
+  const [view, setView] = useViewMode();
 
   const refresh = (data?: ChatPath) => {
     if (data && 'chat' in data) queryClient.setQueryData(key, data);
@@ -105,10 +135,9 @@ export function ChatView() {
   const data = path.data;
   const scene = data.scene;
   const active = scene?.status === 'active';
-  const castNames = (scene?.cast ?? [data.chat.characterSlug]).map(
-    (slug) => characters.data?.find((c) => c.slug === slug)?.name ?? slug,
-  );
-  const speaker = castNames.length === 1 ? (castNames[0] ?? '') : t('scenes.story');
+  const names = new Map((characters.data ?? []).map((c) => [c.slug, c.name]));
+  const userName = settings.data?.userName ?? 'User';
+  const lastAssistant = last?.role === 'assistant' ? last : undefined;
   const actionError = send.error ?? generate.error ?? regenerate.error ?? edit.error;
   const canGenerate = active && !streaming && (!last || last.role === 'user');
   const memoryAt = new Map(data.memory.map((node) => [node.messageId, node]));
@@ -117,6 +146,14 @@ export function ChatView() {
     <>
       <header className={styles.header}>
         <h2 className={styles.title}>{data.chat.title}</h2>
+        <button
+          className={ui.ghost}
+          type="button"
+          aria-pressed={view === 'log'}
+          onClick={() => setView(view === 'vn' ? 'log' : 'vn')}
+        >
+          {view === 'vn' ? t('vn.showLog') : t('vn.showNovel')}
+        </button>
         {active && (
           <button
             className={ui.button}
@@ -149,46 +186,71 @@ export function ChatView() {
           {t('common.delete')}
         </button>
       </header>
-      <div className={styles.messages} ref={scroller}>
-        {data.closedScenes.map((closed) => (
-          <details key={closed.scene.id} className={sceneStyles.closed}>
-            <summary>
-              {t('scenes.title', { n: closed.scene.number })} ·{' '}
-              {closed.scene.canonCommit ? t('scenes.closedWithCanon') : t('scenes.closed')}
-            </summary>
-            {closed.messages.map((message) => (
-              <MessageView
-                key={message.id}
-                message={message}
-                speaker={message.role === 'user' ? '' : speaker}
-                readOnly
+      <div className={`${styles.messages} ${view === 'vn' ? styles.novel : ''}`} ref={scroller}>
+        {view === 'vn' && worldId && (
+          <>
+            <VnStage
+              worldId={worldId}
+              messages={messages}
+              cast={scene?.cast ?? []}
+              characters={characters.data ?? []}
+              backgrounds={backgrounds.data ?? []}
+              theme={worlds.data?.find((w) => w.id === worldId)?.theme ?? {}}
+              userName={userName}
+            />
+            {lastAssistant && active && !streaming && (
+              <MessageTools
+                message={lastAssistant}
+                canRegenerate={lastAssistant.id !== scene?.startMessageId}
+                onSelect={(id) => selectLeaf.mutate(id)}
+                onRegenerate={() => regenerate.mutate(lastAssistant.id)}
               />
-            ))}
-          </details>
-        ))}
-        {scene && (
+            )}
+          </>
+        )}
+        {view === 'log' &&
+          data.closedScenes.map((closed) => (
+            <details key={closed.scene.id} className={sceneStyles.closed}>
+              <summary>
+                {t('scenes.title', { n: closed.scene.number })} ·{' '}
+                {closed.scene.canonCommit ? t('scenes.closedWithCanon') : t('scenes.closed')}
+              </summary>
+              {closed.messages.map((message) => (
+                <MessageView
+                  key={message.id}
+                  message={message}
+                  names={names}
+                  userName={userName}
+                  readOnly
+                />
+              ))}
+            </details>
+          ))}
+        {view === 'log' && scene && (
           <div className={sceneStyles.sceneHeader}>
             {t('scenes.title', { n: scene.number })}
             {scene.status !== 'active' && ` · ${t(`scenes.status.${scene.status}`)}`}
           </div>
         )}
-        {messages.map((message) => (
-          <Fragment key={message.id}>
-            <MessageView
-              message={message}
-              speaker={message.role === 'user' ? '' : speaker}
-              isLast={message === last}
-              readOnly={!active}
-              canRegenerate={message.id !== scene?.startMessageId}
-              onSelect={(id) => selectLeaf.mutate(id)}
-              onRegenerate={() => regenerate.mutate(message.id)}
-              onEdit={(content) => edit.mutate({ id: message.id, content })}
-            />
-            {memoryAt.has(message.id) && (
-              <MemoryMarker node={memoryAt.get(message.id) as MemoryNode} />
-            )}
-          </Fragment>
-        ))}
+        {view === 'log' &&
+          messages.map((message) => (
+            <Fragment key={message.id}>
+              <MessageView
+                message={message}
+                names={names}
+                userName={userName}
+                isLast={message === last}
+                readOnly={!active}
+                canRegenerate={message.id !== scene?.startMessageId}
+                onSelect={(id) => selectLeaf.mutate(id)}
+                onRegenerate={() => regenerate.mutate(message.id)}
+                onEdit={(content) => edit.mutate({ id: message.id, content })}
+              />
+              {memoryAt.has(message.id) && (
+                <MemoryMarker node={memoryAt.get(message.id) as MemoryNode} />
+              )}
+            </Fragment>
+          ))}
         {canGenerate && last && (
           <div className={styles.message}>
             <button className={ui.button} type="button" onClick={() => generate.mutate()}>
@@ -222,7 +284,8 @@ export function ChatView() {
 
 function MessageView({
   message,
-  speaker,
+  names,
+  userName,
   isLast = false,
   readOnly = false,
   canRegenerate = true,
@@ -231,7 +294,8 @@ function MessageView({
   onEdit = () => {},
 }: {
   message: PathMessage;
-  speaker: string;
+  names: Map<string, string>;
+  userName: string;
   isLast?: boolean;
   readOnly?: boolean;
   canRegenerate?: boolean;
@@ -241,16 +305,17 @@ function MessageView({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
-  const index = message.siblingIds.indexOf(message.id);
-  const count = message.siblingIds.length;
   const streaming = message.status === 'streaming';
 
   return (
     <div className={`${styles.message} ${message.role === 'user' ? styles.user : ''}`}>
-      {speaker && <div className={styles.speaker}>{speaker}</div>}
       {draft === null ? (
         <div className={`${styles.body} ${streaming ? styles.cursor : ''}`}>
-          {formatStory(message.content)}
+          {message.role === 'user' ? (
+            formatStory(message.content)
+          ) : (
+            <BeatsText beats={messageBeats(message)} names={names} userName={userName} />
+          )}
         </div>
       ) : (
         <div className={ui.form}>
@@ -282,39 +347,71 @@ function MessageView({
       )}
       {message.status === 'stopped' && <p className={ui.hint}>{t('chats.stopped')}</p>}
       {!streaming && !readOnly && draft === null && (
-        <div className={styles.tools}>
-          {count > 1 && (
-            <>
-              <button
-                className={ui.ghost}
-                type="button"
-                disabled={index <= 0}
-                onClick={() => onSelect(message.siblingIds[index - 1] ?? message.id)}
-              >
-                ‹
-              </button>
-              <span>
-                {index + 1}/{count}
-              </span>
-              <button
-                className={ui.ghost}
-                type="button"
-                disabled={index >= count - 1}
-                onClick={() => onSelect(message.siblingIds[index + 1] ?? message.id)}
-              >
-                ›
-              </button>
-            </>
-          )}
-          <button className={ui.ghost} type="button" onClick={() => setDraft(message.content)}>
-            {t('common.edit')}
+        <MessageTools
+          message={message}
+          canRegenerate={isLast && canRegenerate}
+          onSelect={onSelect}
+          onRegenerate={onRegenerate}
+          onEdit={() => setDraft(message.content)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Swiping between siblings, edit and regenerate for one message. */
+function MessageTools({
+  message,
+  canRegenerate,
+  onSelect,
+  onRegenerate,
+  onEdit,
+}: {
+  message: PathMessage;
+  canRegenerate: boolean;
+  onSelect: (id: string) => void;
+  onRegenerate: () => void;
+  onEdit?: () => void;
+}) {
+  const { t } = useTranslation();
+  const index = message.siblingIds.indexOf(message.id);
+  const count = message.siblingIds.length;
+  return (
+    <div className={styles.tools}>
+      {count > 1 && (
+        <>
+          <button
+            className={ui.ghost}
+            type="button"
+            disabled={index <= 0}
+            aria-label={t('chats.previousVersion')}
+            onClick={() => onSelect(message.siblingIds[index - 1] ?? message.id)}
+          >
+            ‹
           </button>
-          {isLast && canRegenerate && message.role === 'assistant' && message.parentId !== null && (
-            <button className={ui.ghost} type="button" onClick={onRegenerate}>
-              {t('chats.regenerate')}
-            </button>
-          )}
-        </div>
+          <span>
+            {index + 1}/{count}
+          </span>
+          <button
+            className={ui.ghost}
+            type="button"
+            disabled={index >= count - 1}
+            aria-label={t('chats.nextVersion')}
+            onClick={() => onSelect(message.siblingIds[index + 1] ?? message.id)}
+          >
+            ›
+          </button>
+        </>
+      )}
+      {onEdit && (
+        <button className={ui.ghost} type="button" onClick={onEdit}>
+          {t('common.edit')}
+        </button>
+      )}
+      {canRegenerate && message.role === 'assistant' && message.parentId !== null && (
+        <button className={ui.ghost} type="button" onClick={onRegenerate}>
+          {t('chats.regenerate')}
+        </button>
       )}
     </div>
   );

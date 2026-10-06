@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../api.ts';
 import { ErrorText } from '../components/Field.tsx';
+import { CharacterImages, WorldBackgrounds } from '../components/ImageManager.tsx';
 import { CharacterRow } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
@@ -91,12 +92,20 @@ export function WorldView() {
       </nav>
       <section className={styles.editor}>
         {selected ? (
-          <FileEditor
-            key={selected}
-            worldId={worldId}
-            path={selected}
-            onDeleted={() => select(null)}
-          />
+          <>
+            <FileEditor
+              key={selected}
+              worldId={worldId}
+              path={selected}
+              onDeleted={() => select(null)}
+            />
+            {/^characters\/[^/]+\.md$/.test(selected) && (
+              <CharacterImages
+                worldId={worldId}
+                slug={selected.slice('characters/'.length, -'.md'.length)}
+              />
+            )}
+          </>
         ) : (
           <Overview worldId={worldId} />
         )}
@@ -118,6 +127,7 @@ function Overview({ worldId }: { worldId: string }) {
           <CharacterRow key={c.slug} worldId={worldId} character={c} />
         ))}
       </ul>
+      <WorldBackgrounds worldId={worldId} />
       <ImportCard worlds={worlds.data ?? []} worldId={worldId} />
     </div>
   );

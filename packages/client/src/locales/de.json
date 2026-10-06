@@ -39,7 +39,9 @@
     "rename": "Umbenennen",
     "error": "Erzeugung fehlgeschlagen: %{message}",
     "stopped": "Gestoppt",
-    "noProfile": "Lege zuerst ein Profil an."
+    "noProfile": "Lege zuerst ein Profil an.",
+    "previousVersion": "Vorige Version",
+    "nextVersion": "Nächste Version"
   },
   "profiles": {
     "new": "Neues Profil",
@@ -150,5 +152,24 @@
     "startMessage": "Eröffnung",
     "cast": "Anwesend",
     "start": "Szene beginnen"
+  },
+  "vn": {
+    "showLog": "Verlauf",
+    "showNovel": "Novel",
+    "empty": "Die Szene hat noch nicht begonnen.",
+    "back": "Vorige Zeile",
+    "next": "Nächste Zeile"
+  },
+  "images": {
+    "characterTitle": "Bilder von %{name}",
+    "remove": "%{label} entfernen",
+    "missing": "Vorgeschlagene Labels ohne Bild: %{labels}",
+    "label": "Label",
+    "file": "Bild",
+    "upload": "Hochladen",
+    "backgroundsTitle": "Hintergründe",
+    "backgroundName": "Name",
+    "description": "Beschreibung",
+    "descriptionHint": "Was der Erzähler über diesen Ort wissen soll"
   }
 }

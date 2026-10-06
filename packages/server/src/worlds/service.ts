@@ -2,7 +2,13 @@ import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import slugify from '@sindresorhus/slugify';
-import type { CanonFile, CharacterImage, CharacterSummary, World } from '@teahouse/shared';
+import {
+  type CanonFile,
+  type CharacterImage,
+  type CharacterSummary,
+  sanitizeTheme,
+  type World,
+} from '@teahouse/shared';
 import { newId } from '../time.ts';
 import { parseDocument, stringifyDocument, stringList, stringValue } from './frontmatter.ts';
 import { canonFilePath, isIgnoredForCanon, PathError } from './paths.ts';
@@ -98,7 +104,7 @@ export class WorldService {
     await repo.ensure();
     await repo.commitAll(`Create world ${name}`);
     this.#folders.set(id, folder);
-    return { id, name, folder, summary: '' };
+    return { id, name, folder, summary: '', theme: {} };
   }
 
   /** Folder of a world, rescanning once if the ID is unknown. */
@@ -389,6 +395,7 @@ export class WorldService {
       folder,
       name: stringValue(doc.data.name, folder),
       summary: stringValue(doc.data.summary),
+      theme: sanitizeTheme(doc.data.theme),
     };
   }
 }
