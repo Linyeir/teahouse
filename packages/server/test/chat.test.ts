@@ -1,4 +1,11 @@
-import type { ChatPath, Profile, ServerEvent } from '@teahouse/shared';
+import type {
+  ChatPath,
+  EditMessageResult,
+  Profile,
+  SendMessageResult,
+  ServerEvent,
+  SyncChanges,
+} from '@teahouse/shared';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import type { StreamFn } from '../src/generation.ts';
 import { createTestApp, profileBody, startMockEndpoint } from './helpers.ts';
@@ -158,6 +165,103 @@ describe('chat', () => {
     expect((await lastMessage(api, chat.chat.id))?.error).toBe(
       'Mock (mock-model): model not loaded',
     );
+  });
+});
+
+describe('sync and conflicts', () => {
+  it('turns a message written against an older leaf into a branch', async () => {
+    const { api, chat } = await setup(echoStream);
+    const chatId = chat.chat.id;
+    const greeting = chat.messages[0]?.id as string;
+
+    // Device A answers the greeting; device B, offline, wrote against the greeting too.
+    const a = await api<SendMessageResult>('POST', `/api/chats/${chatId}/messages`, {
+      content: 'From A.',
+      parentId: greeting,
+    });
+    expect(a.body.forked).toBe(false);
+    await waitForStatus(api, chatId, 'complete');
+
+    const b = await api<SendMessageResult>('POST', `/api/chats/${chatId}/messages`, {
+      content: 'From B.',
+      parentId: greeting,
+    });
+    expect(b.body.forked).toBe(true);
+    await waitForStatus(api, chatId, 'complete');
+
+    const path = (await api<ChatPath>('GET', `/api/chats/${chatId}`)).body;
+    expect(path.messages.map((m) => m.content)).toEqual([
+      'Mira looks up. "You again."',
+      'From B.',
+      'Saw 3 messages',
+    ]);
+    // A's turn is still there, one swipe away.
+    expect(path.messages[1]?.siblingIds).toHaveLength(2);
+  });
+
+  it('rejects a draft whose scene was closed meanwhile', async () => {
+    const { api, chat } = await setup(echoStream);
+    const chatId = chat.chat.id;
+    const greeting = chat.messages[0]?.id as string;
+    await api('POST', `/api/chats/${chatId}/scene/close`, { withCanon: false });
+    const next = await api('POST', `/api/chats/${chatId}/scenes`, {
+      cast: ['mira'],
+      startMessage: 'Morning.',
+    });
+    expect(next.status).toBe(200);
+
+    const late = await api<{ error: string }>('POST', `/api/chats/${chatId}/messages`, {
+      content: 'Still about last night.',
+      parentId: greeting,
+    });
+    expect(late.status).toBe(409);
+    expect(late.body).toMatchObject({
+      error: 'scene_closed',
+      message: 'The scene was closed in the meantime',
+    });
+  });
+
+  it('applies the last edit and reports the one it replaced', async () => {
+    const { api, chat } = await setup(echoStream);
+    const greeting = chat.messages[0];
+    if (!greeting) throw new Error('no greeting');
+    expect(greeting.revision).toBe(1);
+
+    const first = await api<EditMessageResult>('PUT', `/api/messages/${greeting.id}`, {
+      content: 'Edit on A.',
+      baseRevision: 1,
+    });
+    expect(first.body).toMatchObject({ overwritten: false, message: { revision: 2 } });
+
+    const second = await api<EditMessageResult>('PUT', `/api/messages/${greeting.id}`, {
+      content: 'Edit on B, made offline.',
+      baseRevision: 1,
+    });
+    expect(second.body).toMatchObject({
+      overwritten: true,
+      message: { content: 'Edit on B, made offline.', revision: 3 },
+    });
+  });
+
+  it('lists chats changed since a cursor', async () => {
+    const { api, chat } = await setup(echoStream);
+    const chatId = chat.chat.id;
+    const initial = (await api<SyncChanges>('GET', '/api/sync/changes')).body;
+    expect(initial.chats).toEqual([chatId]);
+
+    const quiet = (await api<SyncChanges>('GET', `/api/sync/changes?since=${initial.cursor}`)).body;
+    expect(quiet.chats).toEqual([]);
+
+    await new Promise((r) => setTimeout(r, 2));
+    const greeting = chat.messages[0]?.id as string;
+    await api('PUT', `/api/messages/${greeting}`, { content: 'Edited.' });
+    const edited = (await api<SyncChanges>('GET', `/api/sync/changes?since=${quiet.cursor}`)).body;
+    expect(edited.chats).toEqual([chatId]);
+
+    await new Promise((r) => setTimeout(r, 2));
+    await api('DELETE', `/api/chats/${chatId}`);
+    const gone = (await api<SyncChanges>('GET', `/api/sync/changes?since=${edited.cursor}`)).body;
+    expect(gone).toMatchObject({ chats: [], deleted: [chatId] });
   });
 });
 

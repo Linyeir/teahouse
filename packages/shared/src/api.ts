@@ -119,6 +119,8 @@ export const message = z.object({
   error: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Counts edits; an edit names the revision it was made on to detect conflicts. */
+  revision: z.number().int(),
 });
 export type Message = z.infer<typeof message>;
 
@@ -205,11 +207,45 @@ export const sendMessageInput = z.object({
   /** Client-generated UUIDv7, so a retried request does not duplicate the message. */
   id: id.optional(),
   content: z.string().min(1).max(50_000),
+  /**
+   * The message this one answers, i.e. the leaf the client saw. When the chat has moved on
+   * since (another device, or a message drafted offline), the new message starts a branch
+   * instead of being appended to someone else's turn. Defaults to the active leaf.
+   */
+  parentId: id.optional(),
 });
 export type SendMessageInput = z.infer<typeof sendMessageInput>;
 
-export const editMessageInput = z.object({ content: z.string().max(50_000) });
+export const sendMessageResult = z.object({
+  messageId: id,
+  /** The message was added as a new branch, because the chat had moved on. */
+  forked: z.boolean(),
+});
+export type SendMessageResult = z.infer<typeof sendMessageResult>;
+
+export const editMessageInput = z.object({
+  content: z.string().max(50_000),
+  /** Revision the edit was made on. A different current revision means a conflict. */
+  baseRevision: z.number().int().optional(),
+});
 export type EditMessageInput = z.infer<typeof editMessageInput>;
+
+export const editMessageResult = z.object({
+  message,
+  /** The message had changed since `baseRevision`; this edit replaced that change. */
+  overwritten: z.boolean(),
+});
+export type EditMessageResult = z.infer<typeof editMessageResult>;
+
+/** Chats that changed since a sync cursor, so a client can refresh its local copy. */
+export const syncChanges = z.object({
+  /** Pass as `since` next time. */
+  cursor: z.string(),
+  chats: z.array(id),
+  /** Chats deleted since the cursor, to drop from the local copy. */
+  deleted: z.array(id),
+});
+export type SyncChanges = z.infer<typeof syncChanges>;
 
 export const selectLeafInput = z.object({ messageId: id });
 export type SelectLeafInput = z.infer<typeof selectLeafInput>;

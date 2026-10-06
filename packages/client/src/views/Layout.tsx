@@ -4,11 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router';
 import { api } from '../api.ts';
 import type { ConnectionState } from '../events.ts';
+import { dismissNotice, useNotices } from '../notices.ts';
+import { useOnline } from '../offline.ts';
 import styles from './Layout.module.css';
 
 export function Layout({ connection }: { connection: ConnectionState }) {
   const { t } = useTranslation();
   const chats = useQuery({ queryKey: ['chats'], queryFn: () => api.get<Chat[]>('/api/chats') });
+  const online = useOnline();
+  const notices = useNotices();
 
   return (
     <div className={styles.shell}>
@@ -36,7 +40,28 @@ export function Layout({ connection }: { connection: ConnectionState }) {
         </ul>
       </aside>
       <main className={styles.main}>
-        {connection === 'closed' && <div className={styles.banner}>{t('app.offline')}</div>}
+        {!online ? (
+          <div className={styles.banner}>{t('app.offlineMode')}</div>
+        ) : (
+          connection === 'closed' && <div className={styles.banner}>{t('app.offline')}</div>
+        )}
+        {notices.map((notice) => (
+          <div
+            key={notice.id}
+            className={`${styles.notice} ${styles[notice.kind]}`}
+            role={notice.kind === 'info' ? 'status' : 'alert'}
+          >
+            <span>{notice.text}</span>
+            <button
+              className={styles.dismiss}
+              type="button"
+              aria-label={t('common.dismiss')}
+              onClick={() => dismissNotice(notice.id)}
+            >
+              ×
+            </button>
+          </div>
+        ))}
         <Outlet />
       </main>
     </div>

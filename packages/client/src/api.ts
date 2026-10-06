@@ -1,4 +1,5 @@
 import type { ApiError } from '@teahouse/shared';
+import { NetworkError, setReachable } from './offline.ts';
 
 const TOKEN_KEY = 'teahouse.token';
 const SERVER_KEY = 'teahouse.server';
@@ -71,15 +72,26 @@ export class RequestError extends Error {
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = getToken();
   const isForm = body instanceof FormData;
-  const response = await fetch(serverUrl(path), {
-    method,
-    headers: {
-      ...(body !== undefined && !isForm && { 'content-type': 'application/json' }),
-      ...(token && { authorization: `Bearer ${token}` }),
-    },
-    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(serverUrl(path), {
+      method,
+      headers: {
+        ...(body !== undefined && !isForm && { 'content-type': 'application/json' }),
+        ...(token && { authorization: `Bearer ${token}` }),
+      },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+    });
+  } catch (err) {
+    setReachable(false);
+    throw new NetworkError(err);
+  }
   const data: unknown = await response.json().catch(() => null);
+  // A reverse proxy in front of a stopped server answers 502–504 without our error body.
+  const fromProxy =
+    response.status >= 502 && response.status <= 504 && !(data as ApiError | null)?.error;
+  setReachable(!fromProxy);
+  if (fromProxy) throw new NetworkError(new Error(response.statusText));
   if (!response.ok) {
     const err = (data ?? {}) as Partial<ApiError>;
     // Only a rejected token signs out; a wrong password or pairing code is a 401 too.

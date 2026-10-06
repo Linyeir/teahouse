@@ -1,10 +1,10 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { onlineManager, type QueryClient } from '@tanstack/react-query';
 import type { ChatPath, ServerEvent } from '@teahouse/shared';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { getToken, serverUrl, setToken } from './api.ts';
-import { applyUpdate, type PathUpdate, StreamBuffers } from './chat-state.ts';
-
-export const streamBuffers = new StreamBuffers();
+import { api, getToken, serverUrl, setToken } from './api.ts';
+import { applyUpdate, type PathUpdate, streamBuffers } from './chat-state.ts';
+import { setReachable } from './offline.ts';
+import { syncLocalCopy } from './sync.ts';
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
 
@@ -53,8 +53,12 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
       socket.onopen = () => {
         attempt = 0;
         setState('open');
+        setReachable(true);
         // Events may have been missed while disconnected.
         void queryClient.invalidateQueries();
+        void syncLocalCopy(queryClient).catch(() => {
+          // Retried on the next connect; the views fetch what they show anyway.
+        });
       };
       socket.onmessage = (message) => {
         const event = JSON.parse(String(message.data)) as ServerEvent;
@@ -100,14 +104,34 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
           setToken(null);
           return;
         }
+        // A lost socket may be a server that is gone, or only a proxy dropping WebSockets.
+        probe();
         retry = setTimeout(connect, Math.min(1000 * 2 ** attempt++, 15_000));
       };
     };
+
+    // A plain request tells whether the server answers; it marks it (un)reachable itself.
+    const probe = () => void api.get('/api/auth/status').catch(() => {});
+    // The socket may survive a network drop, so it cannot be the only way back online.
+    const probing = setInterval(() => {
+      if (!onlineManager.isOnline()) probe();
+    }, 10_000);
+    window.addEventListener('online', probe);
+    // Server reachable again: reconnect now instead of waiting out the backoff.
+    const unsubscribe = onlineManager.subscribe((online) => {
+      if (!online || stopped || (socket && socket.readyState !== WebSocket.CLOSED)) return;
+      clearTimeout(retry);
+      attempt = 0;
+      connect();
+    });
 
     connect();
     return () => {
       stopped = true;
       clearTimeout(retry);
+      clearInterval(probing);
+      window.removeEventListener('online', probe);
+      unsubscribe();
       socket?.close();
     };
   }, [queryClient, enabled]);

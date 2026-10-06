@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Teahouse",
-    "offline": "Connection lost, reconnecting…"
+    "offline": "Connection lost, reconnecting…",
+    "offlineMode": "Offline. You can read saved chats, edit messages of the current scene and write one message; everything is sent when the server is back."
   },
   "nav": {
     "chats": "Chats",
@@ -16,7 +17,8 @@
     "edit": "Edit",
     "create": "Create",
     "loading": "Loading…",
-    "confirmDelete": "Delete “%{name}”?"
+    "confirmDelete": "Delete “%{name}”?",
+    "dismiss": "Dismiss"
   },
   "auth": {
     "setupTitle": "Welcome to Teahouse",
@@ -209,5 +211,13 @@
     "address": "Address the new device uses",
     "loopbackHint": "localhost only works on this computer. Enter an address the other device can reach.",
     "copyLink": "Copy link"
+  },
+  "sync": {
+    "queued": "Waiting for the connection",
+    "sending": "Sending…",
+    "forked": "The chat had moved on (on another device, or while you were offline), so your message started a new branch. The other turn is one swipe away.",
+    "overwritten": "This message had also been changed elsewhere. Your edit replaced that change.",
+    "editClosed": "Your edit could not be saved: the scene was closed in the meantime.",
+    "sendFailed": "Your message could not be sent (%{message}). Its text is back in the message field."
   }
 }
