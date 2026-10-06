@@ -72,3 +72,27 @@ export function assetUrl(worldId: string, file: string): string {
     .join('/');
   return `/api/worlds/${worldId}/assets/${rel}?token=${encodeURIComponent(getToken() ?? '')}`;
 }
+
+/** Downloads an authenticated file (e.g. a world export) through the browser. */
+export async function download(path: string): Promise<void> {
+  const token = getToken();
+  const response = await fetch(path, {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const err = (await response.json().catch(() => ({}))) as Partial<ApiError>;
+    throw new RequestError(
+      response.status,
+      err.error ?? 'unknown',
+      err.message ?? response.statusText,
+    );
+  }
+  const name =
+    /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? 'download';
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

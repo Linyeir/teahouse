@@ -107,7 +107,11 @@
     "versionFrom": "Version from %{date}",
     "backToCurrent": "Back to current",
     "restore": "Restore this version",
-    "discard": "Discard changes"
+    "discard": "Discard changes",
+    "export": "Export world",
+    "importWorld": "Import world",
+    "importWorldHint": "A .teahouse.tar.gz export: the world with its history, images and chats. A world that already exists here is imported as a copy.",
+    "archiveFile": "Archive"
   },
   "scenes": {
     "title": "Scene %{n}",

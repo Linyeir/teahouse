@@ -30,6 +30,7 @@
     "png-chunk-text": "^1.0.0",
     "png-chunks-extract": "^1.0.0",
     "simple-git": "^4.0.2",
+    "tar": "^7.5.22",
     "tsx": "^4.23.15",
     "uuid": "^14.0.2",
     "yaml": "^2.9.1",

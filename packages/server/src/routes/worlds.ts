@@ -5,6 +5,7 @@ import { canonPath, fileWrite, id, worldInput } from '@teahouse/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { importCard } from '../cards/import.ts';
+import { ArchiveError, exportWorld, importWorld } from '../worlds/archive.ts';
 import { assetFilePath } from '../worlds/paths.ts';
 import { slug } from '../worlds/service.ts';
 import { HttpError, type Services, typed } from './context.ts';
@@ -23,6 +24,7 @@ const IMAGE_TYPES: Record<string, string> = {
 
 const MAX_CARD_BYTES = 30 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_WORLD_BYTES = 1024 * 1024 * 1024;
 
 const EXTENSION_BY_TYPE: Record<string, string> = Object.fromEntries(
   Object.entries(IMAGE_TYPES).map(([ext, type]) => [type, ext === '.jpeg' ? '.jpg' : ext]),
@@ -60,7 +62,7 @@ async function readImageUpload(req: FastifyRequest) {
   return { file, fields };
 }
 
-export async function worldRoutes(app: FastifyInstance, { worlds }: Services) {
+export async function worldRoutes(app: FastifyInstance, { db, worlds }: Services) {
   const r = typed(app);
 
   r.get('/api/worlds', async () => worlds.list());
@@ -187,6 +189,33 @@ export async function worldRoutes(app: FastifyInstance, { worlds }: Services) {
       return { ok: true };
     },
   );
+
+  r.get('/api/worlds/:id/export', { schema: { params } }, async ({ params }, reply) => {
+    const archive = await exportWorld(db, worlds, params.id);
+    const stream = createReadStream(archive.file);
+    stream.on('close', () => void archive.cleanup());
+    reply.header('content-disposition', `attachment; filename="${archive.name}"`);
+    return reply.type('application/gzip').send(stream);
+  });
+
+  r.post('/api/import/world', async (req) => {
+    const file = await req.file({ limits: { fileSize: MAX_WORLD_BYTES } });
+    if (!file) throw new HttpError(400, 'invalid_request', 'No archive uploaded');
+    try {
+      return await importWorld(db, worlds, file.file);
+    } catch (err) {
+      if (file.file.truncated)
+        throw new HttpError(413, 'too_large', 'The archive is larger than 1 GB');
+      if (err instanceof ArchiveError) throw new HttpError(400, 'invalid_request', err.message);
+      if (
+        err instanceof Error &&
+        /TAR_|zlib|incorrect header/i.test(`${(err as { code?: string }).code} ${err.message}`)
+      ) {
+        throw new HttpError(400, 'invalid_request', 'The file is not a valid world archive');
+      }
+      throw err;
+    }
+  });
 
   r.post('/api/import/card', async (req) => {
     const fields: Record<string, string> = {};

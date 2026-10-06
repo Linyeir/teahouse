@@ -3,7 +3,7 @@ import type { CanonFile, Commit, FileContent } from '@teahouse/shared';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router';
-import { api } from '../api.ts';
+import { api, download } from '../api.ts';
 import { ErrorText } from '../components/Field.tsx';
 import { CharacterImages, WorldBackgrounds } from '../components/ImageManager.tsx';
 import { CharacterRow } from '../components/StartChat.tsx';
@@ -118,8 +118,20 @@ function Overview({ worldId }: { worldId: string }) {
   const { t } = useTranslation();
   const characters = useCharacters(worldId);
   const worlds = useWorlds();
+  const exportWorld = useMutation({ mutationFn: () => download(`/api/worlds/${worldId}/export`) });
   return (
     <div>
+      <div className={ui.actions}>
+        <button
+          className={ui.button}
+          type="button"
+          disabled={exportWorld.isPending}
+          onClick={() => exportWorld.mutate()}
+        >
+          {t('worlds.export')}
+        </button>
+      </div>
+      <ErrorText error={exportWorld.error} />
       <h3>{t('worlds.characters')}</h3>
       {characters.data?.length === 0 && <p className={ui.muted}>{t('worlds.noCharacters')}</p>}
       <ul className={ui.list}>
