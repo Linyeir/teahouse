@@ -1,0 +1,79 @@
+name: Nachtzug
+description: >
+  Deutschsprachige Szene in einem Nachtzug. Prüft, ob Zusammenfassung und
+  Canon auf Deutsch funktionieren und eine geänderte Information behalten.
+language: German
+user: Ash
+contextWindow: 1500
+world: |
+  # Der Nordexpress
+
+  Ein Nachtzug, der in einer kalten Herbstnacht von Wien nach Kopenhagen
+  fährt. Die Grenzkontrollen sind streng.
+characters:
+  - slug: lene
+    name: Lene Hartmann
+    summary: Eine Journalistin auf der Flucht.
+    body: |
+      # Lene Hartmann
+
+      Lene ist Journalistin. Sie ist misstrauisch, schnell im Kopf und hat
+      Angst um ihre Quelle.
+start: |
+  *Abteil 12, kurz nach Mitternacht.* Lene Hartmann sitzt am Fenster und hält eine Aktentasche auf dem Schoß fest. „Sie sind also der Kurier, Ash?"
+turns:
+  - user: "*Ich setze mich ihr gegenüber.* Der bin ich. Was soll ich mitnehmen?"
+    assistant: |
+      *Lene öffnet die Aktentasche einen Spalt.* „Einen Mikrofilm. Darauf sind die Bilanzen der Firma Kessler & Söhne. Er muss nach Kopenhagen, zu einem Mann namens Jens Lund."
+  - user: Wo treffe ich Jens Lund?
+    assistant: |
+      „Im Café Nørrebro, um zehn Uhr morgens." *Sie reicht Ihnen eine Ansichtskarte mit einer Möwe darauf.* „Zeigen Sie ihm diese Karte. Dann weiß er, dass Sie von mir kommen."
+  - user: "*Ich stecke die Karte ein.* Und wo verstecke ich den Film?"
+    assistant: |
+      *Lene zieht eine Taschenuhr hervor und klappt den Deckel auf.* „Im Deckel. Kein Grenzbeamter schaut in eine kaputte Uhr." *Sie drückt sie Ihnen in die Hand.* „Die Uhr bleibt stehen, das ist Absicht."
+  - user: Warum fahren Sie nicht selbst?
+    assistant: |
+      *Sie sieht aus dem Fenster.* „Weil sie mein Gesicht kennen. In Hamburg steigt ein Mann von Kessler zu, ein gewisser Brandt. Er sucht mich, nicht Sie."
+  - user: "*Der Zug bremst. Ein Schaffner geht durch den Gang.*"
+    assistant: |
+      *Lene wartet, bis der Schaffner vorbei ist.* „Planänderung. Lund hat telegrafiert: nicht das Café. Er wartet am Hafen, an der Statue der kleinen Meerjungfrau. Gleiche Zeit."
+  - user: Also zehn Uhr an der Meerjungfrau.
+    assistant: |
+      „Genau." *Sie atmet aus.* „Und Ash, wenn Brandt Sie anspricht: Sie sind Uhrmacher auf dem Weg zu einer Messe. Mehr wissen Sie nicht."
+  - user: "*Ich nicke und sehe aus dem Fenster in die Dunkelheit.*"
+    assistant: |
+      Draußen zieht schwarzes Land vorbei, hin und wieder ein einzelnes Licht eines Bauernhofs. Das Abteil riecht nach kaltem Kaffee und Zigaretten. Lene schließt die Augen, aber ihre Hand liegt weiter auf der leeren Aktentasche.
+  - user: "*Ich döse eine Weile.*"
+    assistant: |
+      Der Zug schaukelt gleichmäßig. Irgendwann hält er an einem kleinen Bahnhof, Türen schlagen, Stimmen auf dem Bahnsteig, dann fährt er wieder an. Die Nacht wird nicht heller.
+  - user: "*Ich wache auf, als jemand an die Abteiltür klopft.*"
+    assistant: |
+      Es ist nur der Schaffner mit seiner Lampe. „Fahrkarten bitte." Er stempelt Ihre Karte und Lenes, wünscht eine gute Nacht und zieht die Tür wieder zu. Lene hat sich nicht bewegt.
+  - user: "*Ich trinke den Rest meines kalten Kaffees.*"
+    assistant: |
+      Der Kaffee ist bitter und kalt. Draußen beginnt es zu regnen, die Tropfen ziehen schräge Linien über die Scheibe. Bis Hamburg sind es noch zwei Stunden.
+facts:
+  - question: Was ist auf dem Mikrofilm?
+    answer: [Bilanz, Kessler]
+    turn: 1
+  - question: Wem soll der Mikrofilm übergeben werden?
+    answer: [Lund]
+    turn: 1
+  - question: Wo findet die Übergabe jetzt statt?
+    answer: [Meerjungfrau, Hafen]
+    turn: 5
+  - question: Um wie viel Uhr ist die Übergabe?
+    answer: [zehn, "10"]
+    turn: 2
+  - question: Wo ist der Mikrofilm versteckt?
+    answer: [Uhr]
+    turn: 3
+  - question: Woran erkennt Jens Lund den Kurier?
+    answer: [Karte, Möwe]
+    turn: 2
+  - question: Wer sucht Lene im Zug?
+    answer: [Brandt]
+    turn: 4
+  - question: Welche Tarnung soll Ash benutzen, wenn Brandt ihn anspricht?
+    answer: [Uhrmacher]
+    turn: 6

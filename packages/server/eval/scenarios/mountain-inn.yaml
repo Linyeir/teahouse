@@ -1,0 +1,92 @@
+name: Mountain inn
+description: >
+  Two characters at a snowed-in inn. Tests who-said-what, an injury, a
+  promise, a lie that is revealed, and an item that changes hands.
+language: English
+user: Ash
+contextWindow: 1800
+world: |
+  # The Greywater Pass
+
+  A mountain pass between two kingdoms. In winter the pass closes for weeks.
+  The only shelter is the Cold Hearth inn.
+characters:
+  - slug: edda
+    name: Edda
+    summary: Innkeeper of the Cold Hearth.
+    body: |
+      # Edda
+
+      Edda runs the Cold Hearth inn. She is practical, kind to travellers and
+      hates the border soldiers.
+  - slug: rook
+    name: Rook
+    summary: A traveller who claims to be a fur trader.
+    body: |
+      # Rook
+
+      Rook arrived at the inn the day before the snow. He says he trades furs.
+start: |
+  *Snow buries the windows of the Cold Hearth.* Edda stokes the fire while Rook, the fur trader, sits close to the flames. Ash has just come in from the storm, shaking ice from a torn cloak.
+turns:
+  - user: "*I hold out my hand to the fire.* I slipped on the ridge. My right ankle is twisted, I think."
+    assistant: |
+      *Edda kneels and presses on the ankle; Ash winces.* "Twisted, not broken. You'll limp for a week." *She wraps it tight in a strip of linen.* "No climbing for you until the pass opens."
+  - user: How long until the pass opens?
+    assistant: |
+      "Nine days, if the wind turns. Longer if it doesn't." *Edda sets a bowl of barley soup in front of Ash.* "You can pay for the room with work. The woodshed needs filling."
+  - user: Deal. *I turn to Rook.* What brings a fur trader up here in winter?
+    assistant: |
+      *Rook smiles a little too quickly.* "Prices are best when nobody else is crazy enough to travel." *He pats a leather satchel.* "Fox and marten, mostly. Bound for Holloway on the other side."
+  - user: "*Later, Edda takes me aside in the kitchen.*"
+    assistant: |
+      *Edda keeps her voice low.* "That satchel is too light for furs. And he's got soldier's boots." *She glances toward the common room.* "Keep an eye on him for me, and I'll knock the room off your bill entirely."
+  - user: I promise. I'll watch him.
+    assistant: |
+      "Good." *She presses a small brass bell into Ash's hand.* "Ring this if he tries anything. I sleep light." *Ash now carries Edda's brass bell.*
+  - user: "*That night I pretend to sleep near the fire and watch Rook.*"
+    assistant: |
+      Past midnight, Rook opens the satchel. No furs: only folded maps of the pass and a seal with a black eagle, the mark of the border army. He studies the maps by candlelight, then hides them under the loose stone by the hearth.
+  - user: "*In the morning I tell Edda what I saw.*"
+    assistant: |
+      *Edda's jaw tightens.* "A scout, then. Not a trader." *She thinks for a long moment.* "We don't confront him. Not while the snow holds us all in here together. But those maps don't leave this inn."
+  - user: Then I'll take the maps while he's out at the woodshed.
+    assistant: |
+      *While Rook chops wood, Ash slides the stone aside and takes the maps. Edda burns them in the kitchen stove, one by one.* "Now he has nothing to bring back," she says. "Put the stone back exactly."
+  - user: "*I put the stone back and go back to the fire.*"
+    assistant: |
+      The common room is quiet. Snow hisses against the shutters. The fire pops and settles. Rook comes back in with an armful of logs, stamps his boots and sits down again without a glance at the hearth.
+  - user: "*I spend the afternoon filling the woodshed.*"
+    assistant: |
+      Splitting logs with a twisted ankle is slow work. By evening the woodshed is half full and Ash's shoulders burn. The light fades early in the pass, and the wind picks up again, howling down from the peaks.
+  - user: "*At supper we all eat together.*"
+    assistant: |
+      Edda serves mutton stew and dark bread. Rook talks about the price of marten pelts in Holloway as if nothing had happened. Edda nods along. Outside, the storm is building again.
+  - user: "*I go to bed early.*"
+    assistant: |
+      The guest room under the eaves is cold and narrow. Through the floorboards the murmur of the common room fades. The bell sits on the stool by the bed. Somewhere below, a door closes softly.
+facts:
+  - question: Which of Ash's ankles is hurt?
+    answer: [right]
+    turn: 1
+  - question: How many days until the pass opens, if the wind turns?
+    answer: [nine, "9"]
+    turn: 2
+  - question: What does Rook really carry in his satchel?
+    answer: [map]
+    turn: 6
+  - question: Whose army does Rook's seal belong to?
+    answer: [border, eagle]
+    turn: 6
+  - question: What did Ash promise Edda?
+    answer: [watch, keep an eye]
+    turn: 5
+  - question: What did Edda give Ash?
+    answer: [bell]
+    turn: 5
+  - question: What happened to Rook's maps?
+    answer: [burn]
+    turn: 8
+  - question: Where did Rook hide the maps?
+    answer: [stone, hearth]
+    turn: 6
