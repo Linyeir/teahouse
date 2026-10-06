@@ -2,13 +2,34 @@ import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import slugify from '@sindresorhus/slugify';
-import type { CanonFile, CharacterImage, CharacterSummary, World } from '@teahouse/shared';
+import {
+  type CanonFile,
+  type CharacterImage,
+  type CharacterSummary,
+  sanitizeTheme,
+  type World,
+} from '@teahouse/shared';
 import { newId } from '../time.ts';
 import { parseDocument, stringifyDocument, stringList, stringValue } from './frontmatter.ts';
-import { canonFilePath, isIgnoredForCanon } from './paths.ts';
+import { canonFilePath, isIgnoredForCanon, PathError } from './paths.ts';
 import { type CommitInfo, WorldRepo } from './repo.ts';
 
 export class WorldNotFoundError extends Error {}
+
+export interface WorldBackground {
+  id: string;
+  file: string;
+  description: string;
+}
+
+/** Entries of an image list in frontmatter (`images`, `backgrounds`) that have id and file. */
+function parseImages(value: unknown): (Record<string, unknown> & { id: string; file: string })[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (v): v is Record<string, unknown> & { id: string; file: string } =>
+      Boolean(v) && typeof v === 'object' && typeof v.id === 'string' && typeof v.file === 'string',
+  );
+}
 
 const CANON_DIRS = ['characters', 'places', 'events', 'lore'];
 
@@ -83,7 +104,7 @@ export class WorldService {
     await repo.ensure();
     await repo.commitAll(`Create world ${name}`);
     this.#folders.set(id, folder);
-    return { id, name, folder, summary: '' };
+    return { id, name, folder, summary: '', theme: {} };
   }
 
   /** Folder of a world, rescanning once if the ID is unknown. */
@@ -200,6 +221,117 @@ export class WorldService {
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  /** Backgrounds of the world, from `backgrounds` in the frontmatter of `world.md`. */
+  async backgrounds(worldId: string): Promise<WorldBackground[]> {
+    const doc = parseDocument((await this.readIfExists(worldId, 'world.md')) ?? '');
+    return parseImages(doc.data.backgrounds).map((b) => ({
+      id: b.id,
+      file: b.file,
+      description: stringValue(b.description),
+    }));
+  }
+
+  /**
+   * Stores an image for a character and lists it in the character's frontmatter. An existing
+   * image with the same label is replaced. Images live in `assets/` (not in Git); the
+   * frontmatter change is committed.
+   */
+  async setCharacterImage(
+    worldId: string,
+    characterSlug: string,
+    label: string,
+    bytes: Uint8Array,
+    extension: string,
+  ): Promise<CharacterImage> {
+    const path = `characters/${characterSlug}.md`;
+    const id = newId();
+    const image = { id, label, file: `assets/characters/${characterSlug}/${id}${extension}` };
+    await this.#editFrontmatter(
+      worldId,
+      path,
+      `Set image "${label}" of ${characterSlug}`,
+      async (data, dir) => {
+        const images = parseImages(data.images);
+        for (const old of images.filter((i) => i.label === label))
+          await rm(join(dir, old.file), { force: true });
+        await mkdir(dirname(join(dir, image.file)), { recursive: true });
+        await writeFile(join(dir, image.file), bytes);
+        data.images = [...images.filter((i) => i.label !== label), image];
+      },
+    );
+    return image;
+  }
+
+  async removeCharacterImage(
+    worldId: string,
+    characterSlug: string,
+    imageId: string,
+  ): Promise<void> {
+    await this.#editFrontmatter(
+      worldId,
+      `characters/${characterSlug}.md`,
+      `Remove an image of ${characterSlug}`,
+      async (data, dir) => {
+        const images = parseImages(data.images);
+        const target = images.find((i) => i.id === imageId);
+        if (!target) throw new WorldNotFoundError('Image not found');
+        await rm(join(dir, target.file), { force: true });
+        data.images = images.filter((i) => i.id !== imageId);
+      },
+    );
+  }
+
+  /** Stores a background and lists it in `world.md`. An existing one with the same ID is replaced. */
+  async setBackground(
+    worldId: string,
+    id: string,
+    description: string,
+    bytes: Uint8Array,
+    extension: string,
+  ): Promise<WorldBackground> {
+    const background = { id, description, file: `assets/backgrounds/${id}-${newId()}${extension}` };
+    await this.#editFrontmatter(worldId, 'world.md', `Set background ${id}`, async (data, dir) => {
+      const backgrounds = parseImages(data.backgrounds);
+      for (const old of backgrounds.filter((b) => b.id === id))
+        await rm(join(dir, old.file), { force: true });
+      await mkdir(dirname(join(dir, background.file)), { recursive: true });
+      await writeFile(join(dir, background.file), bytes);
+      data.backgrounds = [...backgrounds.filter((b) => b.id !== id), background];
+    });
+    return background;
+  }
+
+  async removeBackground(worldId: string, id: string): Promise<void> {
+    await this.#editFrontmatter(
+      worldId,
+      'world.md',
+      `Remove background ${id}`,
+      async (data, dir) => {
+        const backgrounds = parseImages(data.backgrounds);
+        const target = backgrounds.find((b) => b.id === id);
+        if (!target) throw new WorldNotFoundError('Background not found');
+        await rm(join(dir, target.file), { force: true });
+        data.backgrounds = backgrounds.filter((b) => b.id !== id);
+      },
+    );
+  }
+
+  /** Changes a file's frontmatter (and assets) in one queued, committed operation. */
+  async #editFrontmatter(
+    worldId: string,
+    path: string,
+    message: string,
+    edit: (data: Record<string, unknown>, dir: string) => Promise<void>,
+  ): Promise<void> {
+    await this.transaction(worldId, message, async (dir) => {
+      const full = canonFilePath(dir, path);
+      const doc = parseDocument(await readFile(full, 'utf8'));
+      if (doc.error) throw new PathError(`${path} has invalid frontmatter: ${doc.error}`);
+      await edit(doc.data, dir);
+      await writeFile(full, stringifyDocument(doc));
+    });
+  }
+
   /** A character by file slug (`characters/<slug>.md`). */
   async character(worldId: string, characterSlug: string) {
     const path = `characters/${characterSlug}.md`;
@@ -263,6 +395,7 @@ export class WorldService {
       folder,
       name: stringValue(doc.data.name, folder),
       summary: stringValue(doc.data.summary),
+      theme: sanitizeTheme(doc.data.theme),
     };
   }
 }

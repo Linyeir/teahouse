@@ -1,0 +1,35 @@
+.narration,
+.say,
+.stage {
+  margin: 0 0 0.5em;
+}
+
+.narration:last-child,
+.say:last-child,
+.stage:last-child {
+  margin-bottom: 0;
+}
+
+.narration {
+  color: var(--color-text);
+}
+
+.name {
+  font-weight: 600;
+}
+
+.unknown {
+  font-weight: 600;
+  text-decoration: underline dotted var(--color-danger);
+}
+
+.mood {
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+}
+
+.stage {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-family: var(--font-body);
+}

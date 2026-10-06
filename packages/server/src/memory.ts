@@ -1,4 +1,4 @@
-import type { PathMessage } from '@teahouse/shared';
+import { markupToText, type PathMessage } from '@teahouse/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import { countMessageTokens } from './context/tokens.ts';
 import { buildTurnContext, type TurnContext, verbatimStart } from './context/turn.ts';
@@ -111,7 +111,11 @@ export class Memory {
     const settings = getSettings(this.db);
     const names = [...ctx.characterNames.values()].join(', ');
     const transcript = section
-      .map((m) => `${m.role === 'user' ? settings.userName : names || 'Story'}: ${m.content}`)
+      .map((m) =>
+        m.role === 'user'
+          ? `${settings.userName}: ${m.content}`
+          : markupToText(m.content, ctx.characterNames) || names,
+      )
       .join('\n\n');
     const system = SUMMARY_PROMPT.replaceAll('{{user}}', settings.userName).replaceAll(
       '{{language}}',

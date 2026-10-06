@@ -1,4 +1,4 @@
-import type { Message } from '@teahouse/shared';
+import { findUserLine, type Message } from '@teahouse/shared';
 import { eq } from 'drizzle-orm';
 import { buildTurnContext, currentScene, narratorPrompt } from './context/turn.ts';
 import type { Db } from './db/index.ts';
@@ -7,6 +7,7 @@ import type { Hub } from './hub.ts';
 import { type ChatMessage, type GenerationProfile, streamChat } from './llm/client.ts';
 import type { Memory } from './memory.ts';
 import { NoProfileError, profileFor } from './roles.ts';
+import { getSettings } from './settings.ts';
 import { newId, now } from './time.ts';
 import { getChatRow, toMessage } from './tree.ts';
 import type { WorldService } from './worlds/service.ts';
@@ -141,18 +142,36 @@ export class Generator {
     let content = '';
     let lastPersist = Date.now();
     let status: Message['status'] = 'complete';
+    let wroteForUser = false;
     let error: string | null = null;
 
     try {
-      for await (const delta of this.stream(profile, prompt, controller.signal)) {
-        this.hub.broadcast({
-          type: 'generation.delta',
-          chatId: message.chatId,
-          messageId: message.id,
-          offset: content.length,
-          delta,
-        });
+      const userNames = [getSettings(this.db).userName];
+      for await (const raw of this.stream(profile, prompt, controller.signal)) {
+        let delta = raw;
+        // The model started a line for the user's persona: keep what came before, end the reply.
+        // The start of that tag may already be in `content`; the final message replaces it.
+        const cut = findUserLine(content + delta, userNames);
+        if (cut !== null) {
+          const kept = (content + delta).slice(0, cut);
+          delta = kept.slice(Math.min(content.length, kept.length));
+          content = kept.slice(0, kept.length - delta.length);
+          wroteForUser = true;
+        }
+        if (delta) {
+          this.hub.broadcast({
+            type: 'generation.delta',
+            chatId: message.chatId,
+            messageId: message.id,
+            offset: content.length,
+            delta,
+          });
+        }
         content += delta;
+        if (wroteForUser) {
+          controller.abort();
+          break;
+        }
         if (Date.now() - lastPersist > PERSIST_INTERVAL_MS) {
           this.#persist(message.id, { content });
           lastPersist = Date.now();
@@ -167,6 +186,11 @@ export class Generator {
       }
     }
     if (controller.signal.aborted) status = 'stopped';
+    if (wroteForUser) {
+      status = 'complete';
+      error = null;
+      content = content.trimEnd();
+    }
 
     const updated = this.#persist(message.id, { content, status, error });
     this.#running.delete(message.id);
