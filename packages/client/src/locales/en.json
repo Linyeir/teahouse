@@ -26,7 +26,20 @@
     "deviceName": "Device name",
     "setup": "Set password",
     "login": "Sign in",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "connectTitle": "Connect to your server",
+    "connectHint": "Enter the address of your Teahouse server, or paste a pairing link from another device.",
+    "server": "Server address or pairing link",
+    "connect": "Connect",
+    "changeServer": "Change server (%{server})",
+    "useCode": "Pair with a code instead",
+    "usePassword": "Sign in with the password instead",
+    "pairTitle": "Pair this device",
+    "pairHint": "On a signed-in device, open Settings → Devices → Pair a device, then enter the code or paste the link.",
+    "pairLinkHint": "This link signs this device in without the password. It works once and expires after five minutes.",
+    "code": "Pairing code or link",
+    "pair": "Pair",
+    "invalidCode": "That is not a pairing code or link."
   },
   "chats": {
     "empty": "No chats yet.",
@@ -185,5 +198,16 @@
     "backgroundName": "Name",
     "description": "Description",
     "descriptionHint": "What the narrator should know about this place"
+  },
+  "pairing": {
+    "start": "Pair a device",
+    "hint": "Scan the QR code with the new device, or open the link there. You can also type the code.",
+    "qrAlt": "QR code with the pairing link",
+    "expiresIn": "Expires in %{time}",
+    "expired": "Expired",
+    "newCode": "New code",
+    "address": "Address the new device uses",
+    "loopbackHint": "localhost only works on this computer. Enter an address the other device can reach.",
+    "copyLink": "Copy link"
   }
 }

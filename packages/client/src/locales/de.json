@@ -26,7 +26,20 @@
     "deviceName": "Gerätename",
     "setup": "Passwort festlegen",
     "login": "Anmelden",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "connectTitle": "Mit deinem Server verbinden",
+    "connectHint": "Gib die Adresse deines Teahouse-Servers ein oder füge einen Kopplungslink von einem anderen Gerät ein.",
+    "server": "Serveradresse oder Kopplungslink",
+    "connect": "Verbinden",
+    "changeServer": "Server wechseln (%{server})",
+    "useCode": "Stattdessen mit Code koppeln",
+    "usePassword": "Stattdessen mit Passwort anmelden",
+    "pairTitle": "Dieses Gerät koppeln",
+    "pairHint": "Öffne auf einem angemeldeten Gerät Einstellungen → Geräte → Gerät koppeln und gib dann den Code ein oder füge den Link ein.",
+    "pairLinkHint": "Dieser Link meldet das Gerät ohne Passwort an. Er funktioniert einmal und läuft nach fünf Minuten ab.",
+    "code": "Kopplungscode oder -link",
+    "pair": "Koppeln",
+    "invalidCode": "Das ist kein Kopplungscode oder -link."
   },
   "chats": {
     "empty": "Noch keine Chats.",
@@ -185,5 +198,16 @@
     "backgroundName": "Name",
     "description": "Beschreibung",
     "descriptionHint": "Was der Erzähler über diesen Ort wissen soll"
+  },
+  "pairing": {
+    "start": "Gerät koppeln",
+    "hint": "Scanne den QR-Code mit dem neuen Gerät oder öffne dort den Link. Du kannst auch den Code eintippen.",
+    "qrAlt": "QR-Code mit dem Kopplungslink",
+    "expiresIn": "Läuft ab in %{time}",
+    "expired": "Abgelaufen",
+    "newCode": "Neuer Code",
+    "address": "Adresse für das neue Gerät",
+    "loopbackHint": "localhost funktioniert nur auf diesem Computer. Gib eine Adresse ein, die das andere Gerät erreicht.",
+    "copyLink": "Link kopieren"
   }
 }

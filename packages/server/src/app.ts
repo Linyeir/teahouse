@@ -1,8 +1,10 @@
+import fastifyCors from '@fastify/cors';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { Pairing } from './auth/pairing.ts';
 import { resolveToken } from './auth/tokens.ts';
 import { CanonProposals, ProposalError } from './canon/proposals.ts';
 import { CardError } from './cards/parse.ts';
@@ -43,7 +45,12 @@ export interface AppOptions {
   stream?: StreamFn;
   complete?: typeof complete;
   logger?: FastifyServerOptions['logger'];
+  /** Extra origins allowed to call the API from a browser, besides the Tauri apps. */
+  corsOrigins?: string[];
 }
+
+/** Origins of the Tauri webviews: macOS and Linux, then Windows and Android. */
+const APP_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost'];
 
 export async function buildApp({
   db,
@@ -52,10 +59,19 @@ export async function buildApp({
   stream,
   complete: completeFn,
   logger = false,
+  corsOrigins = [],
 }: AppOptions) {
   const app = Fastify({ logger });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+  // The apps load the client from their own origin and talk to the server cross-origin.
+  // Auth is a bearer token, not a cookie, so allowing these origins exposes nothing extra.
+  await app.register(fastifyCors, {
+    origin: [...APP_ORIGINS, ...corsOrigins],
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    exposedHeaders: ['content-disposition'],
+    maxAge: 600,
+  });
   app.decorateRequest('deviceId', '');
 
   const hub = new Hub();
@@ -71,6 +87,7 @@ export async function buildApp({
     memory,
     generator,
     proposals,
+    pairing: new Pairing(),
     scenes: new Scenes(db, worlds, hub, generator, proposals, completeFn),
   };
 

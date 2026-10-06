@@ -12,7 +12,13 @@ await worlds.init();
 const watcher = new WorldWatcher(worlds);
 await watcher.start();
 
-const app = await buildApp({ db, worlds, clientDir: config.clientDir, logger: { level: 'info' } });
+const app = await buildApp({
+  db,
+  worlds,
+  clientDir: config.clientDir,
+  corsOrigins: config.corsOrigins,
+  logger: { level: 'info' },
+});
 app.addHook('onClose', () => watcher.stop());
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

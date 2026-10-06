@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ChatPath, ServerEvent } from '@teahouse/shared';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { getToken } from './api.ts';
+import { getToken, serverUrl, setToken } from './api.ts';
 import { applyUpdate, type PathUpdate, StreamBuffers } from './chat-state.ts';
 
 export const streamBuffers = new StreamBuffers();
@@ -46,7 +46,7 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
       const token = getToken();
       if (!token) return;
       setState('connecting');
-      const url = new URL('/api/ws', window.location.href);
+      const url = new URL(serverUrl('/api/ws'), window.location.href);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       url.searchParams.set('token', token);
       socket = new WebSocket(url);
@@ -58,6 +58,10 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
       };
       socket.onmessage = (message) => {
         const event = JSON.parse(String(message.data)) as ServerEvent;
+        if (event.type === 'devices.changed') {
+          void queryClient.invalidateQueries({ queryKey: ['devices'] });
+          return;
+        }
         const key = ['chat', event.chatId];
         if (event.type === 'proposal.changed') {
           void queryClient.invalidateQueries({ queryKey: ['proposal', event.sceneId] });
@@ -88,9 +92,14 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
           void queryClient.invalidateQueries({ queryKey: ['chats'] });
         }
       };
-      socket.onclose = () => {
+      socket.onclose = (close) => {
         setState('closed');
         if (stopped) return;
+        // The server closes with 4401 when this device was signed out elsewhere.
+        if (close.code === 4401) {
+          setToken(null);
+          return;
+        }
         retry = setTimeout(connect, Math.min(1000 * 2 ** attempt++, 15_000));
       };
     };

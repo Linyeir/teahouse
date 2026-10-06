@@ -1,5 +1,13 @@
+import { networkInterfaces } from 'node:os';
 import rateLimit from '@fastify/rate-limit';
-import { credentialsInput, type device, id } from '@teahouse/shared';
+import {
+  credentialsInput,
+  type device,
+  id,
+  type PairingCode,
+  pairingClaimInput,
+  type ServerAddresses,
+} from '@teahouse/shared';
 import { desc, isNull } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -13,8 +21,29 @@ import {
 import { devices } from '../db/schema.ts';
 import { HttpError, notFound, type Services, typed } from './context.ts';
 
-export async function authRoutes(app: FastifyInstance, { db }: Services) {
+/** Non-internal IPv4 addresses, for pairing a phone when the browser shows `localhost`. */
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === 'IPv4' && !i.internal)
+    .map((i) => i?.address ?? '')
+    .filter(Boolean);
+}
+
+export async function authRoutes(app: FastifyInstance, { db, hub, pairing }: Services) {
   const r = typed(app);
+  const signOut = (deviceId: string) => {
+    const revoked = revokeDevice(db, deviceId);
+    pairing.revokeFrom(deviceId);
+    hub.disconnect(deviceId);
+    hub.broadcast({ type: 'devices.changed' });
+    return revoked;
+  };
+  const signIn = (deviceName: string) => {
+    const issued = issueDeviceToken(db, deviceName);
+    hub.broadcast({ type: 'devices.changed' });
+    return issued;
+  };
 
   r.get('/api/auth/status', { config: { public: true } }, async () => ({
     passwordSet: isPasswordSet(db),
@@ -30,7 +59,7 @@ export async function authRoutes(app: FastifyInstance, { db }: Services) {
       async ({ body }) => {
         if (isPasswordSet(db)) throw new HttpError(409, 'already_set_up', 'Password already set');
         await setPassword(db, body.password);
-        return issueDeviceToken(db, body.deviceName);
+        return signIn(body.deviceName);
       },
     );
 
@@ -41,13 +70,32 @@ export async function authRoutes(app: FastifyInstance, { db }: Services) {
         if (!(await checkPassword(db, body.password))) {
           throw new HttpError(401, 'invalid_password', 'Wrong password');
         }
-        return issueDeviceToken(db, body.deviceName);
+        return signIn(body.deviceName);
+      },
+    );
+
+    // Rate-limited like login: a pairing code is a short-lived password.
+    l.post(
+      '/api/pairing/claim',
+      { config: { public: true }, schema: { body: pairingClaimInput } },
+      async ({ body }) => {
+        if (!pairing.claim(body.code)) {
+          throw new HttpError(401, 'invalid_code', 'Pairing code is invalid or expired');
+        }
+        return signIn(body.deviceName);
       },
     );
   });
 
+  r.post('/api/pairing', async (req): Promise<PairingCode> => pairing.create(req.deviceId));
+
+  r.get(
+    '/api/pairing/addresses',
+    async (): Promise<ServerAddresses> => ({ addresses: lanAddresses() }),
+  );
+
   r.post('/api/auth/logout', async (req) => {
-    revokeDevice(db, req.deviceId);
+    signOut(req.deviceId);
     return { ok: true };
   });
 
@@ -70,7 +118,7 @@ export async function authRoutes(app: FastifyInstance, { db }: Services) {
   );
 
   r.delete('/api/devices/:id', { schema: { params: z.object({ id }) } }, async ({ params }) => {
-    if (!revokeDevice(db, params.id)) throw notFound('Device');
+    if (!signOut(params.id)) throw notFound('Device');
     return { ok: true };
   });
 }

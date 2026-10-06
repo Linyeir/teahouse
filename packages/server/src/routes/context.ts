@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { Pairing } from '../auth/pairing.ts';
 import type { CanonProposals } from '../canon/proposals.ts';
 import type { Db } from '../db/index.ts';
 import type { Generator } from '../generation.ts';
@@ -16,6 +17,7 @@ export interface Services {
   memory: Memory;
   scenes: Scenes;
   proposals: CanonProposals;
+  pairing: Pairing;
 }
 
 export const typed = (app: FastifyInstance) => app.withTypeProvider<ZodTypeProvider>();
