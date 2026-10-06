@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { CanonProposal } from '@teahouse/shared';
+import { type CanonProposal, markupToText } from '@teahouse/shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { contextWindow, countTokens } from '../context/tokens.ts';
 import { memoryOnPath } from '../context/turn.ts';
@@ -298,7 +298,7 @@ export class CanonProposals {
     const settings = getSettings(db);
     const path = scene.closedLeafId ? activePath(db, chat.id, scene.closedLeafId) : [];
     const line = (m: { role: string; content: string }) =>
-      `${m.role === 'user' ? settings.userName : 'Story'}: ${m.content}`;
+      m.role === 'user' ? `${settings.userName}: ${m.content}` : markupToText(m.content);
     const full = path.map(line).join('\n\n');
     if (countTokens(full) <= budget) return full;
 

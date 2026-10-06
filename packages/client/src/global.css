@@ -15,6 +15,19 @@
   --font-story: Georgia, "Iowan Old Style", serif;
   --radius: 8px;
   --space: 12px;
+
+  /* Visual novel view. Worlds can override these (docs/theming.md). */
+  --vn-stage-bg: #3a332b;
+  --vn-textbox-bg: rgb(28 24 20 / 88%);
+  --vn-textbox-color: #f3ece1;
+  --vn-textbox-border: 1px solid rgb(255 255 255 / 18%);
+  --vn-textbox-radius: 10px;
+  --vn-name-bg: var(--color-accent);
+  --vn-name-color: var(--color-accent-text);
+  --vn-font: var(--font-story);
+  --vn-font-size: 1.1rem;
+  --vn-sprite-height: 78%;
+  --vn-sprite-dim: 0.55;
   color-scheme: light;
 }
 

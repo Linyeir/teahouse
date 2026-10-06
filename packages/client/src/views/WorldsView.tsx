@@ -29,6 +29,7 @@ export function WorldsView() {
       </ul>
       <CreateWorld />
       <ImportCard worlds={worlds.data ?? []} />
+      <ImportWorld />
     </div>
   );
 }
@@ -130,6 +131,55 @@ export function ImportCard({ worlds, worldId }: { worlds: World[]; worldId?: str
           </select>
         </Field>
       </div>
+      <ErrorText error={upload.error} />
+      <div className={ui.actions}>
+        <button className={ui.primary} type="submit" disabled={!file || upload.isPending}>
+          {t('worlds.import')}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ImportWorld() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [file, setFile] = useState<File | null>(null);
+  const upload = useMutation({
+    mutationFn: () => {
+      const form = new FormData();
+      if (file) form.append('file', file);
+      return api.upload<{ worldId: string; copy: boolean }>('/api/import/world', form);
+    },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['worlds'] });
+      void queryClient.invalidateQueries({ queryKey: ['chats'] });
+      navigate(`/worlds/${result.worldId}`);
+    },
+  });
+  return (
+    <form
+      className={`${ui.card} ${ui.form}`}
+      style={{ marginTop: 'var(--space)' }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        upload.mutate();
+      }}
+    >
+      <h3 style={{ margin: 0 }}>{t('worlds.importWorld')}</h3>
+      <p className={ui.hint} style={{ margin: 0 }}>
+        {t('worlds.importWorldHint')}
+      </p>
+      <Field label={t('worlds.archiveFile')}>
+        <input
+          className={ui.input}
+          type="file"
+          accept=".gz,.tgz,application/gzip"
+          required
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+      </Field>
       <ErrorText error={upload.error} />
       <div className={ui.actions}>
         <button className={ui.primary} type="submit" disabled={!file || upload.isPending}>

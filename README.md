@@ -2,7 +2,26 @@
 
 Self-hostable AI roleplay in the style of a visual novel, with two-tier memory: Active Memory keeps long scenes in the context window, and a canon of Git-versioned Markdown files holds lasting world knowledge.
 
-**Status:** early development, v0.1 (steps 1 to 4 done). Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory and canon updates reviewed as diffs, against any OpenAI-compatible endpoint, plus a memory test run to tune them against.
+**Status:** early development, v0.2. Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory, canon updates reviewed as diffs, a visual novel view with character images and backgrounds, and world export, against any OpenAI-compatible endpoint.
+
+## Visual novel view
+
+The narrator answers in a small tag markup, which the view parses while it streams:
+
+```
+<bg id="tavern-night"/>
+<narration>Rain drums against the windows.</narration>
+<say who="mira" mood="amused">So you came after all.</say>
+<leave who="tomas"/>
+```
+
+The narrator gets every character of the world with its image labels and the world's backgrounds with their descriptions. The view shows the background, the present characters in the mood of their last line (falling back to `neutral`, any image, then a placeholder) and one line at a time; click, the arrow keys or space step through. **Log** switches to the full text. If the model starts writing a line for you, Teahouse cuts the reply there.
+
+Images are uploaded per character file in the world view, each with a label (`neutral`, `amused`, … or your own), and backgrounds on the world overview with a short description for the narrator. They are stored in `assets/` and listed in the frontmatter. Colors and fonts of the view are theme tokens a world can override; see [docs/theming.md](docs/theming.md).
+
+## Export and sharing
+
+**Export world** on the world overview downloads a `.teahouse.tar.gz` with the world folder (Git history and images included) and its chats. **Import world** on the worlds page restores it; a world that already exists on the server is imported as a copy with new IDs. Profiles and API keys are never part of an export.
 
 ## Scenes and memory
 

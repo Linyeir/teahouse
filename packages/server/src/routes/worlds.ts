@@ -2,10 +2,12 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { canonPath, fileWrite, id, worldInput } from '@teahouse/shared';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { importCard } from '../cards/import.ts';
+import { ArchiveError, exportWorld, importWorld } from '../worlds/archive.ts';
 import { assetFilePath } from '../worlds/paths.ts';
+import { slug } from '../worlds/service.ts';
 import { HttpError, type Services, typed } from './context.ts';
 
 const params = z.object({ id });
@@ -21,8 +23,46 @@ const IMAGE_TYPES: Record<string, string> = {
 };
 
 const MAX_CARD_BYTES = 30 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_WORLD_BYTES = 1024 * 1024 * 1024;
 
-export async function worldRoutes(app: FastifyInstance, { worlds }: Services) {
+const EXTENSION_BY_TYPE: Record<string, string> = Object.fromEntries(
+  Object.entries(IMAGE_TYPES).map(([ext, type]) => [type, ext === '.jpeg' ? '.jpg' : ext]),
+);
+
+/** Labels and IDs are short lowercase words, so models can write them in tags. */
+const tagWord = (value: string | undefined, what: string) => {
+  const word = slug(value ?? '', '');
+  if (!word) throw new HttpError(400, 'invalid_request', `${what} is required`);
+  return word.slice(0, 40);
+};
+
+/** Reads one uploaded image and the text fields of a multipart request. */
+async function readImageUpload(req: FastifyRequest) {
+  const fields: Record<string, string> = {};
+  let file: { bytes: Buffer; extension: string } | null = null;
+  for await (const part of req.parts({ limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } })) {
+    if (part.type === 'file') {
+      const extension =
+        EXTENSION_BY_TYPE[part.mimetype] ??
+        (IMAGE_TYPES[extname(part.filename).toLowerCase()]
+          ? extname(part.filename).toLowerCase()
+          : null);
+      const bytes = await part.toBuffer();
+      if (!extension)
+        throw new HttpError(400, 'invalid_request', 'Upload a PNG, JPEG, WebP, GIF or AVIF image');
+      if (part.file.truncated)
+        throw new HttpError(413, 'too_large', 'The image is larger than 20 MB');
+      file = { bytes, extension };
+    } else if (typeof part.value === 'string') {
+      fields[part.fieldname] = part.value;
+    }
+  }
+  if (!file) throw new HttpError(400, 'invalid_request', 'No image uploaded');
+  return { file, fields };
+}
+
+export async function worldRoutes(app: FastifyInstance, { db, worlds }: Services) {
   const r = typed(app);
 
   r.get('/api/worlds', async () => worlds.list());
@@ -92,6 +132,90 @@ export async function worldRoutes(app: FastifyInstance, { worlds }: Services) {
       return reply.type(type).send(createReadStream(file));
     },
   );
+
+  const characterParams = params.extend({ slug: z.string().min(1).max(200) });
+
+  r.post(
+    '/api/worlds/:id/characters/:slug/images',
+    { schema: { params: characterParams } },
+    async (req) => {
+      if (!(await worlds.character(req.params.id, req.params.slug))) {
+        throw new HttpError(404, 'not_found', 'Character not found');
+      }
+      const { file, fields } = await readImageUpload(req);
+      const label = tagWord(fields.label, 'A label');
+      return worlds.setCharacterImage(
+        req.params.id,
+        req.params.slug,
+        label,
+        file.bytes,
+        file.extension,
+      );
+    },
+  );
+
+  r.delete(
+    '/api/worlds/:id/characters/:slug/images/:imageId',
+    { schema: { params: characterParams.extend({ imageId: z.string().min(1) }) } },
+    async ({ params }) => {
+      await worlds.removeCharacterImage(params.id, params.slug, params.imageId);
+      return { ok: true };
+    },
+  );
+
+  r.get('/api/worlds/:id/backgrounds', { schema: { params } }, async ({ params }) =>
+    worlds.backgrounds(params.id),
+  );
+
+  r.post('/api/worlds/:id/backgrounds', { schema: { params } }, async (req) => {
+    await worlds.folder(req.params.id);
+    const { file, fields } = await readImageUpload(req);
+    const backgroundId = tagWord(fields.id || fields.description, 'A background name');
+    const description = (fields.description ?? '').trim().slice(0, 300) || backgroundId;
+    return worlds.setBackground(
+      req.params.id,
+      backgroundId,
+      description,
+      file.bytes,
+      file.extension,
+    );
+  });
+
+  r.delete(
+    '/api/worlds/:id/backgrounds/:backgroundId',
+    { schema: { params: params.extend({ backgroundId: z.string().min(1) }) } },
+    async ({ params }) => {
+      await worlds.removeBackground(params.id, params.backgroundId);
+      return { ok: true };
+    },
+  );
+
+  r.get('/api/worlds/:id/export', { schema: { params } }, async ({ params }, reply) => {
+    const archive = await exportWorld(db, worlds, params.id);
+    const stream = createReadStream(archive.file);
+    stream.on('close', () => void archive.cleanup());
+    reply.header('content-disposition', `attachment; filename="${archive.name}"`);
+    return reply.type('application/gzip').send(stream);
+  });
+
+  r.post('/api/import/world', async (req) => {
+    const file = await req.file({ limits: { fileSize: MAX_WORLD_BYTES } });
+    if (!file) throw new HttpError(400, 'invalid_request', 'No archive uploaded');
+    try {
+      return await importWorld(db, worlds, file.file);
+    } catch (err) {
+      if (file.file.truncated)
+        throw new HttpError(413, 'too_large', 'The archive is larger than 1 GB');
+      if (err instanceof ArchiveError) throw new HttpError(400, 'invalid_request', err.message);
+      if (
+        err instanceof Error &&
+        /TAR_|zlib|incorrect header/i.test(`${(err as { code?: string }).code} ${err.message}`)
+      ) {
+        throw new HttpError(400, 'invalid_request', 'The file is not a valid world archive');
+      }
+      throw err;
+    }
+  });
 
   r.post('/api/import/card', async (req) => {
     const fields: Record<string, string> = {};

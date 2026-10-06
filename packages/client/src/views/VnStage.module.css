@@ -1,0 +1,179 @@
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  background: var(--vn-stage-bg);
+  overflow: hidden;
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
+}
+
+.background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sprites {
+  position: absolute;
+  inset: 0 0 0 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 2%;
+  pointer-events: none;
+}
+
+.sprite {
+  height: var(--vn-sprite-height);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sprite img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+}
+
+.dim {
+  opacity: var(--vn-sprite-dim);
+}
+
+.placeholder {
+  height: 70%;
+  aspect-ratio: 1 / 2;
+  border-radius: 40% 40% 8px 8px;
+  background: rgb(255 255 255 / 14%);
+  border: 1px solid rgb(255 255 255 / 25%);
+  color: rgb(255 255 255 / 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--vn-font);
+  font-size: 2rem;
+}
+
+.textboxFrame {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 4%;
+  height: 30%;
+  min-height: 7.5em;
+  max-height: 45%;
+}
+
+.textbox {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 1.6em 1.2em 1em;
+  background: var(--vn-textbox-bg);
+  color: var(--vn-textbox-color);
+  border: var(--vn-textbox-border);
+  border-radius: var(--vn-textbox-radius);
+  font-family: var(--vn-font);
+  font-size: var(--vn-font-size);
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: pre-wrap;
+}
+
+.textbox:focus-visible {
+  outline: 2px solid var(--color-accent);
+}
+
+.name {
+  position: absolute;
+  z-index: 1;
+  top: -0.9em;
+  left: 1em;
+  padding: 0.15em 0.8em;
+  border-radius: var(--vn-textbox-radius);
+  background: var(--vn-name-bg);
+  color: var(--vn-name-color);
+  font-family: var(--font-body);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.unknown {
+  text-decoration: underline dotted;
+}
+
+.narration {
+  font-style: italic;
+}
+
+.narration em {
+  font-style: normal;
+}
+
+.user {
+  opacity: 0.9;
+}
+
+.text em {
+  opacity: 0.8;
+}
+
+.empty {
+  opacity: 0.6;
+}
+
+.cursor::after {
+  content: "▍";
+  opacity: 0.6;
+}
+
+.controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 45%);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.controls button {
+  all: unset;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 1rem;
+}
+
+.controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (max-width: 720px) {
+  .stage {
+    aspect-ratio: 3 / 4;
+  }
+
+  .textbox {
+    font-size: 1rem;
+  }
+
+  .textboxFrame {
+    height: 36%;
+  }
+}
