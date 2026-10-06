@@ -2,7 +2,7 @@
 
 Self-hostable AI roleplay in the style of a visual novel, with two-tier memory: Active Memory keeps long scenes in the context window, and a canon of Git-versioned Markdown files holds lasting world knowledge.
 
-**Status:** early development, v0.1 step 3 of 4. Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory and canon updates reviewed as diffs, against any OpenAI-compatible endpoint. The memory test run follows.
+**Status:** early development, v0.1 (steps 1 to 4 done). Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory and canon updates reviewed as diffs, against any OpenAI-compatible endpoint, plus a memory test run to tune them against.
 
 ## Scenes and memory
 
@@ -76,6 +76,17 @@ Node's `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set. Set i
 | `TEAHOUSE_DATA_DIR` | `./data` | SQLite database and, by default, worlds |
 | `TEAHOUSE_WORLDS_DIR` | `<data>/worlds` | World folders |
 | `TEAHOUSE_CLIENT_DIR` | `packages/client/dist` | Built web client to serve |
+
+### Memory test run
+
+`packages/server/eval/` holds reference scenes in YAML: a world, characters, scripted user and narrator turns, and fact questions with expected keywords. The test run plays each scene through the real Active Memory and canon code, with a context window small enough to force summaries, then asks the questions twice: once against the memory summary alone, once against the canon the next scene would get. Narrator turns are scripted, so the score measures memory, not storytelling.
+
+```sh
+NODE_USE_ENV_PROXY=1 pnpm --filter @teahouse/server eval:memory -- \
+  --model inclusionai/ling-3.1-flash [--base-url http://localhost:1234/v1] [--scenario harbor-deal]
+```
+
+It prints a table and writes a Markdown and JSON report to `packages/server/eval/results/` (git-ignored). `--min-score 0.8` makes it exit non-zero below that average. The API key comes from `--api-key`, `TEAHOUSE_EVAL_API_KEY` or `OPENROUTER_API_KEY`.
 
 ### Layout
 

@@ -124,16 +124,20 @@ export class Memory {
     ]
       .filter(Boolean)
       .join('\n\n');
-    const content = (
-      await this.completeFn(
-        profileFor(this.db, 'summary'),
-        [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        { minTokens: 1200 },
-      )
-    ).trim();
+    let content = '';
+    // Free endpoints and reasoning models sometimes return nothing; one more try is cheap.
+    for (let attempt = 0; attempt < 2 && !content; attempt++) {
+      content = (
+        await this.completeFn(
+          profileFor(this.db, 'summary'),
+          [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          { minTokens: 1200 },
+        )
+      ).trim();
+    }
     if (!content) throw new Error('The summary came back empty');
 
     const last = section.at(-1);

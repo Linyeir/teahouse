@@ -1,0 +1,132 @@
+/**
+ * Memory test run (concept, v0.1 step 4): plays the reference scenes and checks which facts
+ * survive Active Memory and the canon update.
+ *
+ *   pnpm --filter @teahouse/server eval:memory -- --model inclusionai/ling-3.1-flash
+ *
+ * Options: --base-url (default OpenRouter), --model, --api-key (or TEAHOUSE_EVAL_API_KEY /
+ * OPENROUTER_API_KEY), --answer-model (model that answers the fact questions, same endpoint;
+ * defaults to --model), --scenario <name> (repeatable), --min-score <0..1>, --out <dir>.
+ */
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+import { loadScenarios, runScenario, type ScenarioResult } from './harness.ts';
+
+const here = fileURLToPath(new URL('.', import.meta.url));
+const { values } = parseArgs({
+  options: {
+    'base-url': { type: 'string', default: 'https://openrouter.ai/api/v1' },
+    model: { type: 'string', default: 'inclusionai/ling-3.1-flash' },
+    'answer-model': { type: 'string' },
+    'api-key': { type: 'string' },
+    scenario: { type: 'string', multiple: true, default: [] },
+    'min-score': { type: 'string', default: '0' },
+    out: { type: 'string', default: join(here, 'results') },
+  },
+});
+
+const apiKey =
+  values['api-key'] ?? process.env.TEAHOUSE_EVAL_API_KEY ?? process.env.OPENROUTER_API_KEY ?? null;
+const profile = { baseUrl: values['base-url'], apiKey, model: values.model, temperature: 0.3 };
+const answerProfile = { ...profile, model: values['answer-model'] ?? values.model };
+const scenarios = await loadScenarios(join(here, 'scenarios'), values.scenario);
+if (scenarios.length === 0) throw new Error('No scenarios matched');
+
+const results: ScenarioResult[] = [];
+for (const scenario of scenarios) {
+  process.stdout.write(`${scenario.name} … `);
+  const result = await runScenario(scenario, profile, undefined, answerProfile);
+  results.push(result);
+  console.log(
+    result.error ? `error: ${result.error}` : `${(result.durationMs / 1000).toFixed(0)}s`,
+  );
+}
+
+const pct = (score: number | undefined) =>
+  score === undefined ? '—' : `${Math.round(score * 100)} %`;
+const rows = results.map((r) => ({
+  scenario: r.scenario,
+  summaries: r.summaries,
+  covered: `${r.summarizedMessages}/${r.totalMessages}`,
+  'memory recall': pct(r.memory?.recall),
+  'memory answers': pct(r.memory?.score),
+  'canon recall': pct(r.canon?.recall),
+  'canon answers': pct(r.canon?.score),
+  error: r.error ?? '',
+}));
+console.table(rows);
+
+const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+await mkdir(values.out, { recursive: true });
+const base = join(values.out, `${stamp}-${values.model.replace(/[^\w.-]+/g, '_')}`);
+await writeFile(
+  `${base}.json`,
+  `${JSON.stringify({ profile: { ...profile, apiKey: undefined }, results }, null, 2)}\n`,
+);
+await writeFile(`${base}.md`, report(values.model, results));
+console.log(`Report: ${base}.md`);
+
+const scores = results
+  .flatMap((r) => [r.memory?.score, r.canon?.score])
+  .filter((s) => s !== undefined);
+const average = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+const failed = results.some((r) => r.error) || average < Number(values['min-score']);
+process.exitCode = failed ? 1 : 0;
+
+function report(model: string, all: ScenarioResult[]): string {
+  const lines = [
+    `# Memory test run`,
+    '',
+    `Model: \`${model}\`, answers by \`${answerProfile.model}\`, ${new Date().toISOString()}`,
+    '',
+    'Recall: the expected keyword appears in the notes. Answers: the question was answered correctly from the notes.',
+    '',
+  ];
+  lines.push(
+    '| Scenario | Summaries | Covered | Memory recall | Memory answers | Canon recall | Canon answers |',
+    '|---|---|---|---|---|---|---|',
+  );
+  for (const r of all) {
+    lines.push(
+      `| ${r.scenario} | ${r.summaries} | ${r.summarizedMessages}/${r.totalMessages} | ${pct(r.memory?.recall)} | ${pct(r.memory?.score)} | ${pct(r.canon?.recall)} | ${pct(r.canon?.score)} |`,
+    );
+  }
+  for (const r of all) {
+    lines.push('', `## ${r.scenario}`, '');
+    if (r.error) lines.push(`**Error:** ${r.error}`, '');
+    for (const [label, stage] of [
+      ['Memory', r.memory],
+      ['Canon', r.canon],
+    ] as const) {
+      if (!stage) {
+        lines.push(`${label}: not run.`, '');
+        continue;
+      }
+      const skipped = stage.facts.filter((f) => f.status === 'skipped').length;
+      lines.push(
+        `### ${label} (${pct(stage.score)}, ${stage.noteTokens} tokens of notes${skipped ? `, ${skipped} facts not summarized yet` : ''})`,
+        '',
+      );
+      lines.push('| | Question | Expected | In notes | Answer |', '|---|---|---|---|---|');
+      for (const f of stage.facts) {
+        lines.push(
+          `| ${{ pass: '✓', fail: '✗', skipped: '–' }[f.status]} | ${f.question} | ${f.expected.join(', ')} | ${f.inNotes ? 'yes' : 'no'} | ${f.answer.replace(/\s+/g, ' ').replaceAll('|', '\\|')} |`,
+        );
+      }
+      lines.push(
+        '',
+        '<details><summary>Notes</summary>',
+        '',
+        '```',
+        stage.notes,
+        '```',
+        '',
+        '</details>',
+        '',
+      );
+    }
+  }
+  return `${lines.join('\n')}\n`;
+}

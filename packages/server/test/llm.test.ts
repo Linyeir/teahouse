@@ -117,6 +117,36 @@ describe('structured output fallback', () => {
     expect(seen).toEqual(['json_schema', 'json_object']);
   });
 
+  it('retries with a larger budget when the answer was cut off', async () => {
+    const limits: number[] = [];
+    const server = Fastify();
+    servers.push(server);
+    server.post('/v1/chat/completions', async (req) => {
+      const limit = (req.body as { max_tokens: number }).max_tokens;
+      limits.push(limit);
+      const content = limit < 1000 ? null : 'Tomas';
+      return {
+        id: 'x',
+        object: 'chat.completion',
+        created: 0,
+        model: 'm',
+        choices: [
+          {
+            index: 0,
+            finish_reason: content ? 'stop' : 'length',
+            message: { role: 'assistant', content },
+          },
+        ],
+      };
+    });
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const text = await complete({ ...profile(`${address}/v1`), maxTokens: 200 }, [
+      { role: 'user', content: 'Hi' },
+    ]);
+    expect(text).toBe('Tomas');
+    expect(limits).toEqual([200, 4096]);
+  });
+
   it('extracts JSON from fenced or chatty answers', () => {
     expect(extractJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
     expect(extractJson('Sure! {"a":{"b":2}} Hope that helps.')).toEqual({ a: { b: 2 } });
