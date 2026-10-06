@@ -26,6 +26,14 @@ export class GenerationError extends Error {
   }
 }
 
+/** Where reply outcomes are reported; the server passes its logger. */
+export interface GenerationLog {
+  info(obj: object, msg: string): void;
+  warn(obj: object, msg: string): void;
+}
+
+const silentLog: GenerationLog = { info() {}, warn() {} };
+
 export type StreamFn = (
   profile: GenerationProfile,
   messages: ChatMessage[],
@@ -43,6 +51,7 @@ export class Generator {
     private readonly worlds: WorldService,
     private readonly memory: Memory,
     private readonly stream: StreamFn = streamChat,
+    private readonly log: GenerationLog = silentLog,
   ) {}
 
   isBusy(chatId: string): boolean {
@@ -149,6 +158,14 @@ export class Generator {
     let status: Message['status'] = 'complete';
     let wroteForUser = false;
     let error: string | null = null;
+    const started = Date.now();
+    const where = {
+      chatId: message.chatId,
+      messageId: message.id,
+      model: profile.model,
+      baseUrl: profile.baseUrl,
+    };
+    this.log.info({ ...where, promptMessages: prompt.length }, 'Generating reply');
 
     try {
       const userNames = [getSettings(this.db).userName];
@@ -199,6 +216,11 @@ export class Generator {
 
     const updated = this.#persist(message.id, { content, status, error });
     this.#running.delete(message.id);
+    const outcome = { ...where, status, chars: content.length, ms: Date.now() - started };
+    if (status === 'error') this.log.warn({ ...outcome, error }, 'Reply failed');
+    else if (!content.trim() && status === 'complete')
+      this.log.warn(outcome, 'Reply came back empty');
+    else this.log.info({ ...outcome, wroteForUser }, 'Reply finished');
     if (updated) {
       this.hub.broadcast({ type: 'generation.finished', chatId: message.chatId, message: updated });
     }
