@@ -1,9 +1,9 @@
-import type { MemoryNode, PathMessage } from '@teahouse/shared';
+import { type MemoryNode, type PathMessage, parseMarkup, stageAfter } from '@teahouse/shared';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import { memoryNodes, scenes } from '../db/schema.ts';
 import type { ChatMessage } from '../llm/client.ts';
-import { buildNarratorMessages } from '../prompt.ts';
+import { buildNarratorMessages, type StageInfo } from '../prompt.ts';
 import type { ProfileRow } from '../roles.ts';
 import { getSettings } from '../settings.ts';
 import { activePath, getChatRow } from '../tree.ts';
@@ -29,6 +29,7 @@ export interface TurnContext {
   remaining: number;
   historyTokens: number;
   characterNames: Map<string, string>;
+  stage: StageInfo;
 }
 
 export function currentScene(db: Db, chatId: string): SceneRow | undefined {
@@ -99,6 +100,26 @@ export async function buildTurnContext(
     characterNames.set(slug, character?.summary.name ?? slug);
   }
 
+  // Everyone who can appear, with their image labels, and the stage as the scene left it.
+  const worldCharacters = await worlds.characters(chat.worldId);
+  const replay = stageAfter(
+    path.filter((m) => m.role === 'assistant').flatMap((m) => parseMarkup(m.content)),
+    { background: null, present: scene.cast.map((who) => ({ who, mood: null })), speaker: null },
+  );
+  const stage: StageInfo = {
+    characters: worldCharacters.map((c) => ({
+      slug: c.slug,
+      name: c.name,
+      moods: [...new Set(c.images.map((i) => i.label))],
+    })),
+    backgrounds: (await worlds.backgrounds(chat.worldId)).map((b) => ({
+      id: b.id,
+      description: b.description,
+    })),
+    background: replay.background,
+    present: replay.present.map((p) => p.who),
+  };
+
   const window = contextWindow(profile);
   const recentText = [
     startMessage?.content,
@@ -117,6 +138,7 @@ export async function buildTurnContext(
 
   const fixed = buildNarratorMessages({
     ...narratorVars(db, characterNames, scene.cast),
+    stage,
     canon: canon.text,
     memory: memory?.content ?? '',
     startMessage: startMessage?.content ?? null,
@@ -134,6 +156,7 @@ export async function buildTurnContext(
     remaining,
     historyTokens: countMessageTokens(history),
     characterNames,
+    stage,
   };
 }
 
@@ -154,6 +177,7 @@ export function narratorPrompt(db: Db, ctx: TurnContext): ChatMessage[] {
   }
   return buildNarratorMessages({
     ...narratorVars(db, ctx.characterNames, ctx.scene.cast),
+    stage: ctx.stage,
     canon: ctx.canon.text,
     memory: ctx.memory?.content ?? '',
     startMessage: ctx.startMessage?.content ?? null,

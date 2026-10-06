@@ -62,3 +62,21 @@ export const cardImportResult = z.object({
   files: z.array(z.string()),
 });
 export type CardImportResult = z.infer<typeof cardImportResult>;
+
+export const worldBackground = z.object({
+  id: z.string(),
+  file: z.string(),
+  description: z.string(),
+});
+export type WorldBackground = z.infer<typeof worldBackground>;
+
+/** Default image labels suggested when uploading character images (concept, section 10). */
+export const DEFAULT_IMAGE_LABELS = [
+  'neutral',
+  'happy',
+  'amused',
+  'sad',
+  'angry',
+  'surprised',
+  'worried',
+];
