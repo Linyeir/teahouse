@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ModelList, Profile, ProfileInput } from '@teahouse/shared';
+import type { ModelList, Profile, ProfileInput, Settings } from '@teahouse/shared';
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.ts';
@@ -52,6 +52,9 @@ const fromProfile = (p: Profile): Draft => ({
   contextWindowOverride: p.contextWindowOverride?.toString() ?? '',
 });
 
+/** Select value that switches the model field to free text. */
+const CUSTOM = '__custom__';
+
 const num = (value: string) => (value.trim() === '' ? null : Number(value));
 
 function toInput(d: Draft): ProfileInput {
@@ -95,6 +98,32 @@ export function ProfilesView() {
     mutationFn: (id: string) => api.post(`/api/profiles/${id}/detect-context`),
     onSuccess: invalidate,
   });
+  const settings = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => api.get<Settings>('/api/settings'),
+  });
+  const assignNarrator = useMutation({
+    mutationFn: (id: string) =>
+      api.put<Settings>('/api/settings', { ...settings.data, narratorProfileId: id }),
+    onSuccess: (data) => queryClient.setQueryData(['settings'], data),
+  });
+  // The narrator falls back to the first profile when none is set.
+  const narratorId = settings.data?.narratorProfileId ?? profiles.data?.[0]?.id;
+  const rolesOf = (id: string) => {
+    const s = settings.data;
+    if (!s) return [];
+    const resolve = (own: string | null) => own ?? narratorId;
+    return (
+      [
+        ['narrator', narratorId],
+        ['summary', resolve(s.summaryProfileId)],
+        ['canon', resolve(s.canonProfileId)],
+        ['scene', resolve(s.sceneProfileId)],
+      ] as const
+    )
+      .filter(([, profileId]) => profileId === id)
+      .map(([role]) => role);
+  };
 
   if (draft) return <ProfileForm draft={draft} setDraft={setDraft} save={save} />;
 
@@ -108,7 +137,14 @@ export function ProfilesView() {
           return (
             <li key={p.id} className={ui.listItem}>
               <div className={ui.grow}>
-                <div>{p.name}</div>
+                <div>
+                  {p.name}{' '}
+                  {rolesOf(p.id).map((role) => (
+                    <span key={role} className={ui.badge}>
+                      {t(`profiles.role.${role}`)}
+                    </span>
+                  ))}
+                </div>
                 <div className={ui.hint}>
                   {p.model} · {p.baseUrl}
                   <br />
@@ -117,6 +153,16 @@ export function ProfilesView() {
                     : t('profiles.notDetected')}
                 </div>
               </div>
+              {p.id !== narratorId && (
+                <button
+                  className={ui.button}
+                  type="button"
+                  disabled={!settings.data || assignNarrator.isPending}
+                  onClick={() => assignNarrator.mutate(p.id)}
+                >
+                  {t('profiles.useForNarrator')}
+                </button>
+              )}
               <button className={ui.ghost} type="button" onClick={() => detect.mutate(p.id)}>
                 {t('profiles.detect')}
               </button>
@@ -157,13 +203,20 @@ function ProfileForm({
   const { t } = useTranslation();
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
 
+  const [typing, setTyping] = useState(false);
   const models = useMutation({
     mutationFn: () =>
       api.post<ModelList>('/api/endpoints/models', {
         baseUrl: draft.baseUrl,
         ...(draft.apiKey ? { apiKey: draft.apiKey } : draft.id ? { profileId: draft.id } : {}),
       }),
+    onSuccess: ({ models: list }) => {
+      setTyping(false);
+      // A single loaded model (typical for LM Studio and llama.cpp) is the obvious choice.
+      if (!draft.model && list.length === 1 && list[0]) set({ model: list[0] });
+    },
   });
+  const loaded = models.data?.models ?? [];
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -225,18 +278,37 @@ function ProfileForm({
         </Field>
         <div className={ui.row}>
           <Field label={t('profiles.model')}>
-            <input
-              className={ui.input}
-              required
-              list="teahouse-models"
-              value={draft.model}
-              onChange={(e) => set({ model: e.target.value })}
-            />
-            <datalist id="teahouse-models">
-              {models.data?.models.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
+            {loaded.length > 0 && !typing ? (
+              <select
+                className={ui.input}
+                required
+                value={draft.model}
+                onChange={(e) => {
+                  if (e.target.value === CUSTOM) setTyping(true);
+                  else set({ model: e.target.value });
+                }}
+              >
+                <option value="" disabled>
+                  {t('profiles.chooseModel', { count: loaded.length })}
+                </option>
+                {draft.model && !loaded.includes(draft.model) && (
+                  <option value={draft.model}>{draft.model}</option>
+                )}
+                {loaded.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+                <option value={CUSTOM}>{t('profiles.typeModel')}</option>
+              </select>
+            ) : (
+              <input
+                className={ui.input}
+                required
+                value={draft.model}
+                onChange={(e) => set({ model: e.target.value })}
+              />
+            )}
           </Field>
           <div style={{ flex: '0 0 auto', alignSelf: 'flex-end' }}>
             <button

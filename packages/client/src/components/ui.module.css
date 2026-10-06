@@ -129,3 +129,14 @@ textarea.input {
   gap: 8px;
   justify-content: flex-end;
 }
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0 8px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}

@@ -154,6 +154,33 @@ export function extractJson(text: string): unknown {
   }
 }
 
+/** A message for the user: what went wrong with the endpoint and what to try. */
+export function describeLlmError(err: unknown, baseUrl?: string): string {
+  if (err instanceof OpenAI.APIConnectionTimeoutError) {
+    return 'The endpoint did not answer in time. Is the model still loading?';
+  }
+  if (err instanceof OpenAI.APIConnectionError) {
+    return `Could not reach ${baseUrl ?? 'the endpoint'}. Is the server running and the base URL right?`;
+  }
+  if (err instanceof OpenAI.APIError) {
+    const detail = err.message.replace(/^\d{3}\s*/, '');
+    switch (err.status) {
+      case 429:
+        return 'The provider is rate limiting requests (429). Wait a moment and regenerate, or choose another model. Free models are limited often.';
+      case 401:
+      case 403:
+        return `The endpoint rejected the request (${err.status}): check the API key of the profile. ${detail}`;
+      case 404:
+        return `Not found (404): check the base URL and the model name. ${detail}`;
+      case 402:
+        return `The provider wants payment or credits (402). ${detail}`;
+      default:
+        return `The endpoint returned an error (${err.status ?? 'unknown'}): ${detail}`;
+    }
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
 function isOpenRouter(baseUrl: string): boolean {
   try {
     return new URL(baseUrl).hostname.endsWith('openrouter.ai');

@@ -4,7 +4,12 @@ import { buildTurnContext, currentScene, narratorPrompt } from './context/turn.t
 import type { Db } from './db/index.ts';
 import { chats, messages } from './db/schema.ts';
 import type { Hub } from './hub.ts';
-import { type ChatMessage, type GenerationProfile, streamChat } from './llm/client.ts';
+import {
+  type ChatMessage,
+  describeLlmError,
+  type GenerationProfile,
+  streamChat,
+} from './llm/client.ts';
 import type { Memory } from './memory.ts';
 import { NoProfileError, profileFor } from './roles.ts';
 import { getSettings } from './settings.ts';
@@ -20,6 +25,14 @@ export class GenerationError extends Error {
     super(message);
   }
 }
+
+/** Where reply outcomes are reported; the server passes its logger. */
+export interface GenerationLog {
+  info(obj: object, msg: string): void;
+  warn(obj: object, msg: string): void;
+}
+
+const silentLog: GenerationLog = { info() {}, warn() {} };
 
 export type StreamFn = (
   profile: GenerationProfile,
@@ -38,6 +51,7 @@ export class Generator {
     private readonly worlds: WorldService,
     private readonly memory: Memory,
     private readonly stream: StreamFn = streamChat,
+    private readonly log: GenerationLog = silentLog,
   ) {}
 
   isBusy(chatId: string): boolean {
@@ -107,7 +121,7 @@ export class Generator {
     const controller = new AbortController();
     this.#running.set(row.id, { chatId, controller });
     this.hub.broadcast({ type: 'generation.started', chatId, message });
-    void this.#run(message, profile, prompt, controller);
+    void this.#run(message, profile, prompt, controller, profile.name);
     return message;
   }
 
@@ -138,12 +152,21 @@ export class Generator {
     profile: GenerationProfile,
     prompt: ChatMessage[],
     controller: AbortController,
+    profileName: string,
   ): Promise<void> {
     let content = '';
     let lastPersist = Date.now();
     let status: Message['status'] = 'complete';
     let wroteForUser = false;
     let error: string | null = null;
+    const started = Date.now();
+    const where = {
+      chatId: message.chatId,
+      messageId: message.id,
+      model: profile.model,
+      baseUrl: profile.baseUrl,
+    };
+    this.log.info({ ...where, promptMessages: prompt.length }, 'Generating reply');
 
     try {
       const userNames = [getSettings(this.db).userName];
@@ -182,7 +205,8 @@ export class Generator {
         status = 'stopped';
       } else {
         status = 'error';
-        error = err instanceof Error ? err.message : String(err);
+        // Name the profile: with several profiles it is not obvious which one a chat uses.
+        error = `${profileName} (${profile.model}): ${describeLlmError(err, profile.baseUrl)}`;
       }
     }
     if (controller.signal.aborted) status = 'stopped';
@@ -194,6 +218,11 @@ export class Generator {
 
     const updated = this.#persist(message.id, { content, status, error });
     this.#running.delete(message.id);
+    const outcome = { ...where, status, chars: content.length, ms: Date.now() - started };
+    if (status === 'error') this.log.warn({ ...outcome, error }, 'Reply failed');
+    else if (!content.trim() && status === 'complete')
+      this.log.warn(outcome, 'Reply came back empty');
+    else this.log.info({ ...outcome, wroteForUser }, 'Reply finished');
     if (updated) {
       this.hub.broadcast({ type: 'generation.finished', chatId: message.chatId, message: updated });
     }

@@ -41,7 +41,8 @@
     "stopped": "Gestoppt",
     "noProfile": "Lege zuerst ein Profil an.",
     "previousVersion": "Vorige Version",
-    "nextVersion": "Nächste Version"
+    "nextVersion": "Nächste Version",
+    "emptyReply": "Die Antwort kam leer zurück. Neu erzeugen oder das Profil im Verlauf prüfen."
   },
   "profiles": {
     "new": "Neues Profil",
@@ -60,7 +61,16 @@
     "notDetected": "Kontextfenster nicht erkannt",
     "detect": "Erneut erkennen",
     "empty": "Noch keine Profile. Ein Profil legt fest, welcher Endpunkt und welches Modell genutzt werden.",
-    "optional": "optional"
+    "optional": "optional",
+    "chooseModel": "Modell wählen (%{count} geladen)",
+    "typeModel": "Anderes: Namen eintippen …",
+    "useForNarrator": "Für Erzähler nutzen",
+    "role": {
+      "narrator": "Erzähler",
+      "summary": "Zusammenfassungen",
+      "canon": "Canon",
+      "scene": "Szenenstart"
+    }
   },
   "settings": {
     "userName": "Dein Name ({{user}})",

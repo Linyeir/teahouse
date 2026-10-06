@@ -15,7 +15,7 @@ import { mergeFetched } from '../chat-state.ts';
 import { BeatsText, formatStory, messageBeats } from '../components/Beats.tsx';
 import { ErrorText } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
-import { streamBuffers } from '../events.ts';
+import { streamBuffers, useConnection } from '../events.ts';
 import { useCharacters, useWorlds } from '../queries.ts';
 import styles from './ChatView.module.css';
 import sceneStyles from './Scene.module.css';
@@ -51,10 +51,17 @@ export function ChatView() {
   const queryClient = useQueryClient();
   const key = ['chat', chatId];
 
+  const connection = useConnection();
   const path = useQuery({
     queryKey: key,
     queryFn: async () =>
       mergeFetched(await api.get<ChatPath>(`/api/chats/${chatId}`), streamBuffers),
+    // Without live events (WebSocket blocked by a proxy, still reconnecting), poll while a
+    // reply is being written, so it still shows up.
+    refetchInterval: (query) =>
+      connection !== 'open' && query.state.data?.messages.at(-1)?.status === 'streaming'
+        ? 2000
+        : false,
   });
   const worldId = path.data?.chat.worldId;
   const characters = useCharacters(worldId);
@@ -198,6 +205,7 @@ export function ChatView() {
               theme={worlds.data?.find((w) => w.id === worldId)?.theme ?? {}}
               userName={userName}
             />
+            {lastAssistant && !streaming && <ReplyNotice message={lastAssistant} />}
             {lastAssistant && active && !streaming && (
               <MessageTools
                 message={lastAssistant}
@@ -357,6 +365,27 @@ function MessageView({
       )}
     </div>
   );
+}
+
+/**
+ * The novel view only shows beats, so a reply that failed, was stopped or came back empty
+ * needs to be said out loud there.
+ */
+function ReplyNotice({ message }: { message: PathMessage }) {
+  const { t } = useTranslation();
+  if (message.status === 'error') {
+    return (
+      <p className={`${ui.error} ${styles.notice}`} role="alert">
+        {t('chats.error', { message: message.error })}
+      </p>
+    );
+  }
+  if (message.status === 'stopped')
+    return <p className={`${ui.hint} ${styles.notice}`}>{t('chats.stopped')}</p>;
+  if (messageBeats(message).length === 0) {
+    return <p className={`${ui.hint} ${styles.notice}`}>{t('chats.emptyReply')}</p>;
+  }
+  return null;
 }
 
 /** Swiping between siblings, edit and regenerate for one message. */

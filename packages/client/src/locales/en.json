@@ -41,7 +41,8 @@
     "stopped": "Stopped",
     "noProfile": "Add a profile before chatting.",
     "previousVersion": "Previous version",
-    "nextVersion": "Next version"
+    "nextVersion": "Next version",
+    "emptyReply": "The reply came back empty. Regenerate, or check the profile in the log view."
   },
   "profiles": {
     "new": "New profile",
@@ -60,7 +61,16 @@
     "notDetected": "Context window not detected",
     "detect": "Detect again",
     "empty": "No profiles yet. A profile tells Teahouse which endpoint and model to use.",
-    "optional": "optional"
+    "optional": "optional",
+    "chooseModel": "Choose a model (%{count} loaded)",
+    "typeModel": "Other: type a name…",
+    "useForNarrator": "Use for narrator",
+    "role": {
+      "narrator": "narrator",
+      "summary": "summaries",
+      "canon": "canon",
+      "scene": "scene start"
+    }
   },
   "settings": {
     "userName": "Your name ({{user}})",
