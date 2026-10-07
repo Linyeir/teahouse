@@ -75,3 +75,6 @@ export function mergeFetched(fetched: ChatPath, buffers: StreamBuffers): ChatPat
     }),
   };
 }
+
+/** Text streamed over the WebSocket, shared by the event handler and chat fetches. */
+export const streamBuffers = new StreamBuffers();

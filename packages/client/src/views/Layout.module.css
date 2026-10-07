@@ -75,6 +75,43 @@
   color: var(--color-text-muted);
 }
 
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space);
+  padding: 8px var(--space);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+
+.notice > span {
+  flex: 1;
+}
+
+.info {
+  background: var(--color-surface);
+}
+
+.warning {
+  background: var(--color-surface-muted);
+  border-left: 3px solid var(--color-accent);
+}
+
+.error {
+  background: var(--color-surface-muted);
+  border-left: 3px solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.dismiss {
+  font: inherit;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
 @media (max-width: 720px) {
   .shell {
     grid-template-columns: 1fr;

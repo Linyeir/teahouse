@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router';
 import { getToken } from './api.ts';
 import { useServerEvents } from './events.ts';
+import { resetSync } from './sync.ts';
 import { AuthView, PairView } from './views/AuthView.tsx';
 import { ChatView } from './views/ChatView.tsx';
 import { HomeView } from './views/HomeView.tsx';
@@ -32,6 +33,13 @@ export function App() {
   const connection = useServerEvents(queryClient, Boolean(token));
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Signed out (also by revocation): the local copy belongs to the old session.
+  useEffect(() => {
+    if (token) return;
+    queryClient.clear();
+    resetSync();
+  }, [token, queryClient]);
 
   if (location.pathname === '/pair') {
     return <PairView onDone={() => navigate('/', { replace: true })} />;

@@ -12,6 +12,7 @@ const msg = (id: string, parentId: string | null, content = ''): Message => ({
   error: null,
   createdAt: '',
   updatedAt: '',
+  revision: 1,
 });
 
 const path: ChatPath = {

@@ -21,6 +21,7 @@ import { HttpError, type Services } from './routes/context.ts';
 import { profileRoutes } from './routes/profiles.ts';
 import { proposalRoutes } from './routes/proposals.ts';
 import { settingsRoutes } from './routes/settings.ts';
+import { syncRoutes } from './routes/sync.ts';
 import { worldRoutes } from './routes/worlds.ts';
 import { wsRoutes } from './routes/ws.ts';
 import { SceneError, Scenes } from './scenes.ts';
@@ -149,6 +150,7 @@ export async function buildApp({
     chatRoutes,
     proposalRoutes,
     settingsRoutes,
+    syncRoutes,
     wsRoutes,
   ]) {
     await app.register(routes, services);
