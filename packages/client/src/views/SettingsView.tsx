@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, setToken } from '../api.ts';
 import { ErrorText, Field } from '../components/Field.tsx';
+import { PairDevice } from '../components/PairDevice.tsx';
 import ui from '../components/ui.module.css';
 import { languages } from '../i18n.ts';
 
@@ -142,6 +143,9 @@ export function SettingsView() {
           </li>
         ))}
       </ul>
+      <div className={ui.actions} style={{ justifyContent: 'flex-start', marginBottom: 16 }}>
+        <PairDevice devices={devices.data} />
+      </div>
       <button className={ui.danger} type="button" onClick={() => logout.mutate()}>
         {t('auth.logout')}
       </button>

@@ -23,6 +23,19 @@ export const device = z.object({
 });
 export type Device = z.infer<typeof device>;
 
+export const pairingCode = z.object({ code: z.string(), expiresAt: z.string() });
+export type PairingCode = z.infer<typeof pairingCode>;
+
+export const pairingClaimInput = z.object({
+  code: z.string().min(1).max(64),
+  deviceName: z.string().min(1).max(100),
+});
+export type PairingClaimInput = z.infer<typeof pairingClaimInput>;
+
+/** Addresses under which other devices on the network may reach the server. */
+export const serverAddresses = z.object({ addresses: z.array(z.string()) });
+export type ServerAddresses = z.infer<typeof serverAddresses>;
+
 export const samplingParams = z.object({
   temperature: z.number().min(0).max(2).nullable(),
   topP: z.number().min(0).max(1).nullable(),

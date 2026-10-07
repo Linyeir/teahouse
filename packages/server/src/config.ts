@@ -9,6 +9,8 @@ export interface Config {
   worldsDir: string;
   /** Built web client to serve, or null when it is not built (development). */
   clientDir: string | null;
+  /** Extra browser origins allowed to call the API (`TEAHOUSE_CORS_ORIGINS`, comma-separated). */
+  corsOrigins: string[];
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -23,5 +25,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dataDir,
     worldsDir: resolve(env.TEAHOUSE_WORLDS_DIR ?? `${dataDir}/worlds`),
     clientDir: existsSync(clientDir) ? clientDir : null,
+    corsOrigins: (env.TEAHOUSE_CORS_ORIGINS ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
   };
 }

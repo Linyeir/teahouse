@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router';
+import { Route, Routes, useLocation, useNavigate } from 'react-router';
 import { getToken } from './api.ts';
 import { useServerEvents } from './events.ts';
-import { AuthView } from './views/AuthView.tsx';
+import { AuthView, PairView } from './views/AuthView.tsx';
 import { ChatView } from './views/ChatView.tsx';
 import { HomeView } from './views/HomeView.tsx';
 import { Layout } from './views/Layout.tsx';
@@ -30,7 +30,12 @@ export function App() {
   const token = useToken();
   const queryClient = useQueryClient();
   const connection = useServerEvents(queryClient, Boolean(token));
+  const location = useLocation();
+  const navigate = useNavigate();
 
+  if (location.pathname === '/pair') {
+    return <PairView onDone={() => navigate('/', { replace: true })} />;
+  }
   if (!token) return <AuthView />;
 
   return (
