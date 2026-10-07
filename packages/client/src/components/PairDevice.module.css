@@ -1,0 +1,40 @@
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space) * 1.5);
+  align-items: flex-start;
+}
+
+/* QR codes need dark modules on a light background in both themes. */
+.qr {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 6px;
+  image-rendering: pixelated;
+}
+
+.details {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) / 2);
+}
+
+.code {
+  font-family: ui-monospace, monospace;
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+}

@@ -13,7 +13,9 @@ export type ServerEvent =
     }
   | { type: 'generation.finished'; chatId: string; message: Message }
   | { type: 'chat.changed'; chatId: string }
-  | { type: 'proposal.changed'; chatId: string; sceneId: string };
+  | { type: 'proposal.changed'; chatId: string; sceneId: string }
+  /** A device was paired or signed out. */
+  | { type: 'devices.changed' };
 
 /** Client → server messages on the WebSocket. */
 export type ClientEvent = { type: 'generation.stop'; messageId: string };

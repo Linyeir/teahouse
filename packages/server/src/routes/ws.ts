@@ -4,8 +4,8 @@ import type { Services } from './context.ts';
 
 export async function wsRoutes(app: FastifyInstance, { hub, generator }: Services) {
   // Browsers cannot set headers on WebSocket requests, so the token comes as `?token=`.
-  app.get('/api/ws', { websocket: true }, (socket) => {
-    hub.add(socket);
+  app.get('/api/ws', { websocket: true }, (socket, req) => {
+    hub.add(socket, req.deviceId);
     socket.on('message', (raw) => {
       let event: ClientEvent;
       try {

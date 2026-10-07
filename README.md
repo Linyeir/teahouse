@@ -58,6 +58,14 @@ docker compose up -d
 
 Open http://localhost:8787, choose a password, then add a profile under **Profiles**. Data lives in the `teahouse-data` volume. Put Teahouse behind a reverse proxy with HTTPS or Tailscale before exposing it.
 
+## Devices and pairing
+
+The password signs in the first device. Further devices can be paired without it: **Settings → Pair a device** shows a QR code, a link and a typeable code. Scan the QR code with the phone's camera (it opens the link in the browser) or enter the code under **Pair with a code instead** on the sign-in screen. A code works once and expires after five minutes.
+
+If the browser shows Teahouse as `localhost`, the pairing panel offers the server's network addresses instead, because a phone cannot reach `localhost`. Behind a reverse proxy or Tailscale, enter the address the phone uses.
+
+Every device has its own token. **Sign out device** revokes it and disconnects the device immediately.
+
 ## Endpoints
 
 Any OpenAI-compatible chat completion endpoint works. Presets exist for:
@@ -95,6 +103,7 @@ Node's `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set. Set i
 | `TEAHOUSE_DATA_DIR` | `./data` | SQLite database and, by default, worlds |
 | `TEAHOUSE_WORLDS_DIR` | `<data>/worlds` | World folders |
 | `TEAHOUSE_CLIENT_DIR` | `packages/client/dist` | Built web client to serve |
+| `TEAHOUSE_CORS_ORIGINS` | – | Extra browser origins allowed to call the API, comma-separated (the Tauri apps are always allowed) |
 
 ### Memory test run
 
