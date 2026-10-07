@@ -41,7 +41,10 @@
     "pairLinkHint": "This link signs this device in without the password. It works once and expires after five minutes.",
     "code": "Pairing code or link",
     "pair": "Pair",
-    "invalidCode": "That is not a pairing code or link."
+    "invalidCode": "That is not a pairing code or link.",
+    "scan": "Scan QR code",
+    "cameraDenied": "Teahouse needs the camera to scan the code. Allow it in the system settings, or paste the link instead.",
+    "connectHintScan": "Scan the pairing QR code shown under Settings → Pair a device on a signed-in device, or enter the server address."
   },
   "chats": {
     "empty": "No chats yet.",

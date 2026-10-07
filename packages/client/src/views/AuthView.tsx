@@ -6,6 +6,7 @@ import { api, getServer, isApp, normalizeServer, setServer, setToken } from '../
 import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 import { parsePairing } from '../pairing.ts';
+import { canScan, ScanError, scanQrCode } from '../scan.ts';
 
 const defaultDeviceName = () => {
   const ua = navigator.userAgent;
@@ -28,6 +29,34 @@ async function claim(server: string | null, code: string, deviceName: string) {
   setToken(token);
 }
 
+/** Signs in with a scanned pairing QR code (Android app only). */
+function ScanButton() {
+  const { t } = useTranslation();
+  const scan = useMutation({
+    mutationFn: async () => {
+      const text = await scanQrCode();
+      if (text === null) return;
+      const pairing = parsePairing(text);
+      if (!pairing) throw new Error(t('auth.invalidCode'));
+      await claim(pairing.server, pairing.code, defaultDeviceName());
+    },
+  });
+  if (!canScan) return null;
+  return (
+    <>
+      <button
+        className={ui.primary}
+        type="button"
+        disabled={scan.isPending}
+        onClick={() => scan.mutate()}
+      >
+        {t('auth.scan')}
+      </button>
+      <ErrorText error={scan.error instanceof ScanError ? t('auth.cameraDenied') : scan.error} />
+    </>
+  );
+}
+
 export function AuthView() {
   const { t } = useTranslation();
   const [server, setServerDraft] = useState(getServer);
@@ -37,31 +66,30 @@ export function AuthView() {
 
   const connect = useMutation({
     mutationFn: async () => {
-      const base = normalizeServer(server);
-      setServer(base);
+      // A pasted pairing link answers both questions at once and signs in directly.
+      const pairing = parsePairing(server);
+      if (pairing?.server) {
+        await claim(pairing.server, pairing.code, defaultDeviceName());
+        return;
+      }
+      setServer(normalizeServer(server));
       await api.get<AuthStatus>('/api/auth/status');
+      setConnected(true);
     },
-    onSuccess: () => setConnected(true),
   });
 
   if (!connected) {
     const onSubmit = (e: FormEvent) => {
       e.preventDefault();
-      // A pasted pairing link answers both questions at once.
-      const pairing = parsePairing(server);
-      if (pairing?.server) {
-        setServer(pairing.server);
-        setServerDraft(pairing.server);
-        setConnected(true);
-        setMode('code');
-        return;
-      }
       connect.mutate();
     };
     return (
       <div className={ui.page} style={{ maxWidth: 420, paddingTop: '15vh' }}>
         <h1 className={ui.title}>{t('auth.connectTitle')}</h1>
-        <p className={ui.muted}>{t('auth.connectHint')}</p>
+        <p className={ui.muted}>{canScan ? t('auth.connectHintScan') : t('auth.connectHint')}</p>
+        <div className={ui.form} style={{ marginBottom: 16 }}>
+          <ScanButton />
+        </div>
         <form className={ui.form} onSubmit={onSubmit}>
           <Field label={t('auth.server')}>
             <input
@@ -185,6 +213,9 @@ function CodeForm() {
     <>
       <h1 className={ui.title}>{t('auth.pairTitle')}</h1>
       <p className={ui.muted}>{t('auth.pairHint')}</p>
+      <div className={ui.form} style={{ marginBottom: 16 }}>
+        <ScanButton />
+      </div>
       <form className={ui.form} onSubmit={onSubmit}>
         <Field label={t('auth.code')}>
           <input

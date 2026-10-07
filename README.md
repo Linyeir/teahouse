@@ -66,6 +66,25 @@ If the browser shows Teahouse as `localhost`, the pairing panel offers the serve
 
 Every device has its own token. **Sign out device** revokes it and disconnects the device immediately.
 
+## Apps
+
+The desktop apps (Windows, macOS, Linux) and the Android app are the web client in a [Tauri](https://tauri.app) shell. They connect to your server like a browser does, keep their local copy offline and start without the server.
+
+On first start, an app asks for the server address. Paste a pairing link there (from **Settings → Pair a device** on a signed-in device) to connect and sign in in one go. The Android app can scan the QR code instead.
+
+**Getting the apps:** run the **Apps** workflow on GitHub (Actions → Apps → Run workflow, or push a `v*` tag) and download the artifacts: `.deb`, `.rpm` and AppImage for Linux, `.msi` and `.exe` for Windows, `.dmg` for macOS, and an `.apk` for Android. The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
+
+**Building locally** needs Rust and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system:
+
+```sh
+pnpm app:dev      # desktop app against the Vite dev server
+pnpm app:build    # installers in packages/app/src-tauri/target/release/bundle/
+```
+
+For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once and `pnpm --filter @teahouse/app tauri android build --debug --apk`.
+
+A server on your LAN can be reached over plain HTTP (the Android debug build allows it explicitly). Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet.
+
 ## Offline and sync
 
 Each device keeps a local copy of the 30 most recent chats in IndexedDB, refreshed whenever it connects. Without the server you can:
@@ -104,6 +123,7 @@ pnpm dev          # server on :8787, client on :5173 with API proxy
 pnpm test         # all packages
 pnpm lint         # Biome
 pnpm typecheck
+pnpm app:dev      # desktop app, see Apps
 ```
 
 `OPENROUTER_API_KEY` (or `TEAHOUSE_LIVE_TESTS=1` where a proxy injects the key) enables live adapter tests against OpenRouter (model: `TEAHOUSE_TEST_MODEL`, default `inclusionai/ling-3.1-flash`).
@@ -137,7 +157,8 @@ packages/
   shared/   API schemas (zod), WebSocket event types, template rendering
   server/   Fastify API, SQLite via Drizzle, OpenAI-compatible adapter (openai SDK),
             worlds (simple-git, chokidar, yaml), card import
-  client/   React web app (Vite, TanStack Query, i18next)
+  client/   React web app (Vite, TanStack Query, i18next), local copy in IndexedDB
+  app/      Tauri 2 shell for desktop and Android around the client
 ```
 
 After changing `packages/server/src/db/schema.ts`, run `pnpm --filter @teahouse/server db:generate` to create a migration.
