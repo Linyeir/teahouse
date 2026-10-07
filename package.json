@@ -14,7 +14,9 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",
-    "format": "biome check --write ."
+    "format": "biome check --write .",
+    "app:dev": "pnpm --filter @teahouse/app dev",
+    "app:build": "pnpm --filter @teahouse/app build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

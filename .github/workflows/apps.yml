@@ -1,0 +1,90 @@
+# Builds the Teahouse apps. Runs by hand (Actions → Apps → Run workflow) or for a v* tag;
+# the results are attached to the run as artifacts.
+name: Apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux
+          - os: windows-latest
+            name: windows
+          - os: macos-latest
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/app/src-tauri
+      - name: System libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @teahouse/app build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-${{ matrix.name }}
+          path: |
+            packages/app/src-tauri/target/release/bundle/deb/*.deb
+            packages/app/src-tauri/target/release/bundle/rpm/*.rpm
+            packages/app/src-tauri/target/release/bundle/appimage/*.AppImage
+            packages/app/src-tauri/target/release/bundle/msi/*.msi
+            packages/app/src-tauri/target/release/bundle/nsis/*.exe
+            packages/app/src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Android NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/app/src-tauri
+      - run: pnpm install --frozen-lockfile
+      # The Android project is generated rather than committed until it needs changes.
+      - run: pnpm --filter @teahouse/app tauri android init --ci
+      # A debug build is signed with the SDK's debug key, so it installs without setting up
+      # a release keystore. It also allows plain-HTTP servers on the LAN.
+      - run: pnpm --filter @teahouse/app tauri android build --debug --apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-android
+          path: packages/app/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

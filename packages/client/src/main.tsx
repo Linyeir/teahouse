@@ -1,3 +1,4 @@
+import { registerSW } from 'virtual:pwa-register';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -6,7 +7,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App.tsx';
-import { getServer } from './api.ts';
+import { getServer, isApp } from './api.ts';
 import { registerOfflineMutations } from './mutations.ts';
 import './global.css';
 import './i18n.ts';
@@ -29,6 +30,9 @@ const queryClient = new QueryClient({
   },
 });
 registerOfflineMutations(queryClient);
+
+// Lets a browser open the app shell without the server (see vite.config.ts).
+if (!isApp) registerSW({ immediate: true });
 
 // The local copy: the query cache plus queued mutations, in IndexedDB.
 const store = createStore('teahouse', 'cache');

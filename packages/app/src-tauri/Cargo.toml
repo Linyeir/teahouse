@@ -1,0 +1,26 @@
+[package]
+name = "teahouse"
+version = "0.1.0"
+description = "Teahouse app for desktop and Android"
+authors = ["Teahouse contributors"]
+license = "AGPL-3.0-only"
+repository = "https://github.com/Linyeir/teahouse"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+# The suffix keeps the library name apart from the binary's (cargo issue 8519).
+name = "teahouse_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-log = "2"
+log = "0.4"
+
+# Pairing by QR code: the camera is only used on phones.
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-barcode-scanner = "2"

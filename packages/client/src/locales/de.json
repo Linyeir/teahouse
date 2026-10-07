@@ -41,7 +41,10 @@
     "pairLinkHint": "Dieser Link meldet das Gerät ohne Passwort an. Er funktioniert einmal und läuft nach fünf Minuten ab.",
     "code": "Kopplungscode oder -link",
     "pair": "Koppeln",
-    "invalidCode": "Das ist kein Kopplungscode oder -link."
+    "invalidCode": "Das ist kein Kopplungscode oder -link.",
+    "scan": "QR-Code scannen",
+    "cameraDenied": "Teahouse braucht die Kamera, um den Code zu scannen. Erlaube sie in den Systemeinstellungen oder füge stattdessen den Link ein.",
+    "connectHintScan": "Scanne den Kopplungs-QR-Code, den ein angemeldetes Gerät unter Einstellungen → Gerät koppeln zeigt, oder gib die Serveradresse ein."
   },
   "chats": {
     "empty": "Noch keine Chats.",

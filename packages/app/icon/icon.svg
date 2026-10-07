@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>Teahouse</title>
+  <!-- Teahouse app icon: a cup with steam on the accent colour of the default theme. -->
+  <rect width="1024" height="1024" rx="224" fill="#7a4e2d"/>
+  <g fill="none" stroke="#f6f3ee" stroke-linecap="round" stroke-width="44">
+    <path d="M420 250c-40 50 40 90 0 150"/>
+    <path d="M530 220c-40 55 40 100 0 170"/>
+    <path d="M640 250c-40 50 40 90 0 150"/>
+  </g>
+  <path d="M250 470h500v70c0 150-112 250-250 250S250 690 250 540z" fill="#f6f3ee"/>
+  <path d="M750 520h40a80 80 0 0 1 0 160h-62" fill="none" stroke="#f6f3ee" stroke-width="44"/>
+  <rect x="200" y="800" width="600" height="44" rx="22" fill="#f6f3ee"/>
+</svg>
