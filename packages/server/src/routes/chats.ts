@@ -2,8 +2,10 @@ import {
   type ChatPath,
   chatInput,
   closeSceneInput,
+  type EditMessageResult,
   editMessageInput,
   id,
+  type SendMessageResult,
   sceneProposalInput,
   sceneStartInput,
   selectLeafInput,
@@ -143,7 +145,7 @@ export async function chatRoutes(
   r.post(
     '/api/chats/:id/messages',
     { schema: { params, body: sendMessageInput } },
-    async ({ params, body }) => {
+    async ({ params, body }): Promise<SendMessageResult> => {
       const chat = getChatRow(db, params.id);
       if (!chat) throw notFound('Chat');
       if (generator.isBusy(chat.id)) {
@@ -155,9 +157,21 @@ export async function chatRoutes(
         throw new HttpError(409, 'scene_closed', 'Start a new scene to continue');
       }
 
+      const parentId = body.parentId ?? chat.activeLeafId;
+      if (parentId !== chat.activeLeafId) {
+        const parent = parentId ? getMessageRow(db, parentId) : undefined;
+        if (parent?.chatId !== chat.id) throw notFound('Parent message');
+        // Written against an earlier scene: that scene is closed now.
+        if (parent.sceneId !== scene.id) {
+          throw new HttpError(409, 'scene_closed', 'The scene was closed in the meantime');
+        }
+      }
+
       const messageId = body.id ?? newId();
+      let forked = false;
       // A retried request with the same client ID must not create a second message.
       if (!getMessageRow(db, messageId)) {
+        forked = parentId !== chat.activeLeafId;
         const timestamp = now();
         db.transaction((tx) => {
           tx.insert(messages)
@@ -165,7 +179,7 @@ export async function chatRoutes(
               id: messageId,
               chatId: chat.id,
               sceneId: scene.id,
-              parentId: chat.activeLeafId,
+              parentId,
               role: 'user',
               content: body.content,
               status: 'complete',
@@ -180,7 +194,7 @@ export async function chatRoutes(
         });
         changed(chat.id);
       }
-      return { messageId: (await startGeneration(chat.id, messageId)).id };
+      return { messageId: (await startGeneration(chat.id, messageId)).id, forked };
     },
   );
 
@@ -221,7 +235,7 @@ export async function chatRoutes(
   r.put(
     '/api/messages/:id',
     { schema: { params, body: editMessageInput } },
-    async ({ params, body }) => {
+    async ({ params, body }): Promise<EditMessageResult> => {
       const message = getMessageRow(db, params.id);
       if (!message) throw notFound('Message');
       if (message.status === 'streaming') {
@@ -236,7 +250,10 @@ export async function chatRoutes(
         .get();
       if (message.sceneId) memory.invalidate(message.chatId, message.sceneId, message.id);
       changed(message.chatId);
-      return row ? toMessage(row) : null;
+      if (!row) throw notFound('Message');
+      // Last write wins (concept, section 9); the client warns about the replaced change.
+      const overwritten = body.baseRevision !== undefined && body.baseRevision !== message.revision;
+      return { message: toMessage(row), overwritten };
     },
   );
 

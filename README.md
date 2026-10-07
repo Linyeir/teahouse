@@ -66,6 +66,20 @@ If the browser shows Teahouse as `localhost`, the pairing panel offers the serve
 
 Every device has its own token. **Sign out device** revokes it and disconnects the device immediately.
 
+## Offline and sync
+
+Each device keeps a local copy of the 30 most recent chats in IndexedDB, refreshed whenever it connects. Without the server you can:
+
+- read those chats,
+- edit messages of the current scene,
+- write one message, which is sent and answered when the server is back (also after closing the app).
+
+Generation, scene changes and switching between versions need the server.
+
+Conflicts are resolved without losing anything. A message written while the chat moved on elsewhere starts a new branch; the other turn stays one swipe away. If two devices edit the same message, the later edit wins and the device that made it shows a warning. A message written for a scene that was closed in the meantime is not sent; its text goes back into the message field.
+
+In a browser, opening Teahouse without the server needs a service worker, which browsers only allow over HTTPS or on `localhost`. The apps work offline either way.
+
 ## Endpoints
 
 Any OpenAI-compatible chat completion endpoint works. Presets exist for:

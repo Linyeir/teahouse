@@ -1,22 +1,25 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChatPath,
+  EditMessageResult,
   MemoryNode,
   PathMessage,
+  SendMessageResult,
   Settings,
-  WorldBackground,
 } from '@teahouse/shared';
 import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
 import { api } from '../api.ts';
-import { mergeFetched } from '../chat-state.ts';
 import { BeatsText, formatStory, messageBeats } from '../components/Beats.tsx';
 import { ErrorText } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
-import { streamBuffers, useConnection } from '../events.ts';
-import { useCharacters, useWorlds } from '../queries.ts';
+import { onDraftRestored, readDraft, restoreDraft, writeDraft } from '../drafts.ts';
+import { useConnection } from '../events.ts';
+import { type EditVariables, editKey, type SendVariables, sendKey } from '../mutations.ts';
+import { useOnline } from '../offline.ts';
+import { backgroundsQuery, chatPathQuery, useCharacters, useWorlds } from '../queries.ts';
 import styles from './ChatView.module.css';
 import sceneStyles from './Scene.module.css';
 import { EndScene, MemoryMarker, NewScene, ProposalReview } from './SceneParts.tsx';
@@ -52,10 +55,9 @@ export function ChatView() {
   const key = ['chat', chatId];
 
   const connection = useConnection();
+  const online = useOnline();
   const path = useQuery({
-    queryKey: key,
-    queryFn: async () =>
-      mergeFetched(await api.get<ChatPath>(`/api/chats/${chatId}`), streamBuffers),
+    ...chatPathQuery(chatId),
     // Without live events (WebSocket blocked by a proxy, still reconnecting), poll while a
     // reply is being written, so it still shows up.
     refetchInterval: (query) =>
@@ -66,11 +68,7 @@ export function ChatView() {
   const worldId = path.data?.chat.worldId;
   const characters = useCharacters(worldId);
   const worlds = useWorlds();
-  const backgrounds = useQuery({
-    queryKey: ['worlds', worldId, 'backgrounds'],
-    queryFn: () => api.get<WorldBackground[]>(`/api/worlds/${worldId}/backgrounds`),
-    enabled: Boolean(worldId),
-  });
+  const backgrounds = useQuery(backgroundsQuery(worldId));
   const settings = useQuery({
     queryKey: ['settings'],
     queryFn: () => api.get<Settings>('/api/settings'),
@@ -83,10 +81,13 @@ export function ChatView() {
     else void queryClient.invalidateQueries({ queryKey: key });
   };
 
-  const send = useMutation({
-    mutationFn: (content: string) =>
-      api.post(`/api/chats/${chatId}/messages`, { id: uuidv7(), content }),
-    onSettled: () => refresh(),
+  // Send and edit run through the defaults in mutations.ts, so they can wait offline.
+  const send = useMutation<SendMessageResult, Error, SendVariables>({
+    mutationKey: sendKey(chatId),
+  });
+  const queued = useMutationState({
+    filters: { mutationKey: sendKey(chatId), status: 'pending' },
+    select: (m) => m.state.variables as SendVariables,
   });
   const generate = useMutation({
     mutationFn: () => api.post(`/api/chats/${chatId}/generate`),
@@ -104,10 +105,8 @@ export function ChatView() {
       api.post<ChatPath>(`/api/chats/${chatId}/leaf`, { messageId }),
     onSuccess: refresh,
   });
-  const edit = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) =>
-      api.put(`/api/messages/${id}`, { content }),
-    onSettled: () => refresh(),
+  const edit = useMutation<EditMessageResult, Error, EditVariables>({
+    mutationKey: editKey(chatId),
   });
   const rename = useMutation({
     mutationFn: (title: string) => api.patch<ChatPath>(`/api/chats/${chatId}`, { title }),
@@ -145,8 +144,10 @@ export function ChatView() {
   const names = new Map((characters.data ?? []).map((c) => [c.slug, c.name]));
   const userName = settings.data?.userName ?? 'User';
   const lastAssistant = last?.role === 'assistant' ? last : undefined;
-  const actionError = send.error ?? generate.error ?? regenerate.error ?? edit.error;
-  const canGenerate = active && !streaming && (!last || last.role === 'user');
+  // Send and edit errors arrive as notices, because a queued one may fail in another view.
+  const actionError = generate.error ?? regenerate.error;
+  const canGenerate = online && active && !streaming && (!last || last.role === 'user');
+  const pending = queued.filter((v) => !messages.some((m) => m.id === v.id));
   const memoryAt = new Map(data.memory.map((node) => [node.messageId, node]));
 
   return (
@@ -165,7 +166,7 @@ export function ChatView() {
           <button
             className={ui.button}
             type="button"
-            disabled={Boolean(streaming)}
+            disabled={Boolean(streaming) || !online}
             onClick={() => setEnding(true)}
           >
             {t('scenes.end')}
@@ -174,6 +175,7 @@ export function ChatView() {
         <button
           className={ui.ghost}
           type="button"
+          disabled={!online}
           onClick={() => {
             const title = window.prompt(t('chats.rename'), data.chat.title)?.trim();
             if (title) rename.mutate(title);
@@ -184,6 +186,7 @@ export function ChatView() {
         <button
           className={ui.ghost}
           type="button"
+          disabled={!online}
           onClick={() => {
             if (window.confirm(t('common.confirmDelete', { name: data.chat.title }))) {
               remove.mutate();
@@ -252,7 +255,9 @@ export function ChatView() {
                 canRegenerate={message.id !== scene?.startMessageId}
                 onSelect={(id) => selectLeaf.mutate(id)}
                 onRegenerate={() => regenerate.mutate(message.id)}
-                onEdit={(content) => edit.mutate({ id: message.id, content })}
+                onEdit={(content) =>
+                  edit.mutate({ chatId, id: message.id, content, baseRevision: message.revision })
+                }
               />
               {memoryAt.has(message.id) && (
                 <MemoryMarker node={memoryAt.get(message.id) as MemoryNode} />
@@ -266,6 +271,9 @@ export function ChatView() {
             </button>
           </div>
         )}
+        {pending.map((draft) => (
+          <QueuedMessage key={draft.id} draft={draft} online={online} />
+        ))}
         <div className={styles.message}>
           <ErrorText
             error={
@@ -281,8 +289,14 @@ export function ChatView() {
       </div>
       {active && (
         <Composer
+          key={chatId}
+          chatId={chatId}
           streaming={Boolean(streaming)}
-          onSend={(content) => send.mutate(content)}
+          // One message can wait offline (concept, section 9); more would pile up turns.
+          blocked={pending.length > 0}
+          onSend={(content) =>
+            send.mutate({ chatId, id: uuidv7(), content, parentId: data.chat.activeLeafId })
+          }
           onStop={() => streaming && stop.mutate(streaming.id)}
         />
       )}
@@ -403,6 +417,8 @@ function MessageTools({
   onEdit?: () => void;
 }) {
   const { t } = useTranslation();
+  // Switching versions and regenerating need the server; editing can wait.
+  const online = useOnline();
   const index = message.siblingIds.indexOf(message.id);
   const count = message.siblingIds.length;
   return (
@@ -412,7 +428,7 @@ function MessageTools({
           <button
             className={ui.ghost}
             type="button"
-            disabled={index <= 0}
+            disabled={index <= 0 || !online}
             aria-label={t('chats.previousVersion')}
             onClick={() => onSelect(message.siblingIds[index - 1] ?? message.id)}
           >
@@ -424,7 +440,7 @@ function MessageTools({
           <button
             className={ui.ghost}
             type="button"
-            disabled={index >= count - 1}
+            disabled={index >= count - 1 || !online}
             aria-label={t('chats.nextVersion')}
             onClick={() => onSelect(message.siblingIds[index + 1] ?? message.id)}
           >
@@ -438,7 +454,7 @@ function MessageTools({
         </button>
       )}
       {canRegenerate && message.role === 'assistant' && message.parentId !== null && (
-        <button className={ui.ghost} type="button" onClick={onRegenerate}>
+        <button className={ui.ghost} type="button" disabled={!online} onClick={onRegenerate}>
           {t('chats.regenerate')}
         </button>
       )}
@@ -446,21 +462,65 @@ function MessageTools({
   );
 }
 
+/** A message waiting for the connection, or on its way. */
+function QueuedMessage({ draft, online }: { draft: SendVariables; online: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const cancel = () => {
+    const cache = queryClient.getMutationCache();
+    const mutation = cache
+      .findAll({ mutationKey: sendKey(draft.chatId), status: 'pending' })
+      .find((m) => (m.state.variables as SendVariables | undefined)?.id === draft.id);
+    if (!mutation) return;
+    cache.remove(mutation);
+    restoreDraft(draft.chatId, draft.content);
+  };
+  return (
+    <div className={`${styles.message} ${styles.user} ${styles.queued}`}>
+      <div className={styles.body}>{formatStory(draft.content)}</div>
+      <div className={styles.tools}>
+        <span className={ui.hint}>{online ? t('sync.sending') : t('sync.queued')}</span>
+        {!online && (
+          <button className={ui.ghost} type="button" onClick={cancel}>
+            {t('common.cancel')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Composer({
+  chatId,
   streaming,
+  blocked,
   onSend,
   onStop,
 }: {
+  chatId: string;
   streaming: boolean;
+  blocked: boolean;
   onSend: (content: string) => void;
   onStop: () => void;
 }) {
   const { t } = useTranslation();
-  const [text, setText] = useState('');
+  const [text, setTextState] = useState(() => readDraft(chatId));
+  const setText = (next: string) => {
+    setTextState(next);
+    writeDraft(chatId, next);
+  };
+  // A queued message the server turned down comes back into the field.
+  useEffect(
+    () =>
+      onDraftRestored((restoredChat, restored) => {
+        if (restoredChat === chatId) setTextState(restored);
+      }),
+    [chatId],
+  );
 
   const submit = () => {
     const content = text.trim();
-    if (!content || streaming) return;
+    if (!content || streaming || blocked) return;
     onSend(content);
     setText('');
   };
@@ -487,7 +547,12 @@ function Composer({
             {t('chats.stop')}
           </button>
         ) : (
-          <button className={ui.primary} type="button" onClick={submit} disabled={!text.trim()}>
+          <button
+            className={ui.primary}
+            type="button"
+            onClick={submit}
+            disabled={!text.trim() || blocked}
+          >
             {t('chats.send')}
           </button>
         )}

@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Teahouse",
-    "offline": "Verbindung verloren, verbinde neu …"
+    "offline": "Verbindung verloren, verbinde neu …",
+    "offlineMode": "Offline. Du kannst gespeicherte Chats lesen, Nachrichten der aktuellen Szene bearbeiten und eine Nachricht schreiben; alles wird gesendet, sobald der Server wieder erreichbar ist."
   },
   "nav": {
     "chats": "Chats",
@@ -16,7 +17,8 @@
     "edit": "Bearbeiten",
     "create": "Anlegen",
     "loading": "Lädt …",
-    "confirmDelete": "„%{name}“ löschen?"
+    "confirmDelete": "„%{name}“ löschen?",
+    "dismiss": "Schließen"
   },
   "auth": {
     "setupTitle": "Willkommen bei Teahouse",
@@ -209,5 +211,13 @@
     "address": "Adresse für das neue Gerät",
     "loopbackHint": "localhost funktioniert nur auf diesem Computer. Gib eine Adresse ein, die das andere Gerät erreicht.",
     "copyLink": "Link kopieren"
+  },
+  "sync": {
+    "queued": "Wartet auf Verbindung",
+    "sending": "Wird gesendet…",
+    "forked": "Der Chat ist inzwischen weitergegangen (auf einem anderen Gerät oder während du offline warst), deshalb beginnt deine Nachricht einen neuen Zweig. Der andere Zug ist eine Wischgeste entfernt.",
+    "overwritten": "Diese Nachricht wurde auch woanders geändert. Deine Bearbeitung hat diese Änderung ersetzt.",
+    "editClosed": "Deine Bearbeitung konnte nicht gespeichert werden: Die Szene wurde inzwischen abgeschlossen.",
+    "sendFailed": "Deine Nachricht konnte nicht gesendet werden (%{message}). Der Text steht wieder im Eingabefeld."
   }
 }

@@ -16,6 +16,7 @@ export const toMessage = (row: MessageRow): Message => ({
   error: row.error,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
+  revision: row.revision,
 });
 
 export const toChat = (row: ChatRow): Chat => ({
