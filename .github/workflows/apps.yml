@@ -1,11 +1,11 @@
-# Builds the Teahouse apps. Runs by hand (Actions → Apps → Run workflow) or for a v* tag;
-# the results are attached to the run as artifacts.
+# Builds the Teahouse apps. Runs by hand (Actions → Apps → Run workflow) with the results as
+# artifacts, or on every push to a release/v* branch, which also prepares a draft release.
 name: Apps
 
 on:
   workflow_dispatch:
   push:
-    tags: ['v*']
+    branches: ['release/v*']
 
 permissions:
   contents: read
@@ -105,7 +105,7 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/app/src-tauri
@@ -116,9 +116,75 @@ jobs:
       - run: pnpm --filter @teahouse/app tauri android init --ci
       # A debug build is signed with the SDK's debug key, so it installs without setting up
       # a release keystore. It also allows plain-HTTP servers on the LAN.
-      - run: pnpm --filter @teahouse/app tauri android build --debug --apk
-      - uses: actions/upload-artifact@v4
+      # One APK per architecture instead of a universal one: arm64 for current phones, arm for
+      # old ones, x86_64 for emulators and Chromebooks. 32-bit x86 devices are long gone.
+      - run: pnpm --filter @teahouse/app tauri android build --debug --apk --split-per-abi --target aarch64 armv7 x86_64
+      - name: Upload APK (arm64, current phones)
+        uses: actions/upload-artifact@v4
         with:
-          name: teahouse-android
-          path: packages/app/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          name: teahouse-android-arm64
+          path: packages/app/src-tauri/gen/android/app/build/outputs/apk/arm64/**/*.apk
           if-no-files-found: error
+      - name: Upload APK (arm, older phones)
+        uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-android-arm
+          path: packages/app/src-tauri/gen/android/app/build/outputs/apk/arm/**/*.apk
+          if-no-files-found: error
+      - name: Upload APK (x86_64, emulators and Chromebooks)
+        uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-android-x86_64
+          path: packages/app/src-tauri/gen/android/app/build/outputs/apk/x86_64/**/*.apk
+          if-no-files-found: error
+
+  # For a release/v* branch: collect every build into a draft release, to be reviewed and
+  # published by hand. Publishing creates the tag. Later pushes to the branch update the draft.
+  release:
+    if: startsWith(github.ref, 'refs/heads/release/v')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Branch matches the app version
+        run: |
+          tag=${GITHUB_REF_NAME#release/}
+          version=$(jq -r .version packages/app/src-tauri/tauri.conf.json)
+          if [ "v$version" != "$tag" ]; then
+            echo "::error::Branch $GITHUB_REF_NAME does not match the app version $version in packages/app/src-tauri/tauri.conf.json"
+            exit 1
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+      # One folder per artifact, so each APK's architecture comes from its artifact name.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: teahouse-*
+          path: dist
+      - name: Name the APKs
+        run: |
+          for dir in dist/teahouse-android-*; do
+            abi=${dir#dist/teahouse-android-}
+            apk=$(find "$dir" -name '*.apk')
+            [ "$(echo "$apk" | wc -l)" = 1 ] || { echo "::error::Expected one APK in $dir"; exit 1; }
+            mv "$apk" "dist/Teahouse_${TAG#v}_android-${abi}-debug.apk"
+          done
+          [ "$(find dist -name '*.apk' | wc -l)" = 3 ] || { echo "::error::Expected three APKs"; exit 1; }
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files=$(find dist -type f)
+          echo "$files"
+          if draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$draft" != true ]; then
+              echo "::error::Release $TAG is already published; bump the version for a new release"
+              exit 1
+            fi
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber $files
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+              --title "Teahouse $TAG" --generate-notes $files
+          fi

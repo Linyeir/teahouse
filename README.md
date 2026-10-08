@@ -72,7 +72,7 @@ The desktop apps (Windows, macOS, Linux) and the Android app are the web client 
 
 On first start, an app asks for the server address. Paste a pairing link there (from **Settings → Pair a device** on a signed-in device) to connect and sign in in one go. The Android app can scan the QR code instead.
 
-**Getting the apps:** run the **Apps** workflow on GitHub (Actions → Apps → Run workflow, or push a `v*` tag) and download the artifact for your system: `teahouse-linux-appimage` (any Linux distribution), `teahouse-linux-deb` (Debian, Ubuntu), `teahouse-linux-rpm` (Fedora, openSUSE), `teahouse-windows` (`.msi` and `.exe`), `teahouse-macos` (`.dmg`) or `teahouse-android` (`.apk`). The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
+**Getting the apps:** run the **Apps** workflow on GitHub (Actions → Apps → Run workflow) and download the artifact for your system: `teahouse-linux-appimage` (any Linux distribution), `teahouse-linux-deb` (Debian, Ubuntu), `teahouse-linux-rpm` (Fedora, openSUSE), `teahouse-windows` (`.msi` and `.exe`), `teahouse-macos` (`.dmg`) or one of `teahouse-android-arm64` (current phones), `teahouse-android-arm` (older phones) and `teahouse-android-x86_64` (emulators, Chromebooks). The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
 
 **Building locally** needs Rust and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system:
 
@@ -82,6 +82,8 @@ pnpm app:build    # installers in packages/app/src-tauri/target/release/bundle/
 ```
 
 For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once and `pnpm --filter @teahouse/app tauri android build --debug --apk`.
+
+**Releasing:** set the version in `packages/app/src-tauri/tauri.conf.json` and `Cargo.toml`, merge, then push a branch named after it, for example `git push origin main:release/v0.3.0`. The Apps workflow builds everything and creates a draft release `v0.3.0` with all files attached; further pushes to that branch update the draft. Check it under Releases and publish it, which also creates the tag.
 
 A server on your LAN can be reached over plain HTTP (the Android debug build allows it explicitly). Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet.
 
