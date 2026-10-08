@@ -157,15 +157,17 @@ jobs:
             exit 1
           fi
           echo "TAG=$tag" >> "$GITHUB_ENV"
+      # One folder per artifact, so each APK's architecture comes from its artifact name.
       - uses: actions/download-artifact@v4
         with:
           pattern: teahouse-*
           path: dist
-          merge-multiple: true
       - name: Name the APKs
         run: |
-          for apk in $(find dist -name '*.apk'); do
-            abi=$(basename "$apk" | sed -E 's/^app-(.+)-debug\.apk$/\1/')
+          for dir in dist/teahouse-android-*; do
+            abi=${dir#dist/teahouse-android-}
+            apk=$(find "$dir" -name '*.apk')
+            [ "$(echo "$apk" | wc -l)" = 1 ] || { echo "::error::Expected one APK in $dir"; exit 1; }
             mv "$apk" "dist/Teahouse_${TAG#v}_android-${abi}-debug.apk"
           done
           [ "$(find dist -name '*.apk' | wc -l)" = 3 ] || { echo "::error::Expected three APKs"; exit 1; }
