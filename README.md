@@ -72,7 +72,7 @@ The desktop apps (Windows, macOS, Linux) and the Android app are the web client 
 
 On first start, an app asks for the server address. Paste a pairing link there (from **Settings → Pair a device** on a signed-in device) to connect and sign in in one go. The Android app can scan the QR code instead.
 
-**Getting the apps:** run the **Apps** workflow on GitHub (Actions → Apps → Run workflow, or push a `v*` tag) and download the artifacts: `.deb`, `.rpm` and AppImage for Linux, `.msi` and `.exe` for Windows, `.dmg` for macOS, and an `.apk` for Android. The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
+**Getting the apps:** run the **Apps** workflow on GitHub (Actions → Apps → Run workflow, or push a `v*` tag) and download the artifact for your system: `teahouse-linux-appimage` (any Linux distribution), `teahouse-linux-deb` (Debian, Ubuntu), `teahouse-linux-rpm` (Fedora, openSUSE), `teahouse-windows` (`.msi` and `.exe`), `teahouse-macos` (`.dmg`) or `teahouse-android` (`.apk`). The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
 
 **Building locally** needs Rust and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system:
 

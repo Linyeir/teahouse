@@ -43,16 +43,43 @@ jobs:
       # compiled, which fails on Windows runners and is wasted time everywhere else.
       - run: pnpm install --frozen-lockfile --filter "@teahouse/app..." --filter "@teahouse/client..."
       - run: pnpm --filter @teahouse/app build
-      - uses: actions/upload-artifact@v4
+      # One artifact per package format, so nobody downloads formats they cannot use.
+      - name: Upload .deb (Debian, Ubuntu)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
         with:
-          name: teahouse-${{ matrix.name }}
+          name: teahouse-linux-deb
+          path: packages/app/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+      - name: Upload .rpm (Fedora, openSUSE)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-linux-rpm
+          path: packages/app/src-tauri/target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
+      - name: Upload AppImage (any distribution)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-linux-appimage
+          path: packages/app/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+      - name: Upload installers (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-windows
           path: |
-            packages/app/src-tauri/target/release/bundle/deb/*.deb
-            packages/app/src-tauri/target/release/bundle/rpm/*.rpm
-            packages/app/src-tauri/target/release/bundle/appimage/*.AppImage
             packages/app/src-tauri/target/release/bundle/msi/*.msi
             packages/app/src-tauri/target/release/bundle/nsis/*.exe
-            packages/app/src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+      - name: Upload .dmg (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: teahouse-macos
+          path: packages/app/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
   android:
