@@ -39,7 +39,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
-      - run: pnpm install --frozen-lockfile
+      # Only what the apps need: the server's native modules (better-sqlite3) would have to be
+      # compiled, which fails on Windows runners and is wasted time everywhere else.
+      - run: pnpm install --frozen-lockfile --filter "@teahouse/app..." --filter "@teahouse/client..."
       - run: pnpm --filter @teahouse/app build
       - uses: actions/upload-artifact@v4
         with:
@@ -67,6 +69,9 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
+        with:
+          # The default list includes "tools", which current SDK repositories no longer have.
+          packages: platform-tools
       - name: Android NDK
         run: |
           sdkmanager --install "ndk;27.2.12479018"
@@ -77,7 +82,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/app/src-tauri
-      - run: pnpm install --frozen-lockfile
+      # Only what the apps need: the server's native modules (better-sqlite3) would have to be
+      # compiled, which fails on Windows runners and is wasted time everywhere else.
+      - run: pnpm install --frozen-lockfile --filter "@teahouse/app..." --filter "@teahouse/client..."
       # The Android project is generated rather than committed until it needs changes.
       - run: pnpm --filter @teahouse/app tauri android init --ci
       # A debug build is signed with the SDK's debug key, so it installs without setting up
