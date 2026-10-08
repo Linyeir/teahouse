@@ -122,3 +122,37 @@ jobs:
           name: teahouse-android
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+  # For a v* tag: collect every build into a draft release, to be reviewed and published by hand.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches the app version
+        run: |
+          version=$(jq -r .version packages/app/src-tauri/tauri.conf.json)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the app version $version in packages/app/src-tauri/tauri.conf.json"
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: teahouse-*
+          path: dist
+          merge-multiple: true
+      - name: Name the APK
+        run: |
+          apks=$(find dist -name '*.apk')
+          [ "$(echo "$apks" | wc -l)" = 1 ] || { echo "::error::Expected one APK, found: $apks"; exit 1; }
+          mv "$apks" "dist/Teahouse_${GITHUB_REF_NAME#v}_android-debug.apk"
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find dist -type f
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Teahouse $GITHUB_REF_NAME" --generate-notes $(find dist -type f)

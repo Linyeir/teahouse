@@ -83,6 +83,8 @@ pnpm app:build    # installers in packages/app/src-tauri/target/release/bundle/
 
 For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once and `pnpm --filter @teahouse/app tauri android build --debug --apk`.
 
+**Releasing:** set the version in `packages/app/src-tauri/tauri.conf.json` (and `Cargo.toml`), merge, then push a matching tag, for example `git tag v0.3.0 && git push origin v0.3.0`. The Apps workflow builds everything and creates a draft release with all files attached; check it under Releases and publish it.
+
 A server on your LAN can be reached over plain HTTP (the Android debug build allows it explicitly). Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet.
 
 ## Offline and sync
