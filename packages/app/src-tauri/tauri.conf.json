@@ -35,9 +35,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
-    },
     "category": "Game",
     "shortDescription": "AI roleplay in the style of a visual novel",
     "license": "AGPL-3.0-only"

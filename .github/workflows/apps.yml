@@ -11,6 +11,11 @@ permissions:
   contents: read
 
 jobs:
+  # A draft release is only made from code that passes lint, typecheck and tests.
+  checks:
+    if: startsWith(github.ref, 'refs/heads/release/v')
+    uses: ./.github/workflows/ci.yml
+
   desktop:
     strategy:
       fail-fast: false
@@ -84,6 +89,9 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    env:
+      # Certificate of the Teahouse signing key. Every APK is checked against it.
+      CERT_SHA256: 26f049c6c5f42d66fd701a300094ddbc67e58d5e2f76183ce841389bf433b2b7
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -116,11 +124,37 @@ jobs:
       - run: pnpm --filter @teahouse/app tauri android init --ci
       # init writes the template's default icons; Tauri does not pick up icons/android itself.
       - run: cp -r packages/app/src-tauri/icons/android/. packages/app/src-tauri/gen/android/app/src/main/res/
-      # A debug build is signed with the SDK's debug key, so it installs without setting up
-      # a release keystore. It also allows plain-HTTP servers on the LAN.
+      # Every build is signed with the same key, so a new version installs over the old one.
+      # Gradle signs debug builds with the debug keystore and would silently create a new one
+      # if it were missing, so this step fails instead.
+      - name: Signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::error::Secret ANDROID_KEYSTORE_BASE64 is not set (see README, Releasing)"
+            exit 1
+          fi
+          dir=${ANDROID_USER_HOME:-$HOME/.android}
+          mkdir -p "$dir"
+          echo "$KEYSTORE" | base64 -d > "$dir/debug.keystore"
+      # A debug build, signed with the Teahouse key above through Gradle's debug signing.
+      # It allows plain-HTTP servers on the LAN.
       # One APK per architecture instead of a universal one: arm64 for current phones, arm for
       # old ones, x86_64 for emulators and Chromebooks. 32-bit x86 devices are long gone.
       - run: pnpm --filter @teahouse/app tauri android build --debug --apk --split-per-abi --target aarch64 armv7 x86_64
+      - name: Check the signing key
+        run: |
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          apks=$(find packages/app/src-tauri/gen/android/app/build/outputs/apk -name '*.apk')
+          [ -n "$apks" ] || { echo "::error::No APKs found"; exit 1; }
+          for apk in $apks; do
+            if ! "$apksigner" verify --print-certs "$apk" | grep -q "SHA-256 digest: $CERT_SHA256"; then
+              echo "::error::$apk is not signed with the Teahouse key"
+              "$apksigner" verify --print-certs "$apk"
+              exit 1
+            fi
+          done
       - name: Upload APK (arm64, current phones)
         uses: actions/upload-artifact@v4
         with:
@@ -144,7 +178,7 @@ jobs:
   # published by hand. Publishing creates the tag. Later pushes to the branch update the draft.
   release:
     if: startsWith(github.ref, 'refs/heads/release/v')
-    needs: [desktop, android]
+    needs: [checks, desktop, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
