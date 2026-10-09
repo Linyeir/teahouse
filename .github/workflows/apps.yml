@@ -1,11 +1,12 @@
 # Builds the Teahouse apps. Runs by hand (Actions → Apps → Run workflow) with the results as
-# artifacts, or on every push to a release/v* branch, which also prepares a draft release.
+# artifacts, or on every push to the release branch, which also prepares a draft release for
+# the version in packages/app/src-tauri/tauri.conf.json.
 name: Apps
 
 on:
   workflow_dispatch:
   push:
-    branches: ['release/v*']
+    branches: [release]
 
 permissions:
   contents: read
@@ -13,7 +14,7 @@ permissions:
 jobs:
   # A draft release is only made from code that passes lint, typecheck and tests.
   checks:
-    if: startsWith(github.ref, 'refs/heads/release/v')
+    if: github.ref == 'refs/heads/release'
     uses: ./.github/workflows/ci.yml
 
   desktop:
@@ -174,25 +175,25 @@ jobs:
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/x86_64/**/*.apk
           if-no-files-found: error
 
-  # For a release/v* branch: collect every build into a draft release, to be reviewed and
-  # published by hand. Publishing creates the tag. Later pushes to the branch update the draft.
+  # For the release branch: collect every build into a draft release, to be reviewed and
+  # published by hand. Publishing creates the tag. Later pushes with the same version update
+  # the draft. A version that is already published fails, so it has to be bumped first.
   release:
-    if: startsWith(github.ref, 'refs/heads/release/v')
+    if: github.ref == 'refs/heads/release'
     needs: [checks, desktop, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Branch matches the app version
+      - name: Version
         run: |
-          tag=${GITHUB_REF_NAME#release/}
           version=$(jq -r .version packages/app/src-tauri/tauri.conf.json)
-          if [ "v$version" != "$tag" ]; then
-            echo "::error::Branch $GITHUB_REF_NAME does not match the app version $version in packages/app/src-tauri/tauri.conf.json"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::No valid version in packages/app/src-tauri/tauri.conf.json: $version"
             exit 1
           fi
-          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "TAG=v$version" >> "$GITHUB_ENV"
       # One folder per artifact, so each APK's architecture comes from its artifact name.
       - uses: actions/download-artifact@v4
         with:
