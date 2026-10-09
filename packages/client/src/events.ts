@@ -5,6 +5,7 @@ import { api, getToken, serverUrl, setToken } from './api.ts';
 import { applyUpdate, type PathUpdate, streamBuffers } from './chat-state.ts';
 import { setReachable } from './offline.ts';
 import { syncLocalCopy } from './sync.ts';
+import { checkServerVersion } from './version.ts';
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
 
@@ -58,6 +59,10 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
         void queryClient.invalidateQueries();
         void syncLocalCopy(queryClient).catch(() => {
           // Retried on the next connect; the views fetch what they show anyway.
+        });
+        // The server may have been updated (or downgraded) while the socket was down.
+        void checkServerVersion().catch(() => {
+          // Checked again on the next connect.
         });
       };
       socket.onmessage = (message) => {
