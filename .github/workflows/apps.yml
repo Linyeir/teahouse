@@ -125,10 +125,14 @@ jobs:
       - run: pnpm --filter @teahouse/app tauri android init --ci
       # init writes the template's default icons; Tauri does not pick up icons/android itself.
       - run: cp -r packages/app/src-tauri/icons/android/. packages/app/src-tauri/gen/android/app/src/main/res/
-      # Every build is signed with the same key, so a new version installs over the old one.
-      # Gradle signs debug builds with the debug keystore and would silently create a new one
-      # if it were missing, so this step fails instead.
-      - name: Signing key
+      # A debug build: it allows plain-HTTP servers on the LAN. Gradle signs it with a throwaway
+      # debug key, which the next step replaces.
+      # One APK per architecture instead of a universal one: arm64 for current phones, arm for
+      # old ones, x86_64 for emulators and Chromebooks. 32-bit x86 devices are long gone.
+      - run: pnpm --filter @teahouse/app tauri android build --debug --apk --split-per-abi --target aarch64 armv7 x86_64
+      # Every APK is signed with the same Teahouse key, so a new version installs over the old
+      # one. Signed here rather than through Gradle, so no Gradle default can swap the key.
+      - name: Sign with the Teahouse key
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
@@ -136,22 +140,19 @@ jobs:
             echo "::error::Secret ANDROID_KEYSTORE_BASE64 is not set (see README, Releasing)"
             exit 1
           fi
-          dir=${ANDROID_USER_HOME:-$HOME/.android}
-          mkdir -p "$dir"
-          echo "$KEYSTORE" | base64 -d > "$dir/debug.keystore"
-      # A debug build, signed with the Teahouse key above through Gradle's debug signing.
-      # It allows plain-HTTP servers on the LAN.
-      # One APK per architecture instead of a universal one: arm64 for current phones, arm for
-      # old ones, x86_64 for emulators and Chromebooks. 32-bit x86 devices are long gone.
-      - run: pnpm --filter @teahouse/app tauri android build --debug --apk --split-per-abi --target aarch64 armv7 x86_64
-      - name: Check the signing key
-        run: |
+          keystore="$RUNNER_TEMP/teahouse.keystore"
+          echo "$KEYSTORE" | base64 -d > "$keystore"
           apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
           apks=$(find packages/app/src-tauri/gen/android/app/build/outputs/apk -name '*.apk')
           [ -n "$apks" ] || { echo "::error::No APKs found"; exit 1; }
           for apk in $apks; do
+            "$apksigner" sign --ks "$keystore" --ks-type JKS --ks-key-alias androiddebugkey \
+              --ks-pass pass:android --key-pass pass:android "$apk"
+          done
+          rm "$keystore"
+          for apk in $apks; do
             if ! "$apksigner" verify --print-certs "$apk" | grep -q "SHA-256 digest: $CERT_SHA256"; then
-              echo "::error::$apk is not signed with the Teahouse key"
+              echo "::error::$apk is not signed with the Teahouse key after signing"
               "$apksigner" verify --print-certs "$apk"
               exit 1
             fi
