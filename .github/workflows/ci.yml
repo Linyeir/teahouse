@@ -11,18 +11,22 @@ on:
 permissions:
   contents: read
 
+# Pinned rather than ubuntu-latest, see apps.yml.
+
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
       # The whole workspace: the server tests need better-sqlite3's native module.
       - run: pnpm install --frozen-lockfile
+      # The same version in every package.json, tauri.conf.json, Cargo.toml and Cargo.lock.
+      - run: pnpm version:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

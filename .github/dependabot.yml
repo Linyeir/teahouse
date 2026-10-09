@@ -1,0 +1,13 @@
+# Opens pull requests when the actions used in .github/workflows get new versions, one per
+# month with all of them together. A new major version still needs a look at its changelog.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci
