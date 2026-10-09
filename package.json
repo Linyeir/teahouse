@@ -1,5 +1,6 @@
 {
   "name": "teahouse",
+  "version": "0.3.2",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -16,7 +17,9 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "app:dev": "pnpm --filter @teahouse/app dev",
-    "app:build": "pnpm --filter @teahouse/app build"
+    "app:build": "pnpm --filter @teahouse/app build",
+    "version:set": "node scripts/version.ts set",
+    "version:check": "node scripts/version.ts check"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

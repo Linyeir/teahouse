@@ -7,6 +7,7 @@ import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 import { parsePairing } from '../pairing.ts';
 import { canScan, ScanError, scanQrCode } from '../scan.ts';
+import { assertCompatibleServer } from '../version.ts';
 
 const defaultDeviceName = () => {
   const ua = navigator.userAgent;
@@ -24,7 +25,10 @@ const defaultDeviceName = () => {
 
 /** Claims a pairing code on `server` and signs this device in. */
 async function claim(server: string | null, code: string, deviceName: string) {
-  if (server !== null) setServer(server);
+  if (server !== null) {
+    setServer(server);
+    await assertCompatibleServer();
+  }
   const { token } = await api.post<TokenResponse>('/api/pairing/claim', { code, deviceName });
   setToken(token);
 }
@@ -33,6 +37,7 @@ async function claim(server: string | null, code: string, deviceName: string) {
 function ScanButton() {
   const { t } = useTranslation();
   const scan = useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
       const text = await scanQrCode();
       if (text === null) return;
@@ -65,6 +70,7 @@ export function AuthView() {
   const [mode, setMode] = useState<'password' | 'code'>('password');
 
   const connect = useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
       // A pasted pairing link answers both questions at once and signs in directly.
       const pairing = parsePairing(server);
@@ -74,6 +80,7 @@ export function AuthView() {
       }
       setServer(normalizeServer(server));
       await api.get<AuthStatus>('/api/auth/status');
+      await assertCompatibleServer();
       setConnected(true);
     },
   });
@@ -136,6 +143,7 @@ function PasswordForm() {
   const { t } = useTranslation();
   const status = useQuery({
     queryKey: ['auth-status', getServer()],
+    networkMode: 'always',
     queryFn: () => api.get<AuthStatus>('/api/auth/status'),
   });
   const [password, setPassword] = useState('');
@@ -143,6 +151,7 @@ function PasswordForm() {
   const setup = status.data?.passwordSet === false;
 
   const submit = useMutation({
+    networkMode: 'always',
     mutationFn: () =>
       api.post<TokenResponse>(setup ? '/api/auth/setup' : '/api/auth/login', {
         password,
@@ -200,6 +209,7 @@ function CodeForm() {
   const parsed = parsePairing(input);
 
   const submit = useMutation({
+    networkMode: 'always',
     mutationFn: () => {
       if (!parsed) throw new Error(t('auth.invalidCode'));
       return claim(parsed.server, parsed.code, deviceName);
@@ -256,6 +266,7 @@ export function PairView({ onDone }: { onDone: () => void }) {
   const code = new URLSearchParams(window.location.hash.slice(1)).get('code') ?? '';
   const [deviceName, setDeviceName] = useState(defaultDeviceName);
   const submit = useMutation({
+    networkMode: 'always',
     mutationFn: () => claim(null, code, deviceName),
     onSuccess: onDone,
   });

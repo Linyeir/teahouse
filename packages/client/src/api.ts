@@ -29,13 +29,26 @@ export function setServer(server: string): void {
   }
 }
 
-/** `host:port` or a full URL to a base URL; the page's own origin becomes empty. */
+/**
+ * `host:port` or a full URL to a base URL; the page's own origin becomes empty. Without a
+ * scheme, `host:port`, IP addresses and localhost get http (a server on the LAN), a bare
+ * domain gets https (a server behind a reverse proxy, which would redirect http anyway, and
+ * a cross-origin redirect sends `Origin: null`, which CORS rejects).
+ */
 export function normalizeServer(input: string): string {
   const trimmed = input.trim().replace(/\/+$/, '');
   if (!trimmed) return '';
-  const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`);
+  const url = new URL(
+    /^https?:\/\//i.test(trimmed) ? trimmed : `${guessScheme(trimmed)}//${trimmed}`,
+  );
   const base = `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
   return !isApp && url.origin === window.location.origin && url.pathname === '/' ? '' : base;
+}
+
+function guessScheme(hostAndPath: string): 'http:' | 'https:' {
+  const { hostname, port } = new URL(`http://${hostAndPath}`);
+  const local = hostname === 'localhost' || /^[\d.]+$/.test(hostname) || hostname.startsWith('[');
+  return port || local ? 'http:' : 'https:';
 }
 
 /** Absolute URL of a server path. */
