@@ -70,9 +70,17 @@
   flex-direction: column;
 }
 
+/* Plain pages scroll here; chat and world views size to it and scroll their own panes. */
 .scroll {
-  overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll > * {
+  width: 100%;
 }
 
 .banner {

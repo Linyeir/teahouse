@@ -33,6 +33,7 @@ async function claim(server: string | null, code: string, deviceName: string) {
 function ScanButton() {
   const { t } = useTranslation();
   const scan = useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
       const text = await scanQrCode();
       if (text === null) return;
@@ -65,6 +66,7 @@ export function AuthView() {
   const [mode, setMode] = useState<'password' | 'code'>('password');
 
   const connect = useMutation({
+    networkMode: 'always',
     mutationFn: async () => {
       // A pasted pairing link answers both questions at once and signs in directly.
       const pairing = parsePairing(server);
@@ -136,6 +138,7 @@ function PasswordForm() {
   const { t } = useTranslation();
   const status = useQuery({
     queryKey: ['auth-status', getServer()],
+    networkMode: 'always',
     queryFn: () => api.get<AuthStatus>('/api/auth/status'),
   });
   const [password, setPassword] = useState('');
@@ -143,6 +146,7 @@ function PasswordForm() {
   const setup = status.data?.passwordSet === false;
 
   const submit = useMutation({
+    networkMode: 'always',
     mutationFn: () =>
       api.post<TokenResponse>(setup ? '/api/auth/setup' : '/api/auth/login', {
         password,
@@ -200,6 +204,7 @@ function CodeForm() {
   const parsed = parsePairing(input);
 
   const submit = useMutation({
+    networkMode: 'always',
     mutationFn: () => {
       if (!parsed) throw new Error(t('auth.invalidCode'));
       return claim(parsed.server, parsed.code, deviceName);
@@ -256,6 +261,7 @@ export function PairView({ onDone }: { onDone: () => void }) {
   const code = new URLSearchParams(window.location.hash.slice(1)).get('code') ?? '';
   const [deviceName, setDeviceName] = useState(defaultDeviceName);
   const submit = useMutation({
+    networkMode: 'always',
     mutationFn: () => claim(null, code, deviceName),
     onSuccess: onDone,
   });

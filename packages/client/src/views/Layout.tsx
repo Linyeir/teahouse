@@ -65,7 +65,9 @@ export function Layout({ connection }: { connection: ConnectionState }) {
             </button>
           </div>
         ))}
-        <Outlet />
+        <div className={styles.scroll}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );
