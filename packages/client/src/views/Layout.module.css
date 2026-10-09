@@ -15,9 +15,17 @@
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-story);
   font-size: 1.3rem;
   margin: 0;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
 }
 
 .nav {

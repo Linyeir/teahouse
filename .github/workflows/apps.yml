@@ -1,16 +1,22 @@
 # Builds the Teahouse apps. Runs by hand (Actions → Apps → Run workflow) with the results as
-# artifacts, or on every push to a release/v* branch, which also prepares a draft release.
+# artifacts, or on every push to the release branch, which also prepares a draft release for
+# the version in packages/app/src-tauri/tauri.conf.json.
 name: Apps
 
 on:
   workflow_dispatch:
   push:
-    branches: ['release/v*']
+    branches: [release]
 
 permissions:
   contents: read
 
 jobs:
+  # A draft release is only made from code that passes lint, typecheck and tests.
+  checks:
+    if: github.ref == 'refs/heads/release'
+    uses: ./.github/workflows/ci.yml
+
   desktop:
     strategy:
       fail-fast: false
@@ -84,6 +90,9 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    env:
+      # Certificate of the Teahouse signing key. Every APK is checked against it.
+      CERT_SHA256: 26f049c6c5f42d66fd701a300094ddbc67e58d5e2f76183ce841389bf433b2b7
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -114,11 +123,40 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter "@teahouse/app..." --filter "@teahouse/client..."
       # The Android project is generated rather than committed until it needs changes.
       - run: pnpm --filter @teahouse/app tauri android init --ci
-      # A debug build is signed with the SDK's debug key, so it installs without setting up
-      # a release keystore. It also allows plain-HTTP servers on the LAN.
+      # init writes the template's default icons; Tauri does not pick up icons/android itself.
+      - run: cp -r packages/app/src-tauri/icons/android/. packages/app/src-tauri/gen/android/app/src/main/res/
+      # A debug build: it allows plain-HTTP servers on the LAN. Gradle signs it with a throwaway
+      # debug key, which the next step replaces.
       # One APK per architecture instead of a universal one: arm64 for current phones, arm for
       # old ones, x86_64 for emulators and Chromebooks. 32-bit x86 devices are long gone.
       - run: pnpm --filter @teahouse/app tauri android build --debug --apk --split-per-abi --target aarch64 armv7 x86_64
+      # Every APK is signed with the same Teahouse key, so a new version installs over the old
+      # one. Signed here rather than through Gradle, so no Gradle default can swap the key.
+      - name: Sign with the Teahouse key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::error::Secret ANDROID_KEYSTORE_BASE64 is not set (see README, Releasing)"
+            exit 1
+          fi
+          keystore="$RUNNER_TEMP/teahouse.keystore"
+          echo "$KEYSTORE" | base64 -d > "$keystore"
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          apks=$(find packages/app/src-tauri/gen/android/app/build/outputs/apk -name '*.apk')
+          [ -n "$apks" ] || { echo "::error::No APKs found"; exit 1; }
+          for apk in $apks; do
+            "$apksigner" sign --ks "$keystore" --ks-type JKS --ks-key-alias androiddebugkey \
+              --ks-pass pass:android --key-pass pass:android "$apk"
+          done
+          rm "$keystore"
+          for apk in $apks; do
+            if ! "$apksigner" verify --print-certs "$apk" | grep -q "SHA-256 digest: $CERT_SHA256"; then
+              echo "::error::$apk is not signed with the Teahouse key after signing"
+              "$apksigner" verify --print-certs "$apk"
+              exit 1
+            fi
+          done
       - name: Upload APK (arm64, current phones)
         uses: actions/upload-artifact@v4
         with:
@@ -138,25 +176,25 @@ jobs:
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/x86_64/**/*.apk
           if-no-files-found: error
 
-  # For a release/v* branch: collect every build into a draft release, to be reviewed and
-  # published by hand. Publishing creates the tag. Later pushes to the branch update the draft.
+  # For the release branch: collect every build into a draft release, to be reviewed and
+  # published by hand. Publishing creates the tag. Later pushes with the same version update
+  # the draft. A version that is already published fails, so it has to be bumped first.
   release:
-    if: startsWith(github.ref, 'refs/heads/release/v')
-    needs: [desktop, android]
+    if: github.ref == 'refs/heads/release'
+    needs: [checks, desktop, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Branch matches the app version
+      - name: Version
         run: |
-          tag=${GITHUB_REF_NAME#release/}
           version=$(jq -r .version packages/app/src-tauri/tauri.conf.json)
-          if [ "v$version" != "$tag" ]; then
-            echo "::error::Branch $GITHUB_REF_NAME does not match the app version $version in packages/app/src-tauri/tauri.conf.json"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::No valid version in packages/app/src-tauri/tauri.conf.json: $version"
             exit 1
           fi
-          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "TAG=v$version" >> "$GITHUB_ENV"
       # One folder per artifact, so each APK's architecture comes from its artifact name.
       - uses: actions/download-artifact@v4
         with:

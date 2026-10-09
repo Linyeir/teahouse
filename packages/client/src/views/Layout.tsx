@@ -17,7 +17,10 @@ export function Layout({ connection }: { connection: ConnectionState }) {
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
-        <h1 className={styles.brand}>{t('app.name')}</h1>
+        <h1 className={styles.brand}>
+          <img className={styles.logo} src="/favicon.svg" alt="" />
+          {t('app.name')}
+        </h1>
         <nav className={styles.nav}>
           <NavLink className={styles.navLink} to="/worlds">
             {t('nav.worlds')}
