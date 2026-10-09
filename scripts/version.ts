@@ -1,6 +1,7 @@
 // Keeps the Teahouse version the same in every file that carries it.
 //
-//   pnpm version:set 0.3.2     writes the version into all of them
+//   pnpm version:set 0.3.2     writes the version into all of them, and starts a section
+//                              for it in CHANGELOG.md if there is none
 //   pnpm version:check         fails if they differ
 //   pnpm version:check 0.3.2   fails if any of them is not 0.3.2
 //
@@ -37,6 +38,7 @@ const places: Place[] = [
   },
 ];
 
+const RELEASES = 'https://github.com/Linyeir/teahouse/releases/tag';
 const SEMVER = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -55,6 +57,24 @@ function set(version: string): void {
     writeFileSync(root + place.file, text.replace(place.pattern, `$1${version}$3`));
     console.log(`${place.file}: ${version}`);
   }
+  addChangelogSection(version);
+}
+
+/** Starts a section for a new version in CHANGELOG.md, above the newest one. */
+function addChangelogSection(version: string): void {
+  const file = `${root}CHANGELOG.md`;
+  const text = readFileSync(file, 'utf8');
+  if (text.includes(`\n## [${version}]`)) return;
+  const insert = (into: string, before: string, line: string) => {
+    const found = into.indexOf(`\n${before}`);
+    const at = found === -1 ? into.length : found + 1;
+    return `${into.slice(0, at)}${line}${into.slice(at)}`;
+  };
+  let next = insert(text, '## [', `## [${version}] - unreleased\n\n`);
+  // The link that makes the heading point to the release.
+  next = insert(next, '[', `[${version}]: ${RELEASES}/v${version}\n`);
+  writeFileSync(file, next);
+  console.log(`CHANGELOG.md: new section for ${version}`);
 }
 
 function check(expected: string | undefined): boolean {
