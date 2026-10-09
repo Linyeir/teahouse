@@ -1,8 +1,10 @@
+<p align="center"><img src="assets/icons/svg/teahouse-icon.svg" width="128" height="128" alt=""></p>
+
 # Teahouse
 
 Self-hostable AI roleplay in the style of a visual novel, with two-tier memory: Active Memory keeps long scenes in the context window, and a canon of Git-versioned Markdown files holds lasting world knowledge.
 
-**Status:** early development, v0.2. Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory, canon updates reviewed as diffs, a visual novel view with character images and backgrounds, and world export, against any OpenAI-compatible endpoint.
+**Status:** early development, v0.3. Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory, canon updates reviewed as diffs, a visual novel view with character images and backgrounds, world export, and desktop and Android apps that work offline, against any OpenAI-compatible endpoint.
 
 ## Visual novel view
 
@@ -56,6 +58,8 @@ Character Cards (PNG or JSON, V1 to V3) import into a new or an existing world: 
 docker compose up -d
 ```
 
+This builds the image from the checkout. Each release is also published as a ready image for amd64 and arm64, `ghcr.io/linyeir/teahouse:latest` (or a version such as `:0.3`), which you can put in `compose.yaml` as `image:` instead of `build: .`.
+
 Open http://localhost:8787, choose a password, then add a profile under **Profiles**. Data lives in the `teahouse-data` volume. Put Teahouse behind a reverse proxy with HTTPS or Tailscale before exposing it.
 
 ## Devices and pairing
@@ -72,7 +76,7 @@ The desktop apps (Windows, macOS, Linux) and the Android app are the web client 
 
 On first start, an app asks for the server address. Paste a pairing link there (from **Settings → Pair a device** on a signed-in device) to connect and sign in in one go. The Android app can scan the QR code instead.
 
-**Getting the apps:** run the **Apps** workflow on GitHub (Actions → Apps → Run workflow) and download the artifact for your system: `teahouse-linux-appimage` (any Linux distribution), `teahouse-linux-deb` (Debian, Ubuntu), `teahouse-linux-rpm` (Fedora, openSUSE), `teahouse-windows` (`.msi` and `.exe`), `teahouse-macos` (`.dmg`) or one of `teahouse-android-arm64` (current phones), `teahouse-android-arm` (older phones) and `teahouse-android-x86_64` (emulators, Chromebooks). The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
+**Getting the apps:** download them from the latest [release](https://github.com/Linyeir/teahouse/releases). For an unreleased state, run the **Apps** workflow on GitHub (Actions → Apps → Run workflow) and download the artifact for your system: `teahouse-linux-appimage` (any Linux distribution), `teahouse-linux-deb` (Debian, Ubuntu), `teahouse-linux-rpm` (Fedora, openSUSE), `teahouse-windows` (`.msi` and `.exe`), `teahouse-macos` (`.dmg`) or one of `teahouse-android-arm64` (current phones), `teahouse-android-arm` (older phones) and `teahouse-android-x86_64` (emulators, Chromebooks). The APK is a debug build signed with the Android SDK's debug key, so it installs directly once your phone allows apps from unknown sources. The builds are not code-signed, so Windows and macOS warn on first start.
 
 **Building locally** needs Rust and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system:
 
@@ -81,9 +85,9 @@ pnpm app:dev      # desktop app against the Vite dev server
 pnpm app:build    # installers in packages/app/src-tauri/target/release/bundle/
 ```
 
-For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once and `pnpm --filter @teahouse/app tauri android build --debug --apk`.
+For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once, copy `packages/app/src-tauri/icons/android/` into `packages/app/src-tauri/gen/android/app/src/main/res/` (init writes Tauri's default icons), and `pnpm --filter @teahouse/app tauri android build --debug --apk`.
 
-**Releasing:** set the version in `packages/app/src-tauri/tauri.conf.json` and `Cargo.toml`, merge, then push a branch named after it, for example `git push origin main:release/v0.3.0`. The Apps workflow builds everything and creates a draft release `v0.3.0` with all files attached; further pushes to that branch update the draft. Check it under Releases and publish it, which also creates the tag.
+**Releasing:** set the version in `packages/app/src-tauri/tauri.conf.json` and `Cargo.toml`, merge, then push a branch named after it, for example `git push origin main:release/v0.3.0`. The Apps workflow builds everything and creates a draft release `v0.3.0` with all files attached; further pushes to that branch update the draft. Check it under Releases and publish it, which also creates the tag and starts the Docker workflow, which pushes the server image to `ghcr.io/linyeir/teahouse`.
 
 A server on your LAN can be reached over plain HTTP (the Android debug build allows it explicitly). Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet.
 
@@ -161,6 +165,8 @@ packages/
             worlds (simple-git, chokidar, yaml), card import
   client/   React web app (Vite, TanStack Query, i18next), local copy in IndexedDB
   app/      Tauri 2 shell for desktop and Android around the client
+assets/
+  icons/    icon set and the script that generates it (see its README)
 ```
 
 After changing `packages/server/src/db/schema.ts`, run `pnpm --filter @teahouse/server db:generate` to create a migration.
