@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Device, Profile, Settings } from '@teahouse/shared';
+import { type Device, type Profile, type Settings, TEAHOUSE_VERSION } from '@teahouse/shared';
 import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, setToken } from '../api.ts';
@@ -7,6 +7,7 @@ import { ErrorText, Field } from '../components/Field.tsx';
 import { PairDevice } from '../components/PairDevice.tsx';
 import ui from '../components/ui.module.css';
 import { languages } from '../i18n.ts';
+import { useServerVersion } from '../version.ts';
 
 export function SettingsView() {
   const { t, i18n } = useTranslation();
@@ -23,6 +24,7 @@ export function SettingsView() {
     queryKey: ['devices'],
     queryFn: () => api.get<Device[]>('/api/devices'),
   });
+  const serverVersion = useServerVersion();
   const [draft, setDraft] = useState<Settings | null>(null);
   useEffect(() => {
     if (settings.data) setDraft(settings.data);
@@ -149,6 +151,17 @@ export function SettingsView() {
       <button className={ui.danger} type="button" onClick={() => logout.mutate()}>
         {t('auth.logout')}
       </button>
+
+      <h3>{t('settings.about')}</h3>
+      <p className={ui.muted}>
+        {t('settings.appVersion', { version: TEAHOUSE_VERSION })}
+        {serverVersion?.server && (
+          <>
+            <br />
+            {t('settings.serverVersion', { version: serverVersion.server })}
+          </>
+        )}
+      </p>
     </div>
   );
 }

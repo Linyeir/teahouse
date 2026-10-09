@@ -104,7 +104,10 @@
     "canonProfile": "Profil für Canon-Updates",
     "sceneProfile": "Profil für Szenenstarts",
     "sameAsNarrator": "Wie Erzähler",
-    "canonReview": "Canon-Änderungen vor dem Commit als Diff prüfen"
+    "canonReview": "Canon-Änderungen vor dem Commit als Diff prüfen",
+    "about": "Über Teahouse",
+    "appVersion": "App: Teahouse %{version}",
+    "serverVersion": "Server: Teahouse %{version}"
   },
   "home": {
     "noWorlds": "Noch keine Welten.",
@@ -222,5 +225,11 @@
     "overwritten": "Diese Nachricht wurde auch woanders geändert. Deine Bearbeitung hat diese Änderung ersetzt.",
     "editClosed": "Deine Bearbeitung konnte nicht gespeichert werden: Die Szene wurde inzwischen abgeschlossen.",
     "sendFailed": "Deine Nachricht konnte nicht gesendet werden (%{message}). Der Text steht wieder im Eingabefeld."
+  },
+  "version": {
+    "updateServer": "Diese App (Teahouse %{app}) braucht einen neueren Server. Auf dem Server läuft Teahouse %{server}: aktualisiere ihn, bei Docker durch Ziehen des neuesten Images.",
+    "updateApp": "Auf dem Server läuft Teahouse %{server}, dafür ist diese App (Teahouse %{app}) zu alt. Installiere die neueste App aus den Teahouse-Releases.",
+    "reload": "Der Server wurde auf Teahouse %{server} aktualisiert. Lade die Seite neu, um die neue Version zu laden.",
+    "before032": "älter als 0.3.2"
   }
 }

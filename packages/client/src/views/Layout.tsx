@@ -6,6 +6,7 @@ import { api } from '../api.ts';
 import type { ConnectionState } from '../events.ts';
 import { dismissNotice, useNotices } from '../notices.ts';
 import { useOnline } from '../offline.ts';
+import { useServerVersion, versionMessage } from '../version.ts';
 import styles from './Layout.module.css';
 
 export function Layout({ connection }: { connection: ConnectionState }) {
@@ -13,6 +14,8 @@ export function Layout({ connection }: { connection: ConnectionState }) {
   const chats = useQuery({ queryKey: ['chats'], queryFn: () => api.get<Chat[]>('/api/chats') });
   const online = useOnline();
   const notices = useNotices();
+  // Stays until a check after a reconnect finds a fitting server.
+  const mismatch = versionMessage(useServerVersion());
 
   return (
     <div className={styles.shell}>
@@ -47,6 +50,11 @@ export function Layout({ connection }: { connection: ConnectionState }) {
           <div className={styles.banner}>{t('app.offlineMode')}</div>
         ) : (
           connection === 'closed' && <div className={styles.banner}>{t('app.offline')}</div>
+        )}
+        {mismatch && (
+          <div className={`${styles.notice} ${styles.error}`} role="alert">
+            <span>{mismatch}</span>
+          </div>
         )}
         {notices.map((notice) => (
           <div

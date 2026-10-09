@@ -6,7 +6,8 @@ import { WorldService } from './worlds/service.ts';
 import { WorldWatcher } from './worlds/watcher.ts';
 
 const config = loadConfig();
-const db = openDb(join(config.dataDir, 'teahouse.db'));
+let backup: string | null = null;
+const db = openDb(join(config.dataDir, 'teahouse.db'), { onBackup: (path) => (backup = path) });
 const worlds = new WorldService(config.worldsDir);
 await worlds.init();
 const watcher = new WorldWatcher(worlds);
@@ -20,6 +21,7 @@ const app = await buildApp({
   logger: { level: 'info' },
 });
 app.addHook('onClose', () => watcher.stop());
+if (backup) app.log.info({ backup }, 'Backed up the database before migrating it');
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

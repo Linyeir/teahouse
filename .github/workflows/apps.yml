@@ -1,6 +1,6 @@
 # Builds the Teahouse apps. Runs by hand (Actions → Apps → Run workflow) with the results as
 # artifacts, or on every push to the release branch, which also prepares a draft release for
-# the version in packages/app/src-tauri/tauri.conf.json.
+# the version in package.json.
 name: Apps
 
 on:
@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+# Linux jobs run on a pinned Ubuntu rather than ubuntu-latest, so a new Ubuntu (26.04 from
+# October 2026) arrives with a deliberate change here instead of in the middle of a release.
+# Action versions are kept current by Dependabot (.github/dependabot.yml).
 jobs:
   # A draft release is only made from code that passes lint, typecheck and tests.
   checks:
@@ -22,6 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The oldest Ubuntu runner on purpose: an AppImage only runs on systems with at least
+          # the glibc it was built against. Move to ubuntu-24.04 when GitHub retires 22.04.
           - os: ubuntu-22.04
             name: linux
           - os: windows-latest
@@ -30,9 +35,9 @@ jobs:
             name: macos
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -52,28 +57,28 @@ jobs:
       # One artifact per package format, so nobody downloads formats they cannot use.
       - name: Upload .deb (Debian, Ubuntu)
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-linux-deb
           path: packages/app/src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
       - name: Upload .rpm (Fedora, openSUSE)
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-linux-rpm
           path: packages/app/src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
       - name: Upload AppImage (any distribution)
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-linux-appimage
           path: packages/app/src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: error
       - name: Upload installers (Windows)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-windows
           path: |
@@ -82,29 +87,29 @@ jobs:
           if-no-files-found: error
       - name: Upload .dmg (macOS)
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-macos
           path: packages/app/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # Certificate of the Teahouse signing key. Every APK is checked against it.
       CERT_SHA256: 26f049c6c5f42d66fd701a300094ddbc67e58d5e2f76183ce841389bf433b2b7
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           # The default list includes "tools", which current SDK repositories no longer have.
           packages: platform-tools
@@ -158,19 +163,19 @@ jobs:
             fi
           done
       - name: Upload APK (arm64, current phones)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-android-arm64
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/arm64/**/*.apk
           if-no-files-found: error
       - name: Upload APK (arm, older phones)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-android-arm
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/arm/**/*.apk
           if-no-files-found: error
       - name: Upload APK (x86_64, emulators and Chromebooks)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: teahouse-android-x86_64
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/x86_64/**/*.apk
@@ -182,21 +187,39 @@ jobs:
   release:
     if: github.ref == 'refs/heads/release'
     needs: [checks, desktop, android]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      # The checks job has made sure every file carries the same version (pnpm version:check).
       - name: Version
         run: |
-          version=$(jq -r .version packages/app/src-tauri/tauri.conf.json)
+          version=$(jq -r .version package.json)
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::No valid version in packages/app/src-tauri/tauri.conf.json: $version"
+            echo "::error::No valid version in package.json: $version"
             exit 1
           fi
           echo "TAG=v$version" >> "$GITHUB_ENV"
+      # The version's section of CHANGELOG.md, from its heading to the next version's heading.
+      # Without one, GitHub's notes generated from pull request titles are used instead.
+      - name: Release notes
+        run: |
+          awk -v heading="## [${TAG#v}]" '
+            /^## \[/ { if (found) exit; found = index($0, heading) == 1; next }
+            /^\[[^]]+\]: / { if (found) exit }
+            found
+          ' CHANGELOG.md | sed -e '/./,$!d' > "$RUNNER_TEMP/notes.md"
+          if grep -q . "$RUNNER_TEMP/notes.md"; then
+            echo "NOTES=$RUNNER_TEMP/notes.md" >> "$GITHUB_ENV"
+            if grep -qi "^## \[${TAG#v}\].*unreleased" CHANGELOG.md; then
+              echo "::warning::CHANGELOG.md still calls ${TAG#v} unreleased. Set the date before publishing."
+            fi
+          else
+            echo "::warning::No section for ${TAG#v} in CHANGELOG.md, so the notes are generated"
+          fi
       # One folder per artifact, so each APK's architecture comes from its artifact name.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: teahouse-*
           path: dist
@@ -215,14 +238,17 @@ jobs:
         run: |
           files=$(find dist -type f)
           echo "$files"
+          # Notes from CHANGELOG.md replace a draft's notes. Generated notes are only made once.
+          notes=()
+          [ -n "${NOTES:-}" ] && notes=(--notes-file "$NOTES")
           if draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
             if [ "$draft" != true ]; then
-              echo "::error::Release $TAG is already published; bump the version for a new release"
+              echo "::error::Release $TAG is already published. Bump the version for a new release."
               exit 1
             fi
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" "${notes[@]}"
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber $files
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
-              --title "Teahouse $TAG" --generate-notes $files
+              --title "Teahouse $TAG" "${notes[@]:---generate-notes}" $files
           fi
