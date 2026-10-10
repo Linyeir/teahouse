@@ -130,7 +130,10 @@
     "canonProfile": "Canon update profile",
     "sceneProfile": "Scene start profile",
     "sameAsNarrator": "Same as narrator",
-    "canonReview": "Review canon changes as diffs before they are committed"
+    "canonReview": "Review canon changes as diffs before they are committed",
+    "about": "About",
+    "appVersion": "App: Teahouse %{version}",
+    "serverVersion": "Server: Teahouse %{version}"
   },
   "home": {
     "noWorlds": "No worlds yet.",
@@ -248,5 +251,11 @@
     "overwritten": "This message had also been changed elsewhere. Your edit replaced that change.",
     "editClosed": "Your edit could not be saved: the scene was closed in the meantime.",
     "sendFailed": "Your message could not be sent (%{message}). Its text is back in the message field."
+  },
+  "version": {
+    "updateServer": "This app (Teahouse %{app}) needs a newer server. The server runs Teahouse %{server}: update it, for a Docker install by pulling the latest image.",
+    "updateApp": "The server runs Teahouse %{server}, which this app (Teahouse %{app}) is too old for. Install the latest app from the Teahouse releases.",
+    "reload": "The server was updated to Teahouse %{server}. Reload the page to load the new version.",
+    "before032": "older than 0.3.2"
   }
 }

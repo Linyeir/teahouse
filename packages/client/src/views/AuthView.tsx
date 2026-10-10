@@ -7,6 +7,7 @@ import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 import { parsePairing } from '../pairing.ts';
 import { canScan, ScanError, scanQrCode } from '../scan.ts';
+import { assertCompatibleServer } from '../version.ts';
 
 const defaultDeviceName = () => {
   const ua = navigator.userAgent;
@@ -24,7 +25,10 @@ const defaultDeviceName = () => {
 
 /** Claims a pairing code on `server` and signs this device in. */
 async function claim(server: string | null, code: string, deviceName: string) {
-  if (server !== null) setServer(server);
+  if (server !== null) {
+    setServer(server);
+    await assertCompatibleServer();
+  }
   const { token } = await api.post<TokenResponse>('/api/pairing/claim', { code, deviceName });
   setToken(token);
 }
@@ -76,6 +80,7 @@ export function AuthView() {
       }
       setServer(normalizeServer(server));
       await api.get<AuthStatus>('/api/auth/status');
+      await assertCompatibleServer();
       setConnected(true);
     },
   });
