@@ -2,7 +2,7 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [0.3.3] - unreleased
+## [0.3.3] - 2026-10-10
 
 **Updating:** apps and server can be updated in any order. A 0.3.3 app works with 0.3.1 and 0.3.2 servers. On Android 17, the app asks once for access to the local network (Android calls it "Nearby devices"); allow it if your server is at home.
 
@@ -17,7 +17,7 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 - On Android 17 the app could not reach a server on the local network at all, because Android 17 blocks it until the user allows it. The app now asks before it first connects to a server at home. If you decline, it says why it is offline and offers to allow it; once Android stops asking, it opens the app's settings. When allowed, it reconnects by itself, and without the permission requests fail at once instead of hanging for two minutes.
 - The server address field no longer capitalizes the first letter on phones.
 
-## [0.3.2] - unreleased
+## [0.3.2] - 2026-10-09
 
 **Updating:** apps and server can be updated in any order. A 0.3.2 app works with a 0.3.1 server.
 
