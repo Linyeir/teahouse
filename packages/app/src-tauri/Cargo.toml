@@ -28,6 +28,12 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 x509-parser = "0.18"
 sha2 = "0.10"
 url = "2"
+# Requests through the app for servers the webview cannot verify (transport/, issue #27):
+# the platform's verifier, else a certificate the user accepted.
+rustls-platform-verifier = "0.7"
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+base64 = "0.22"
+serde_json = "1"
 
 # Pairing by QR code: the camera is only used on phones.
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
@@ -38,3 +44,4 @@ tauri-plugin-local-network = { path = "plugins/local-network" }
 
 [dev-dependencies]
 rcgen = "0.14"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
