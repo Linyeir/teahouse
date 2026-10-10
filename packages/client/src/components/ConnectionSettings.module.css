@@ -1,0 +1,11 @@
+/* Long without a break: wrap anywhere instead of pushing the button off the row. */
+.server {
+  overflow-wrap: anywhere;
+}
+
+/* Compared character by character with the server's, so it must be easy to read. */
+.fingerprint {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
