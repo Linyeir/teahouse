@@ -147,3 +147,10 @@ textarea.input {
   color: var(--color-text-muted);
   vertical-align: middle;
 }
+
+/* Only on phones, where the tab bar replaces the sidebar (Layout.module.css). */
+@media not all and (max-width: 720px) {
+  .phoneOnly {
+    display: none;
+  }
+}

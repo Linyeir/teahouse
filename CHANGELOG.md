@@ -2,6 +2,20 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [0.3.4] - unreleased
+
+**Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on. Only the web client changed.
+
+### Changed
+
+- On phones, a tab bar at the bottom (Chats, Worlds, Profiles, Settings) replaces the sidebar, which took up to 40% of the screen on every page. Chats lists your chats first, then the characters to start a new one with. A chat fills the whole screen, with a back arrow in its header.
+- Character rows on narrow screens show the name and summary on top, and the greeting choice and **Start chat** below. The summary is cut at three lines there.
+
+### Fixed
+
+- The Android app drew under the status bar and the gesture bar (Android 15 and later draw apps edge to edge): the clock sat on top of the title. The app now keeps clear of both, also in landscape. ([#29](https://github.com/Linyeir/teahouse/issues/29))
+- On narrow screens the World view squeezed the file list and the overview into the window's height, so they overlapped or were cramped. The page scrolls as a whole again. In a long file list on any screen, the entries no longer shrink. ([#28](https://github.com/Linyeir/teahouse/issues/28))
+
 ## [0.3.3] - 2026-10-10
 
 **Updating:** apps and server can be updated in any order. A 0.3.3 app works with 0.3.1 and 0.3.2 servers. On Android 17, the app asks once for access to the local network (Android calls it "Nearby devices"); allow it if your server is at home.
@@ -104,6 +118,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.3.4]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.1

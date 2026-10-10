@@ -9,7 +9,7 @@ import type {
 } from '@teahouse/shared';
 import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
 import { api } from '../api.ts';
 import { BeatsText, formatStory, messageBeats } from '../components/Beats.tsx';
@@ -153,6 +153,13 @@ export function ChatView() {
   return (
     <>
       <header className={styles.header}>
+        <Link
+          className={`${ui.ghost} ${ui.phoneOnly} ${styles.back}`}
+          to="/"
+          aria-label={t('nav.chats')}
+        >
+          ‹
+        </Link>
         <h2 className={styles.title}>{data.chat.title}</h2>
         <button
           className={ui.ghost}

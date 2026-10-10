@@ -1,0 +1,18 @@
+.chat {
+  text-decoration: none;
+}
+
+.chat > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat::after {
+  content: "›";
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+}

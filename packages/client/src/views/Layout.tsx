@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import type { Chat } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useMatch } from 'react-router';
 import { api } from '../api.ts';
 import { OfflineDiagnosis } from '../components/ServerDiagnosis.tsx';
+import { ChatsIcon, ProfilesIcon, SettingsIcon, WorldsIcon } from '../components/TabIcons.tsx';
 import type { ConnectionState } from '../events.ts';
 import { dismissNotice, useNotices } from '../notices.ts';
 import { useOnline } from '../offline.ts';
@@ -17,9 +18,11 @@ export function Layout({ connection }: { connection: ConnectionState }) {
   const notices = useNotices();
   // Stays until a check after a reconnect finds a fitting server.
   const mismatch = versionMessage(useServerVersion());
+  // On phones a chat takes the whole screen; its header leads back.
+  const inChat = useMatch('/chats/:chatId') !== null;
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${inChat ? styles.inChat : ''}`}>
       <aside className={styles.sidebar}>
         <h1 className={styles.brand}>
           <img className={styles.logo} src="/favicon.svg" alt="" />
@@ -81,6 +84,24 @@ export function Layout({ connection }: { connection: ConnectionState }) {
           <Outlet />
         </div>
       </main>
+      <nav className={styles.tabs}>
+        <NavLink className={styles.tab} to="/" end>
+          <ChatsIcon />
+          {t('nav.chats')}
+        </NavLink>
+        <NavLink className={styles.tab} to="/worlds">
+          <WorldsIcon />
+          {t('nav.worlds')}
+        </NavLink>
+        <NavLink className={styles.tab} to="/profiles">
+          <ProfilesIcon />
+          {t('nav.profiles')}
+        </NavLink>
+        <NavLink className={styles.tab} to="/settings">
+          <SettingsIcon />
+          {t('nav.settings')}
+        </NavLink>
+      </nav>
     </div>
   );
 }
