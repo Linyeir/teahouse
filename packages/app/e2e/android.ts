@@ -364,10 +364,18 @@ class Page {
 }
 
 /** Taps a native element (a system dialog, the settings) by its text. */
-/** The centre of the first native element whose text matches, or null. */
-function findNative(text: RegExp): [number, number] | null {
-  shell('uiautomator dump /sdcard/e2e-ui.xml');
-  const xml = shell('cat /sdcard/e2e-ui.xml');
+/**
+ * The centre of the first native element whose text matches, null when there is none, or
+ * undefined when the screen could not be read (uiautomator fails while the UI is busy).
+ */
+function findNative(text: RegExp): [number, number] | null | undefined {
+  let xml: string;
+  try {
+    shell('uiautomator dump /sdcard/e2e-ui.xml');
+    xml = shell('cat /sdcard/e2e-ui.xml');
+  } catch {
+    return undefined;
+  }
   for (const node of xml.matchAll(/<node [^>]*>/g)) {
     const label = /text="([^"]*)"/.exec(node[0])?.[1] ?? '';
     const bounds = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0]);
@@ -388,8 +396,8 @@ async function tapNative(text: RegExp, timeoutMs = 20_000) {
   await until(`"${text.source}" on the device`, () => findNative(text), timeoutMs);
   while (Date.now() < end) {
     const target = findNative(text);
-    if (!target) return;
-    shell(`input tap ${target[0]} ${target[1]}`);
+    if (target === null) return;
+    if (target) shell(`input tap ${target[0]} ${target[1]}`);
     await sleep(1000);
   }
   throw new Error(`"${text.source}" is still on the device after tapping it`);
@@ -423,6 +431,17 @@ async function diagnostics() {
   const section = (title: string, text: string) =>
     console.log(`\n--- ${title}\n${text.trim() || '(nothing)'}`);
   section('HTTPS front', JSON.stringify(front.seen, null, 2));
+  try {
+    section(
+      'local network permission',
+      shell(`dumpsys package ${APP}`)
+        .split('\n')
+        .filter((line) => line.includes('ACCESS_LOCAL_NETWORK: granted'))
+        .join('\n'),
+    );
+  } catch (err) {
+    section('local network permission', `unavailable: ${err}`);
+  }
   section('webview console', consoleLog.slice(-40).join('\n'));
   try {
     section('page text', ((await page?.text()) ?? '').slice(0, 2000));
@@ -623,7 +642,12 @@ try {
     ),
   );
   check(true, 'the app opens its settings page');
-  shell(`pm grant ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
+  // What the user does there: allow "Nearby devices", then go back to the app. On a slow
+  // emulator the settings page may still be opening, so check that the grant took.
+  await until('the permission to be granted', () => {
+    shell(`pm grant ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
+    return permission() === 'true';
+  });
   shell(`monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
   await until(
     'the app to reconnect',

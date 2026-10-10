@@ -203,6 +203,21 @@ jobs:
       - uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
+      # A 1.5 GB system image and the emulator's data need more room than the runner leaves;
+      # a full disk shows up as a corrupted download. Tools this job does not use make room.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+      # Downloaded once, then restored, which also spares the download's occasional failures.
+      - name: Cache the emulator and system image
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}/emulator
+            ${{ env.ANDROID_HOME }}/system-images/android-37.0/google_apis/x86_64
+          key: android-emulator-37.0-google_apis-x86_64-v1
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
