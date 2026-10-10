@@ -122,3 +122,53 @@ pub fn https_capture_server(
     });
     (port, receiver)
 }
+
+/// A WebSocket server over TLS for one connection. It greets with "hello", answers "x" with
+/// "echo:x", closes with 4401 when it gets "close-me" (as Teahouse signs a device out), and
+/// reports "closed by client" when the client closes.
+pub fn wss_server(
+    cert: CertificateDer<'static>,
+    key: &KeyPair,
+) -> (u16, std::sync::mpsc::Receiver<String>) {
+    use tungstenite::Message;
+    use tungstenite::protocol::CloseFrame;
+    use tungstenite::protocol::frame::coding::CloseCode;
+
+    let config = server_config(cert, key);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let Ok((tcp, _)) = listener.accept() else {
+            return;
+        };
+        let conn = ServerConnection::new(config).unwrap();
+        let Ok(mut socket) = tungstenite::accept(rustls::StreamOwned::new(conn, tcp)) else {
+            return;
+        };
+        let _ = socket.send(Message::text("hello"));
+        loop {
+            match socket.read() {
+                Ok(Message::Text(text)) if text.as_str() == "close-me" => {
+                    let _ = socket.close(Some(CloseFrame {
+                        code: CloseCode::from(4401),
+                        reason: "signed out".into(),
+                    }));
+                    while socket.read().is_ok() {}
+                    return;
+                }
+                Ok(Message::Text(text)) => {
+                    let _ = socket.send(Message::text(format!("echo:{text}")));
+                }
+                Ok(Message::Close(_)) => {
+                    let _ = sender.send("closed by client".to_owned());
+                    while socket.read().is_ok() {}
+                    return;
+                }
+                Ok(_) => {}
+                Err(_) => return,
+            }
+        }
+    });
+    (port, receiver)
+}

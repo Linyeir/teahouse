@@ -8,11 +8,17 @@ use std::path::PathBuf;
 
 use url::Url;
 
-/// `https://host:port` (port always included), the key pins are stored under.
+/// `https://host:port` (port always included), the key pins are stored under. A WebSocket
+/// URL maps to the server it belongs to: `wss://` shares the pin of `https://`.
 pub fn origin_of(url: &Url) -> Option<String> {
     let host = url.host_str()?;
     let port = url.port_or_known_default()?;
-    Some(format!("{}://{host}:{port}", url.scheme()))
+    let scheme = match url.scheme() {
+        "wss" => "https",
+        "ws" => "http",
+        other => other,
+    };
+    Some(format!("{scheme}://{host}:{port}"))
 }
 
 /// `AB:CD:…` (as shown to the user) to raw bytes; None for anything else.
@@ -86,6 +92,10 @@ mod tests {
         );
         assert_eq!(origin("https://10.0.0.2:8443/x"), "https://10.0.0.2:8443");
         assert_eq!(origin("https://[::1]:8443"), "https://[::1]:8443");
+        assert_eq!(
+            origin("wss://teahouse.lan/api/ws"),
+            "https://teahouse.lan:443"
+        );
     }
 
     #[test]

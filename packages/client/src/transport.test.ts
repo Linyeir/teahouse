@@ -4,14 +4,29 @@ const native = vi.hoisted(() => ({
   app: true,
   calls: [] as unknown[],
   answer: (_request: unknown): unknown => ({ status: 200, headers: [], body: '' }),
+  /** Other commands, by name: the socket ones. */
+  commands: [] as { command: string; args: Record<string, unknown> }[],
+  socketOpen: (): Promise<number> => Promise.resolve(7),
+  channels: [] as { onmessage: (event: unknown) => void }[],
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(async (_command: string, args: { request: unknown }) => {
-    native.calls.push(args.request);
-    const answer = native.answer(args.request);
-    if (answer instanceof Error || (answer as { kind?: string }).kind) throw answer;
-    return answer;
+  Channel: class {
+    onmessage: (event: unknown) => void = () => {};
+    constructor() {
+      native.channels.push(this);
+    }
+  },
+  invoke: vi.fn(async (command: string, args: Record<string, unknown>) => {
+    if (command === 'native_fetch') {
+      native.calls.push(args.request);
+      const answer = native.answer(args.request);
+      if (answer instanceof Error || (answer as { kind?: string }).kind) throw answer;
+      return answer;
+    }
+    native.commands.push({ command, args });
+    if (command === 'native_socket_open') return native.socketOpen();
+    return null;
   }),
 }));
 vi.mock('./platform.ts', () => ({
@@ -21,6 +36,8 @@ vi.mock('./platform.ts', () => ({
 }));
 
 const {
+  NativeSocket,
+  openServerSocket,
   originOf,
   serverFetch,
   setNativeTransport,
@@ -42,6 +59,9 @@ beforeEach(() => {
   });
   native.app = true;
   native.calls = [];
+  native.commands = [];
+  native.channels = [];
+  native.socketOpen = () => Promise.resolve(7);
 });
 
 afterEach(() => {
@@ -149,5 +169,98 @@ describe('serverFetch', () => {
     const response = await serverFetch(`${SERVER}/api/chats/c1`, { method: 'DELETE' });
     expect(response.status).toBe(204);
     expect(response.body).toBeNull();
+  });
+});
+
+describe('NativeSocket', () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const emit = (event: unknown) => native.channels[0]?.onmessage(event);
+  const record = (socket: InstanceType<typeof NativeSocket>) => {
+    const seen: string[] = [];
+    socket.onopen = () => seen.push('open');
+    socket.onmessage = (message) => seen.push(`message:${message.data}`);
+    socket.onclose = (close) => seen.push(`close:${close.code}:${close.reason}`);
+    return seen;
+  };
+
+  it('opens through the app and holds early messages until it is open', async () => {
+    let open: (id: number) => void = () => {};
+    native.socketOpen = () => new Promise((resolve) => (open = resolve));
+    const socket = new NativeSocket('wss://teahouse.lan/api/ws?token=t');
+    const seen = record(socket);
+    expect(native.commands[0]).toMatchObject({
+      command: 'native_socket_open',
+      args: { url: 'wss://teahouse.lan/api/ws?token=t' },
+    });
+    expect(socket.readyState).toBe(WebSocket.CONNECTING);
+
+    emit({ type: 'message', data: 'early' });
+    open(7);
+    await tick();
+    emit({ type: 'message', data: 'later' });
+    expect(seen).toEqual(['open', 'message:early', 'message:later']);
+    expect(socket.readyState).toBe(WebSocket.OPEN);
+  });
+
+  it('passes the close code on, as when a device is signed out', async () => {
+    const socket = new NativeSocket('wss://teahouse.lan/api/ws');
+    const seen = record(socket);
+    await tick();
+    emit({ type: 'close', code: 4401, reason: 'signed out' });
+    expect(seen).toEqual(['open', 'close:4401:signed out']);
+    expect(socket.readyState).toBe(WebSocket.CLOSED);
+  });
+
+  it('sends and closes through the app', async () => {
+    const socket = new NativeSocket('wss://teahouse.lan/api/ws');
+    await tick();
+    socket.send('hi');
+    socket.close();
+    expect(socket.readyState).toBe(WebSocket.CLOSING);
+    expect(native.commands.slice(1)).toEqual([
+      { command: 'native_socket_send', args: { id: 7, data: 'hi' } },
+      { command: 'native_socket_close', args: { id: 7, code: null, reason: null } },
+    ]);
+  });
+
+  it('closes a socket closed while it was still connecting, without opening it', async () => {
+    let open: (id: number) => void = () => {};
+    native.socketOpen = () => new Promise((resolve) => (open = resolve));
+    const socket = new NativeSocket('wss://teahouse.lan/api/ws');
+    const seen = record(socket);
+    socket.close();
+    open(7);
+    await tick();
+    expect(native.commands.at(-1)).toEqual({
+      command: 'native_socket_close',
+      args: { id: 7, code: null, reason: null },
+    });
+    expect(seen).not.toContain('open');
+    expect(() => socket.send('late')).toThrow();
+  });
+
+  it('reports a failed open as an abnormal close', async () => {
+    native.socketOpen = () =>
+      Promise.reject({ kind: 'untrusted', certificate: { sha256: 'AB' }, pinned: false });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const socket = new NativeSocket('wss://teahouse.lan/api/ws');
+    const seen = record(socket);
+    await tick();
+    expect(seen).toEqual(['close:1006:']);
+    expect(warn.mock.calls[0]?.[1]).toBeInstanceOf(UntrustedCertificateError);
+    warn.mockRestore();
+  });
+
+  it('is used only for servers switched to the native transport', () => {
+    const fake = vi.fn();
+    vi.stubGlobal(
+      'WebSocket',
+      Object.assign(fake, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 }),
+    );
+    openServerSocket('wss://teahouse.lan/api/ws');
+    expect(fake).toHaveBeenCalledWith('wss://teahouse.lan/api/ws');
+    setNativeTransport('https://teahouse.lan', true);
+    expect(openServerSocket('wss://teahouse.lan/api/ws')).toBeInstanceOf(NativeSocket);
+    expect(fake).toHaveBeenCalledTimes(1);
   });
 });

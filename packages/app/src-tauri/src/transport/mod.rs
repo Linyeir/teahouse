@@ -5,6 +5,7 @@
 //! platform: the platform's verifier first, then the pin (verifier.rs).
 
 mod pins;
+mod socket;
 mod verifier;
 
 use std::collections::HashMap;
@@ -23,9 +24,12 @@ use url::Url;
 
 use crate::probe::{Certificate, describe};
 use pins::{Pins, origin_of, parse_fingerprint};
+pub use socket::SocketEvent;
+use socket::{Outgoing, Sockets};
 use verifier::PinningVerifier;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,10 +78,13 @@ fn invalid(message: impl ToString) -> FetchError {
     }
 }
 
-/// One client per origin, rebuilt when its pin changes.
+/// One client per origin, rebuilt when its pin changes. Requests and the WebSocket share its
+/// TLS config and verifier.
+#[derive(Clone)]
 struct OriginClient {
     pin: Option<[u8; 32]>,
     client: reqwest::Client,
+    tls: Arc<ClientConfig>,
     verifier: Arc<PinningVerifier>,
 }
 
@@ -86,6 +93,7 @@ pub struct Transport {
     platform: Arc<dyn ServerCertVerifier>,
     pins: Mutex<Pins>,
     clients: Mutex<HashMap<String, OriginClient>>,
+    sockets: Sockets,
 }
 
 // Not set up on Android yet: the platform verifier needs its Kotlin component there first.
@@ -108,17 +116,15 @@ impl Transport {
             platform,
             pins: Mutex::new(Pins::load(pins_file)),
             clients: Mutex::new(HashMap::new()),
+            sockets: Sockets::default(),
         }
     }
 
-    fn client_for(
-        &self,
-        origin: &str,
-    ) -> Result<(reqwest::Client, Arc<PinningVerifier>), FetchError> {
+    fn client_for(&self, origin: &str) -> Result<OriginClient, FetchError> {
         let pin = self.pins.lock().map_err(invalid)?.get(origin);
         let mut clients = self.clients.lock().map_err(invalid)?;
         if let Some(existing) = clients.get(origin).filter(|c| c.pin == pin) {
-            return Ok((existing.client.clone(), existing.verifier.clone()));
+            return Ok(existing.clone());
         }
         let verifier = Arc::new(PinningVerifier::new(
             self.platform.clone(),
@@ -132,19 +138,18 @@ impl Transport {
             .with_custom_certificate_verifier(verifier.clone())
             .with_no_client_auth();
         let client = reqwest::Client::builder()
-            .use_preconfigured_tls(tls)
+            .use_preconfigured_tls(tls.clone())
             .timeout(TIMEOUT)
             .build()
             .map_err(invalid)?;
-        clients.insert(
-            origin.to_owned(),
-            OriginClient {
-                pin,
-                client: client.clone(),
-                verifier: verifier.clone(),
-            },
-        );
-        Ok((client, verifier))
+        let origin_client = OriginClient {
+            pin,
+            client,
+            tls: Arc::new(tls),
+            verifier,
+        };
+        clients.insert(origin.to_owned(), origin_client.clone());
+        Ok(origin_client)
     }
 
     pub async fn fetch(&self, request: NativeRequest) -> Result<NativeResponse, FetchError> {
@@ -153,7 +158,9 @@ impl Transport {
             return Err(invalid("only https addresses go through the app"));
         }
         let origin = origin_of(&url).ok_or_else(|| invalid("the address has no host"))?;
-        let (client, verifier) = self.client_for(&origin)?;
+        let OriginClient {
+            client, verifier, ..
+        } = self.client_for(&origin)?;
 
         let method = reqwest::Method::from_bytes(request.method.as_bytes()).map_err(invalid)?;
         let mut builder = client.request(method, url.clone());
@@ -166,7 +173,7 @@ impl Transport {
 
         let response = match builder.send().await {
             Ok(response) => response,
-            Err(err) => return Err(self.explain(err, &url, &verifier)),
+            Err(err) => return Err(explain(&err, &url, &verifier)),
         };
         let status = response.status().as_u16();
         let headers = response
@@ -184,27 +191,51 @@ impl Transport {
         })
     }
 
-    /// A failed request: an untrusted certificate when the verifier rejected one, else the
-    /// network error.
-    fn explain(&self, err: reqwest::Error, url: &Url, verifier: &PinningVerifier) -> FetchError {
-        let rejected = verifier.take_rejected();
-        let server_name = url
-            .host_str()
-            .map(|host| {
-                host.trim_start_matches('[')
-                    .trim_end_matches(']')
-                    .to_owned()
-            })
-            .and_then(|host| ServerName::try_from(host).ok());
-        match (rejected, server_name) {
-            (Some(der), Some(server_name)) => FetchError::Untrusted {
-                certificate: describe(&der, &server_name),
-                pinned: verifier.pin().is_some(),
-            },
-            _ => FetchError::Network {
-                message: error_chain(&err),
-            },
+    /// Opens a WebSocket to `url` (wss) and runs it; `on_event` gets its messages and, last,
+    /// its close. Resolves once the connection is open, with the id for sending and closing.
+    pub async fn open_socket(
+        &self,
+        url: &str,
+        on_event: impl Fn(SocketEvent) + Send + 'static,
+    ) -> Result<u32, FetchError> {
+        let url = Url::parse(url).map_err(invalid)?;
+        if url.scheme() != "wss" {
+            return Err(invalid("only wss addresses go through the app"));
         }
+        let origin = origin_of(&url).ok_or_else(|| invalid("the address has no host"))?;
+        let OriginClient { tls, verifier, .. } = self.client_for(&origin)?;
+        let connect = tokio_tungstenite::connect_async_tls_with_config(
+            url.as_str(),
+            None,
+            true,
+            Some(tokio_tungstenite::Connector::Rustls(tls)),
+        );
+        let (stream, _) = match tokio::time::timeout(CONNECT_TIMEOUT, connect).await {
+            Ok(Ok(connected)) => connected,
+            Ok(Err(err)) => return Err(explain(&err, &url, &verifier)),
+            Err(_) => {
+                return Err(FetchError::Network {
+                    message: "timed out connecting".into(),
+                });
+            }
+        };
+        Ok(self.sockets.run(stream, on_event))
+    }
+
+    pub fn send_socket(&self, id: u32, data: String) -> Result<(), String> {
+        self.sockets.send(id, Outgoing::Text(data))
+    }
+
+    pub fn close_socket(
+        &self,
+        id: u32,
+        code: Option<u16>,
+        reason: Option<String>,
+    ) -> Result<(), String> {
+        self.sockets.send(
+            id,
+            Outgoing::Close(code.unwrap_or(1000), reason.unwrap_or_default()),
+        )
     }
 
     /// Trusts the certificate with this fingerprint for `server`'s origin from now on.
@@ -252,6 +283,29 @@ pub struct Pin {
     sha256: String,
 }
 
+/// A failed connection: an untrusted certificate when the verifier rejected one, else the
+/// network error.
+fn explain(err: &dyn std::error::Error, url: &Url, verifier: &PinningVerifier) -> FetchError {
+    let rejected = verifier.take_rejected();
+    let server_name = url
+        .host_str()
+        .map(|host| {
+            host.trim_start_matches('[')
+                .trim_end_matches(']')
+                .to_owned()
+        })
+        .and_then(|host| ServerName::try_from(host).ok());
+    match (rejected, server_name) {
+        (Some(der), Some(server_name)) => FetchError::Untrusted {
+            certificate: describe(&der, &server_name),
+            pinned: verifier.pin().is_some(),
+        },
+        _ => FetchError::Network {
+            message: error_chain(err),
+        },
+    }
+}
+
 /// reqwest's own message is only "error sending request"; the causes say what happened.
 fn error_chain(err: &dyn std::error::Error) -> String {
     let mut message = err.to_string();
@@ -270,6 +324,38 @@ pub async fn native_fetch(
     request: NativeRequest,
 ) -> Result<NativeResponse, FetchError> {
     transport.fetch(request).await
+}
+
+#[tauri::command]
+pub async fn native_socket_open(
+    transport: tauri::State<'_, Transport>,
+    url: String,
+    on_event: tauri::ipc::Channel<SocketEvent>,
+) -> Result<u32, FetchError> {
+    transport
+        .open_socket(&url, move |event| {
+            let _ = on_event.send(event);
+        })
+        .await
+}
+
+#[tauri::command]
+pub fn native_socket_send(
+    transport: tauri::State<'_, Transport>,
+    id: u32,
+    data: String,
+) -> Result<(), String> {
+    transport.send_socket(id, data)
+}
+
+#[tauri::command]
+pub fn native_socket_close(
+    transport: tauri::State<'_, Transport>,
+    id: u32,
+    code: Option<u16>,
+    reason: Option<String>,
+) -> Result<(), String> {
+    transport.close_socket(id, code, reason)
 }
 
 #[tauri::command]
@@ -295,7 +381,7 @@ pub fn list_pins(transport: tauri::State<'_, Transport>) -> Vec<Pin> {
 mod tests {
     use super::*;
     use crate::probe::fingerprint;
-    use crate::test_tls::{https_capture_server, https_server, params};
+    use crate::test_tls::{https_capture_server, https_server, params, wss_server};
     use rcgen::{BasicConstraints, CertifiedIssuer, IsCa, KeyPair, date_time_ymd};
 
     const OK: &str = "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 11\r\nconnection: close\r\n\r\n{\"ok\":true}";
@@ -578,6 +664,117 @@ mod tests {
         assert!(raw.ends_with(body.as_bytes()), "{text}");
     }
 
+    /// A transport and its socket events for a pinned self-signed WebSocket server.
+    async fn pinned_socket(
+        name: &str,
+    ) -> (
+        Transport,
+        u32,
+        tokio::sync::mpsc::UnboundedReceiver<SocketEvent>,
+        std::sync::mpsc::Receiver<String>,
+    ) {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let (port, server) = wss_server(cert.der().clone(), &key);
+        let transport = transport(vec![], name);
+        transport
+            .pin(
+                &format!("https://127.0.0.1:{port}"),
+                &fingerprint(cert.der()),
+            )
+            .unwrap();
+        let (sender, events) = tokio::sync::mpsc::unbounded_channel();
+        let id = transport
+            .open_socket(
+                &format!("wss://127.0.0.1:{port}/api/ws?token=t"),
+                move |event| {
+                    let _ = sender.send(event);
+                },
+            )
+            .await
+            .unwrap();
+        (transport, id, events, server)
+    }
+
+    async fn next(events: &mut tokio::sync::mpsc::UnboundedReceiver<SocketEvent>) -> SocketEvent {
+        tokio::time::timeout(Duration::from_secs(5), events.recv())
+            .await
+            .expect("an event within 5 s")
+            .expect("the socket to send an event")
+    }
+
+    fn message(data: &str) -> SocketEvent {
+        SocketEvent::Message { data: data.into() }
+    }
+
+    #[tokio::test]
+    async fn socket_carries_messages_both_ways_and_the_close_code() {
+        let (transport, id, mut events, _) = pinned_socket("socket").await;
+        assert_eq!(next(&mut events).await, message("hello"));
+        transport.send_socket(id, "ping".into()).unwrap();
+        assert_eq!(next(&mut events).await, message("echo:ping"));
+        // The server signs the device out.
+        transport.send_socket(id, "close-me".into()).unwrap();
+        assert_eq!(
+            next(&mut events).await,
+            SocketEvent::Close {
+                code: 4401,
+                reason: "signed out".into()
+            }
+        );
+        assert!(transport.send_socket(id, "late".into()).is_err());
+    }
+
+    #[tokio::test]
+    async fn closing_a_socket_tells_the_server() {
+        let (transport, id, mut events, server) = pinned_socket("close").await;
+        assert_eq!(next(&mut events).await, message("hello"));
+        transport.close_socket(id, None, None).unwrap();
+        assert_eq!(
+            next(&mut events).await,
+            SocketEvent::Close {
+                code: 1000,
+                reason: String::new()
+            }
+        );
+        assert_eq!(
+            server.recv_timeout(Duration::from_secs(5)).unwrap(),
+            "closed by client"
+        );
+    }
+
+    #[tokio::test]
+    async fn socket_to_an_untrusted_server_is_refused() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let (port, _) = wss_server(cert.der().clone(), &key);
+        let result = transport(vec![], "socket-untrusted")
+            .open_socket(&format!("wss://127.0.0.1:{port}/api/ws"), |_| {})
+            .await;
+        match result {
+            Err(FetchError::Untrusted {
+                certificate,
+                pinned,
+            }) => {
+                assert_eq!(certificate.sha256, fingerprint(cert.der()));
+                assert!(!pinned);
+            }
+            other => panic!("expected an untrusted certificate, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn only_wss_sockets_go_through_the_app() {
+        let transport = transport(vec![], "socket-ws");
+        assert!(matches!(
+            transport
+                .open_socket("ws://127.0.0.1:1/api/ws", |_| {})
+                .await,
+            Err(FetchError::InvalidRequest { .. })
+        ));
+        assert!(transport.send_socket(99, "nobody".into()).is_err());
+    }
+
     /// The JSON shapes packages/client/src/transport.ts sends and expects.
     #[test]
     fn json_matches_the_client() {
@@ -617,6 +814,18 @@ mod tests {
         assert_eq!(untrusted["pinned"], true);
         assert_eq!(untrusted["certificate"]["selfSigned"], true);
         assert_eq!(untrusted["certificate"]["matchesHost"], true);
+        assert_eq!(
+            serde_json::to_value(message("x")).unwrap(),
+            serde_json::json!({ "type": "message", "data": "x" })
+        );
+        assert_eq!(
+            serde_json::to_value(SocketEvent::Close {
+                code: 4401,
+                reason: "out".into()
+            })
+            .unwrap(),
+            serde_json::json!({ "type": "close", "code": 4401, "reason": "out" })
+        );
         let network = serde_json::to_value(FetchError::Network {
             message: "refused".into(),
         })

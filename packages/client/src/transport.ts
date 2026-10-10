@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import type { Certificate } from './diagnose.ts';
 import { isApp } from './platform.ts';
 
@@ -11,11 +11,14 @@ import { isApp } from './platform.ts';
 
 const NATIVE_KEY = 'teahouse.native';
 
-/** `https://host:port` with the port always given, as the app keys its pins. */
+/**
+ * `https://host:port` with the port always given, as the app keys its pins. A `wss://` URL
+ * belongs to the same server as `https://`.
+ */
 export function originOf(server: string): string | null {
   try {
     const url = new URL(server);
-    if (url.protocol !== 'https:') return null;
+    if (url.protocol !== 'https:' && url.protocol !== 'wss:') return null;
     return `https://${url.hostname}:${url.port || '443'}`;
   } catch {
     return null;
@@ -125,4 +128,87 @@ function fromBase64(text: string): Uint8Array<ArrayBuffer> {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
+}
+
+type SocketEvent =
+  | { type: 'message'; data: string }
+  | { type: 'close'; code: number; reason: string };
+
+/**
+ * A WebSocket through the app, with the parts of the WebSocket interface the client uses.
+ * Messages that arrive before the open is confirmed are held back, as a browser would.
+ */
+export class NativeSocket {
+  readyState: number = WebSocket.CONNECTING;
+  onopen: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  #id: number | null = null;
+  #closeWith: { code?: number; reason?: string } | null = null;
+  #early: string[] = [];
+
+  constructor(url: string) {
+    const channel = new Channel<SocketEvent>();
+    channel.onmessage = (event) => {
+      if (event.type === 'close') {
+        this.#closed(event.code, event.reason);
+      } else if (this.readyState === WebSocket.CONNECTING) {
+        this.#early.push(event.data);
+      } else if (this.readyState === WebSocket.OPEN) {
+        this.onmessage?.(new MessageEvent('message', { data: event.data }));
+      }
+    };
+    invoke<number>('native_socket_open', { url, onEvent: channel }).then(
+      (id) => {
+        this.#id = id;
+        if (this.#closeWith) {
+          this.#sendClose();
+          return;
+        }
+        if (this.readyState !== WebSocket.CONNECTING) return;
+        this.readyState = WebSocket.OPEN;
+        this.onopen?.(new Event('open'));
+        for (const data of this.#early.splice(0)) {
+          this.onmessage?.(new MessageEvent('message', { data }));
+        }
+      },
+      (err: unknown) => {
+        console.warn('WebSocket through the app failed:', toError(err));
+        this.#closed(1006, '');
+      },
+    );
+  }
+
+  send(data: string): void {
+    if (this.readyState !== WebSocket.OPEN || this.#id === null) {
+      throw new DOMException('The socket is not open', 'InvalidStateError');
+    }
+    void invoke('native_socket_send', { id: this.#id, data }).catch(() => this.#closed(1006, ''));
+  }
+
+  close(code?: number, reason?: string): void {
+    if (this.readyState === WebSocket.CLOSING || this.readyState === WebSocket.CLOSED) return;
+    this.readyState = WebSocket.CLOSING;
+    this.#closeWith = { code, reason };
+    if (this.#id !== null) this.#sendClose();
+  }
+
+  #sendClose(): void {
+    void invoke('native_socket_close', {
+      id: this.#id,
+      code: this.#closeWith?.code ?? null,
+      reason: this.#closeWith?.reason ?? null,
+    }).catch(() => this.#closed(1006, ''));
+  }
+
+  #closed(code: number, reason: string): void {
+    if (this.readyState === WebSocket.CLOSED) return;
+    this.readyState = WebSocket.CLOSED;
+    this.onclose?.(new CloseEvent('close', { code, reason }));
+  }
+}
+
+/** The server's WebSocket: through the app for servers that need it, else the webview's. */
+export function openServerSocket(url: string): WebSocket | NativeSocket {
+  return usesNativeTransport(url) ? new NativeSocket(url) : new WebSocket(url);
 }
