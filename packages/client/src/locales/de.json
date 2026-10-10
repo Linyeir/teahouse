@@ -46,6 +46,27 @@
     "cameraDenied": "Teahouse braucht die Kamera, um den Code zu scannen. Erlaube sie in den Systemeinstellungen oder füge stattdessen den Link ein.",
     "connectHintScan": "Scanne den Kopplungs-QR-Code, den ein angemeldetes Gerät unter Einstellungen → Gerät koppeln zeigt, oder gib die Serveradresse ein."
   },
+  "server": {
+    "unreachable": "Server nicht erreichbar.",
+    "checking": "Verbindung wird geprüft …",
+    "reachable": "Der Server antwortet wieder. Versuch es noch einmal.",
+    "gateway": "Der Reverse Proxy antwortet, aber der Teahouse-Server dahinter nicht. Prüfe, ob Teahouse läuft.",
+    "blocked": "Der Server antwortet, aber die App darf die Antwort nicht lesen. Vermutlich leitet ein Reverse Proxy vor Teahouse die App um (etwa auf eine Anmeldeseite) oder entfernt die CORS-Header.",
+    "down": "Unter %{server} antwortet nichts. Prüfe die Adresse, ob der Server läuft und ob dieses Gerät im selben Netzwerk oder VPN ist.",
+    "tlsFailed": "%{server} antwortet nicht mit einer sicheren Verbindung. Läuft der Server ohne HTTPS, gib die Adresse mit http:// ein.",
+    "untrusted": "Der Server antwortet, aber dieses Gerät vertraut seinem Zertifikat nicht:",
+    "certExpired": "Das Zertifikat ist am %{date} abgelaufen.",
+    "certNotYetValid": "Das Zertifikat gilt erst ab %{date}. Prüfe Datum und Uhrzeit dieses Geräts.",
+    "certWrongHost": "Das Zertifikat ist nicht für %{host} ausgestellt. Verbinde dich über einen Namen, den es enthält, oder stelle ein neues aus.",
+    "certSelfSigned": "Das Zertifikat ist selbstsigniert. Installiere es auf diesem Gerät als vertrauenswürdiges CA-Zertifikat oder ersetze es durch eines deiner eigenen CA oder ein öffentliches (siehe Anleitung unten).",
+    "certUnknownCa": "Es stammt von einer CA, die dieses Gerät nicht kennt. Installiere diese CA im Zertifikatsspeicher des Systems und starte Teahouse dann neu.",
+    "certUnknownCaAndroid": "Es stammt von einer CA, die dieses Gerät nicht kennt. Installiere die CA unter Einstellungen → Sicherheit → Verschlüsselung und Anmeldedaten → Zertifikat installieren → CA-Zertifikat (der Weg unterscheidet sich je nach Handy) und starte Teahouse dann neu.",
+    "certSubject": "Ausgestellt für",
+    "certIssuer": "Ausgestellt von",
+    "certValidity": "Gültig",
+    "certFingerprint": "SHA-256-Fingerabdruck",
+    "httpsDocs": "HTTPS für Teahouse einrichten"
+  },
   "chats": {
     "empty": "Noch keine Chats.",
     "pick": "Wähle einen Chat oder beginne einen neuen.",

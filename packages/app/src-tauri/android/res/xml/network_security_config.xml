@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Trusts CAs the user installed on the phone, not only the system's, so a server with a
+  certificate from a private CA (mkcert, step-ca) works once its CA is installed. Android
+  ignores user CAs since 7.0 unless an app opts in here.
+  Plain HTTP stays allowed for servers on the LAN: with this file present, Android ignores
+  android:usesCleartextTraffic in the manifest.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+      <certificates src="user" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>

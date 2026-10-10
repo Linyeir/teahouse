@@ -60,7 +60,7 @@ docker compose up -d
 
 This builds the image from the checkout. Each release is also published as a ready image for amd64 and arm64, `ghcr.io/linyeir/teahouse:latest` (or a version such as `:0.3`), which you can put in `compose.yaml` as `image:` instead of `build: .`.
 
-Open http://localhost:8787, choose a password, then add a profile under **Profiles**. Data lives in the `teahouse-data` volume. Put Teahouse behind a reverse proxy with HTTPS or Tailscale before exposing it.
+Open http://localhost:8787, choose a password, then add a profile under **Profiles**. Data lives in the `teahouse-data` volume. Put Teahouse behind a reverse proxy with HTTPS or Tailscale before exposing it; [docs/https.md](docs/https.md) explains the options and what the devices need for each.
 
 ## Devices and pairing
 
@@ -85,11 +85,11 @@ pnpm app:dev      # desktop app against the Vite dev server
 pnpm app:build    # installers in packages/app/src-tauri/target/release/bundle/
 ```
 
-For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once, copy `packages/app/src-tauri/icons/android/` into `packages/app/src-tauri/gen/android/app/src/main/res/` (init writes Tauri's default icons), and `pnpm --filter @teahouse/app tauri android build --debug --apk`.
+For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once, followed by `packages/app/src-tauri/android/overlay.sh`, which adds the app's icons and its trust in CAs installed on the phone to the generated project, and build with `pnpm --filter @teahouse/app tauri android build --debug --apk`.
 
 **Releasing:** set the version in `packages/app/src-tauri/tauri.conf.json` and `Cargo.toml`, merge, then push `main` to the `release` branch: `git push origin main:release`. The Apps workflow builds everything and creates a draft release named after the version in `tauri.conf.json`, for example `v0.3.1`, with all files attached. Further pushes with the same version update the draft. If that version is already published, the workflow fails, so bump the version first. For a hotfix to an older version, branch from its tag. The Android build needs the signing key in the repository secret `ANDROID_KEYSTORE_BASE64` (base64 of the keystore) and fails without it. Lint, typecheck and tests must pass too. Check the draft under Releases and publish it, which also creates the tag and starts the Docker workflow, which pushes the server image to `ghcr.io/linyeir/teahouse`.
 
-A server on your LAN can be reached over plain HTTP (the Android debug build allows it explicitly). Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet.
+A server on your LAN can be reached over plain HTTP. Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet. The apps trust the certificates the system trusts, including a CA of your own installed on the device (on Android too). If an app cannot connect, it says why and shows the certificate it got. See [docs/https.md](docs/https.md).
 
 ## Offline and sync
 

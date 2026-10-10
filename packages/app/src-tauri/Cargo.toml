@@ -20,6 +20,14 @@ tauri-build = { version = "2.7.1", features = [] }
 tauri = { version = "2.12.1", features = [] }
 tauri-plugin-log = "2"
 log = "0.4"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+# Diagnosing certificate errors (probe.rs). ring rather than aws-lc-rs, which needs CMake and
+# NASM on Windows and is harder to build for Android.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+x509-parser = "0.18"
+sha2 = "0.10"
+url = "2"
 
 # Pairing by QR code: the camera is only used on phones.
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]

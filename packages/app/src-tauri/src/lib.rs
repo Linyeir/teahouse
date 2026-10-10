@@ -1,9 +1,13 @@
 //! The Teahouse apps are a shell around the web client (packages/client). All data lives on
 //! the user's server; the client keeps its local copy in the webview's IndexedDB.
 
+mod probe;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![probe::probe_server]);
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     builder

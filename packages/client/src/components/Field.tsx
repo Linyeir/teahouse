@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { NetworkError } from '../offline.ts';
+import { NetworkErrorText } from './ServerDiagnosis.tsx';
 import ui from './ui.module.css';
 
 export function Field({
@@ -22,5 +24,6 @@ export function Field({
 
 export function ErrorText({ error }: { error: unknown }) {
   if (!error) return null;
+  if (error instanceof NetworkError) return <NetworkErrorText error={error} />;
   return <p className={ui.error}>{error instanceof Error ? error.message : String(error)}</p>;
 }
