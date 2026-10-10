@@ -35,3 +35,6 @@ tauri-plugin-barcode-scanner = "2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-local-network = { path = "plugins/local-network" }
+
+[dev-dependencies]
+rcgen = "0.14"

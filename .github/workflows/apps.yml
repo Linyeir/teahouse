@@ -175,12 +175,60 @@ jobs:
           path: packages/app/src-tauri/gen/android/app/build/outputs/apk/x86_64/**/*.apk
           if-no-files-found: error
 
+  # The Android app on an Android 17 emulator: the local network permission, and a server
+  # whose certificate comes from a private CA (packages/app/e2e/android.ts). Uses the x86_64
+  # APK built above, a debug build, so the test can drive its webview.
+  android-e2e:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # The test starts its own Teahouse server.
+      - run: pnpm install --frozen-lockfile --filter "@teahouse/server..."
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # google_apis rather than google_apis_playstore: the test needs adb root to install a
+      # CA into the user store the way Settings does.
+      - name: Start an Android 17 emulator
+        run: |
+          image="system-images;android-37.0;google_apis;x86_64"
+          sdkmanager --install emulator "$image" > /dev/null
+          echo no | avdmanager create avd -n e2e -k "$image"
+          nohup "$ANDROID_HOME/emulator/emulator" -avd e2e -no-window -no-audio -no-snapshot \
+            -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          adb wait-for-device
+          timeout 600 sh -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 5; done'
+      - uses: actions/download-artifact@v4
+        with:
+          name: teahouse-android-x86_64
+          path: apk
+      - run: node packages/app/e2e/android.ts "$(find apk -name '*.apk' | head -1)"
+      - name: Emulator log
+        if: failure()
+        run: tail -200 "$RUNNER_TEMP/emulator.log"
+
   # For the release branch: collect every build into a draft release, to be reviewed and
   # published by hand. Publishing creates the tag. Later pushes with the same version update
   # the draft. A version that is already published fails, so it has to be bumped first.
   release:
     if: github.ref == 'refs/heads/release'
-    needs: [checks, desktop, android]
+    needs: [checks, desktop, android, android-e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write
