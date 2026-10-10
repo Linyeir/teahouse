@@ -79,3 +79,46 @@ pub fn https_server(
     });
     port
 }
+
+/// An HTTPS server for one request that answers with `response` and hands the raw request
+/// (head and body) to the test.
+pub fn https_capture_server(
+    cert: CertificateDer<'static>,
+    key: &KeyPair,
+    response: &'static str,
+) -> (u16, std::sync::mpsc::Receiver<Vec<u8>>) {
+    let config = server_config(cert, key);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let (mut tcp, _) = listener.accept().unwrap();
+        let mut conn = ServerConnection::new(config).unwrap();
+        let mut tls = rustls::Stream::new(&mut conn, &mut tcp);
+        let mut request = Vec::new();
+        let mut buffer = [0; 4096];
+        loop {
+            if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                let head = String::from_utf8_lossy(&request[..end]).to_lowercase();
+                let length = head
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or(0);
+                if request.len() >= end + 4 + length {
+                    break;
+                }
+            }
+            match tls.read(&mut buffer) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => request.extend_from_slice(&buffer[..n]),
+            }
+        }
+        let _ = tls.write_all(response.as_bytes());
+        let _ = tls.flush();
+        let _ = sender.send(request);
+        conn.send_close_notify();
+        let _ = conn.complete_io(&mut tcp);
+    });
+    (port, receiver)
+}

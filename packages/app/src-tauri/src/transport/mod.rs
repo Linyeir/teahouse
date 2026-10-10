@@ -295,7 +295,7 @@ pub fn list_pins(transport: tauri::State<'_, Transport>) -> Vec<Pin> {
 mod tests {
     use super::*;
     use crate::probe::fingerprint;
-    use crate::test_tls::{https_server, params};
+    use crate::test_tls::{https_capture_server, https_server, params};
     use rcgen::{BasicConstraints, CertifiedIssuer, IsCa, KeyPair, date_time_ymd};
 
     const OK: &str = "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 11\r\nconnection: close\r\n\r\n{\"ok\":true}";
@@ -531,6 +531,100 @@ mod tests {
             200
         );
         assert_eq!(transport.fetch(get(pinned_port)).await.unwrap().status, 200);
+    }
+
+    #[tokio::test]
+    async fn method_headers_and_body_reach_the_server() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let (port, request) = https_capture_server(cert.der().clone(), &key, OK);
+        let transport = transport(vec![], "capture");
+        transport
+            .pin(
+                &format!("https://127.0.0.1:{port}"),
+                &fingerprint(cert.der()),
+            )
+            .unwrap();
+        let body = "--b\r\ncontent-disposition: form-data; name=\"file\"; filename=\"a.png\"\r\n\r\n\u{89}PNG\r\n--b--\r\n";
+
+        let response = transport
+            .fetch(NativeRequest {
+                url: format!("https://127.0.0.1:{port}/api/worlds/w1/backgrounds?x=1"),
+                method: "POST".into(),
+                headers: vec![
+                    ("authorization".into(), "Bearer secret".into()),
+                    (
+                        "content-type".into(),
+                        "multipart/form-data; boundary=b".into(),
+                    ),
+                ],
+                body: Some(BASE64.encode(body)),
+            })
+            .await
+            .unwrap();
+        assert_eq!(response.status, 200);
+
+        let raw = request.recv().unwrap();
+        let text = String::from_utf8_lossy(&raw);
+        assert!(
+            text.starts_with("POST /api/worlds/w1/backgrounds?x=1 HTTP/1.1\r\n"),
+            "{text}"
+        );
+        assert!(text.contains("authorization: Bearer secret\r\n"), "{text}");
+        assert!(
+            text.contains("content-type: multipart/form-data; boundary=b\r\n"),
+            "{text}"
+        );
+        assert!(raw.ends_with(body.as_bytes()), "{text}");
+    }
+
+    /// The JSON shapes packages/client/src/transport.ts sends and expects.
+    #[test]
+    fn json_matches_the_client() {
+        let request: NativeRequest = serde_json::from_str(
+            r#"{"url":"https://a.lan/x","method":"POST","headers":[["content-type","application/json"]],"body":"e30="}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            request.headers,
+            vec![("content-type".to_owned(), "application/json".to_owned())]
+        );
+        assert_eq!(request.body.as_deref(), Some("e30="));
+        let without_body: NativeRequest =
+            serde_json::from_str(r#"{"url":"https://a.lan/x","method":"GET","headers":[]}"#)
+                .unwrap();
+        assert!(without_body.body.is_none());
+
+        let response = serde_json::to_value(NativeResponse {
+            status: 200,
+            headers: vec![("content-type".into(), "application/json".into())],
+            body: "e30=".into(),
+        })
+        .unwrap();
+        assert_eq!(
+            response,
+            serde_json::json!({ "status": 200, "headers": [["content-type", "application/json"]], "body": "e30=" })
+        );
+
+        let key = KeyPair::generate().unwrap();
+        let cert = params("a.lan").self_signed(&key).unwrap();
+        let untrusted = serde_json::to_value(FetchError::Untrusted {
+            certificate: describe(cert.der(), &ServerName::try_from("a.lan").unwrap()),
+            pinned: true,
+        })
+        .unwrap();
+        assert_eq!(untrusted["kind"], "untrusted");
+        assert_eq!(untrusted["pinned"], true);
+        assert_eq!(untrusted["certificate"]["selfSigned"], true);
+        assert_eq!(untrusted["certificate"]["matchesHost"], true);
+        let network = serde_json::to_value(FetchError::Network {
+            message: "refused".into(),
+        })
+        .unwrap();
+        assert_eq!(
+            network,
+            serde_json::json!({ "kind": "network", "message": "refused" })
+        );
     }
 
     #[test]
