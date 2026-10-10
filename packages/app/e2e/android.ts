@@ -18,7 +18,7 @@
  */
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
@@ -192,15 +192,21 @@ function startServer(): ChildProcess {
       TEAHOUSE_PORT: String(HTTP_PORT),
       TEAHOUSE_HOST: '127.0.0.1',
     },
-    stdio: 'ignore',
+    // Kept for the diagnostics printed when a check fails.
+    stdio: [
+      'ignore',
+      openSync(join(work, 'server.log'), 'w'),
+      openSync(join(work, 'server.log'), 'a'),
+    ],
     detached: true,
   });
 }
 
 /** Forwards HTTPS to the server and counts what passes through. */
 function startHttpsFront(key: Buffer, cert: Buffer) {
-  const seen = { webSockets: 0, assets: 0 };
+  const seen = { tls: 0, tlsErrors: [] as string[], requests: 0, webSockets: 0, assets: 0 };
   const server = https.createServer({ key, cert }, (req, res) => {
+    seen.requests++;
     if (req.url?.includes('/assets/')) seen.assets++;
     const upstream = http.request(
       {
@@ -233,6 +239,9 @@ function startHttpsFront(key: Buffer, cert: Buffer) {
     upstream.on('error', () => socket.destroy());
     socket.on('error', () => upstream.destroy());
   });
+  // A client that rejects the certificate never gets as far as a request.
+  server.on('secureConnection', () => seen.tls++);
+  server.on('tlsClientError', (err) => seen.tlsErrors.push(err.message));
   server.listen(HTTPS_PORT, '127.0.0.1');
   const close = () => {
     server.close();
@@ -244,6 +253,9 @@ function startHttpsFront(key: Buffer, cert: Buffer) {
 
 // --- the app: Chrome DevTools protocol for the webview, uiautomator for Android ----------
 
+/** The webview's console messages and uncaught errors, across app restarts. */
+const consoleLog: string[] = [];
+
 class Page {
   private id = 0;
   private pending = new Map<number, (message: { result?: unknown; error?: unknown }) => void>();
@@ -254,9 +266,19 @@ class Page {
     this.socket = socket;
     socket.onmessage = (event) => {
       const message = JSON.parse(String(event.data));
+      if (message.method === 'Runtime.consoleAPICalled') {
+        const args = message.params.args.map(
+          (arg: { value?: unknown; description?: string }) => arg.description ?? String(arg.value),
+        );
+        consoleLog.push(`${message.params.type}: ${args.join(' ')}`);
+      } else if (message.method === 'Runtime.exceptionThrown') {
+        const details = message.params.exceptionDetails;
+        consoleLog.push(`exception: ${details.exception?.description ?? details.text}`);
+      }
       this.pending.get(message.id)?.(message);
       this.pending.delete(message.id);
     };
+    socket.send(JSON.stringify({ id: ++this.id, method: 'Runtime.enable' }));
   }
 
   /** Attaches to the app's webview (debug builds allow it). */
@@ -342,29 +364,52 @@ class Page {
 }
 
 /** Taps a native element (a system dialog, the settings) by its text. */
-async function tapNative(text: RegExp, timeoutMs = 15_000) {
-  const [x, y] = await until(
-    `"${text.source}" on the device`,
-    () => {
-      shell('uiautomator dump /sdcard/e2e-ui.xml');
-      const xml = shell('cat /sdcard/e2e-ui.xml');
-      for (const node of xml.matchAll(/<node [^>]*>/g)) {
-        const label = /text="([^"]*)"/.exec(node[0])?.[1] ?? '';
-        const bounds = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0]);
-        if (bounds && text.test(label.replace(/&apos;/g, "'"))) {
-          const [x1, y1, x2, y2] = bounds.slice(1).map(Number);
-          return [(x1 + x2) >> 1, (y1 + y2) >> 1];
-        }
-      }
-      return null;
-    },
-    timeoutMs,
-  );
-  shell(`input tap ${x} ${y}`);
+/**
+ * The centre of the first native element whose text matches, null when there is none, or
+ * undefined when the screen could not be read (uiautomator fails while the UI is busy).
+ */
+function findNative(text: RegExp): [number, number] | null | undefined {
+  let xml: string;
+  try {
+    shell('uiautomator dump /sdcard/e2e-ui.xml');
+    xml = shell('cat /sdcard/e2e-ui.xml');
+  } catch {
+    return undefined;
+  }
+  for (const node of xml.matchAll(/<node [^>]*>/g)) {
+    const label = /text="([^"]*)"/.exec(node[0])?.[1] ?? '';
+    const bounds = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0]);
+    if (bounds && text.test(label.replace(/&apos;/g, "'"))) {
+      const [x1, y1, x2, y2] = bounds.slice(1).map(Number);
+      return [(x1 + x2) >> 1, (y1 + y2) >> 1];
+    }
+  }
+  return null;
+}
+
+/**
+ * Taps a native element (a system dialog, the settings) by its text. A dialog that is still
+ * animating in ignores taps on a slow emulator, so it taps again until the element is gone.
+ */
+async function tapNative(text: RegExp, timeoutMs = 20_000) {
+  const end = Date.now() + timeoutMs;
+  await until(`"${text.source}" on the device`, () => findNative(text), timeoutMs);
+  while (Date.now() < end) {
+    const target = findNative(text);
+    if (target === null) return;
+    if (target) shell(`input tap ${target[0]} ${target[1]}`);
+    await sleep(1000);
+  }
+  throw new Error(`"${text.source}" is still on the device after tapping it`);
 }
 
 const ALLOW = /^Allow$/;
 const DONT_ALLOW = /^Don.t allow$/;
+
+/** The activity in front, e.g. `io.github.linyeir.teahouse/.MainActivity`. */
+function topActivity(): string {
+  return /topResumedActivity=.*? (\S+\/\S+)/.exec(shell('dumpsys activity activities'))?.[1] ?? '';
+}
 
 function permission(): string {
   return /ACCESS_LOCAL_NETWORK: granted=(\w+)/.exec(shell(`dumpsys package ${APP}`))?.[1] ?? '?';
@@ -385,6 +430,51 @@ const server = startServer();
 const front = startHttpsFront(certs.key, certs.cert);
 const userCa = `/data/misc/user/0/cacerts-added/${certs.caHash}.0`;
 let page: Page | undefined;
+
+/** What a failed run needs explained: printed before the temporary files are gone. */
+async function diagnostics() {
+  const section = (title: string, text: string) =>
+    console.log(`\n--- ${title}\n${text.trim() || '(nothing)'}`);
+  section('HTTPS front', JSON.stringify(front.seen, null, 2));
+  try {
+    section('activity in front', topActivity());
+  } catch (err) {
+    section('activity in front', `unavailable: ${err}`);
+  }
+  try {
+    section(
+      'local network permission',
+      shell(`dumpsys package ${APP}`)
+        .split('\n')
+        .filter((line) => line.includes('ACCESS_LOCAL_NETWORK: granted'))
+        .join('\n'),
+    );
+  } catch (err) {
+    section('local network permission', `unavailable: ${err}`);
+  }
+  section('webview console', consoleLog.slice(-40).join('\n'));
+  try {
+    section('page text', ((await page?.text()) ?? '').slice(0, 2000));
+  } catch (err) {
+    section('page text', `unavailable: ${err}`);
+  }
+  try {
+    section(
+      'server log',
+      readFileSync(join(work, 'server.log'), 'utf8').split('\n').slice(-40).join('\n'),
+    );
+  } catch (err) {
+    section('server log', `unavailable: ${err}`);
+  }
+  try {
+    const logcat = adb('logcat', '-d', '-t', '2000')
+      .split('\n')
+      .filter((line) => /chromium|cr_|ssl|cert|websocket|Tauri|teahouse/i.test(line));
+    section('logcat', logcat.slice(-60).join('\n'));
+  } catch (err) {
+    section('logcat', `unavailable: ${err}`);
+  }
+}
 
 function cleanUp() {
   page?.close();
@@ -415,8 +505,20 @@ try {
   step('Setup');
   const sdk = Number(shell('getprop ro.build.version.sdk'));
   check(sdk >= 37, `the emulator runs Android 17 or later (SDK ${sdk})`);
-  adb('root');
-  await until('adb after root', () => shell('id').includes('uid=0'));
+  // Right after boot adbd may still be restarting and refuse; ask until it runs as root.
+  await until(
+    'adb as root',
+    () => {
+      try {
+        adb('root');
+        adb('wait-for-device');
+      } catch {
+        return false;
+      }
+      return shell('id').includes('uid=0');
+    },
+    60_000,
+  );
   await until(
     'the server',
     async () => (await fetch(`http://127.0.0.1:${HTTP_PORT}/api/auth/status`)).ok,
@@ -444,8 +546,9 @@ try {
   await page.click(en.auth.connect);
   await tapNative(DONT_ALLOW);
   const refusedAt = Date.now();
-  await page.waitForText(en.server.localNetwork, 10_000);
-  check(Date.now() - refusedAt < 10_000, 'the request fails at once instead of hanging');
+  await page.waitForText(en.server.localNetwork, 20_000);
+  // Without the fix a request hangs for about two minutes.
+  check(Date.now() - refusedAt < 20_000, 'the request fails at once instead of hanging');
 
   step('Local network: allowed from the app');
   await page.click(en.server.localNetworkAllow);
@@ -474,14 +577,27 @@ try {
   adb('push', join(work, 'ca.pem'), userCa);
   shell(`chown -R system:system /data/misc/user/0/cacerts-added && chmod 644 ${userCa}`);
   page.close();
+  const httpsServer = `https://${HOST}:${HTTPS_PORT}`;
+  const requestsBefore = front.seen.requests;
   page = await launch();
+  // The webview writes localStorage to disk with a delay, so the force-stop above can lose the
+  // address set a moment earlier, and the app comes back on plain HTTP. Not what is tested here.
+  const stored = await page.eval<string | null>("localStorage.getItem('teahouse.server')");
+  if (stored !== httpsServer) {
+    console.log(`  (the restart lost the new server address, ${stored} was stored; set again)`);
+    await page.eval(
+      `localStorage.setItem('teahouse.server', ${JSON.stringify(httpsServer)}); location.reload()`,
+    );
+  }
   await page.waitForText(en.auth.setupTitle);
+  await until('a request through the HTTPS front', () => front.seen.requests > requestsBefore);
   check(true, 'requests work over HTTPS');
   const password = randomBytes(12).toString('hex');
   await page.fill(en.auth.password, password);
   await page.click(en.auth.setup);
   await page.waitForText(en.nav.worlds);
-  await until('the WebSocket over HTTPS', () => front.seen.webSockets > 0);
+  // A first attempt that fails is retried with a growing delay.
+  await until('the WebSocket over HTTPS', () => front.seen.webSockets > 0, 60_000);
   check(!(await page.text()).includes(en.app.offline), 'the WebSocket stays connected');
 
   const login = (await (
@@ -524,20 +640,27 @@ try {
   page.close();
   page = await launch();
   await tapNative(DONT_ALLOW);
-  await page.waitForText(en.server.localNetwork, 10_000);
+  await page.waitForText(en.server.localNetwork, 20_000);
   check(true, 'the offline banner says why, at once');
   await page.click(en.server.localNetworkAllow);
   await page.waitForText(en.server.localNetworkRefused);
   check(true, 'Android does not ask again, and the app says so');
   await page.click(en.server.localNetworkSettingsOpen);
-  await until('the app settings', () =>
-    /topResumedActivity=.*(settings|permissioncontroller)/i.test(
-      shell('dumpsys activity activities'),
-    ),
-  );
+  await until('the app settings', () => /settings|permissioncontroller/i.test(topActivity()));
   check(true, 'the app opens its settings page');
-  shell(`pm grant ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
-  shell(`monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
+  // What the user does there: allow "Nearby devices", then go back to the app. On a slow
+  // emulator the settings page may still be opening, so check that the grant took.
+  await until('the permission to be granted', () => {
+    shell(`pm grant ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
+    return permission() === 'true';
+  });
+  // Back to the app. Android pauses the webview's timers, and so the app's retries, while it
+  // is in the background, so make sure it really is in front again.
+  await until('the app in front', () => {
+    if (topActivity().startsWith(`${APP}/`)) return true;
+    shell(`monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
+    return false;
+  });
   await until(
     'the app to reconnect',
     async () => !(await page?.text())?.includes(en.app.offlineMode),
@@ -546,6 +669,10 @@ try {
   check(true, 'the app reconnects by itself once allowed');
 
   console.log('\nAll checks passed.');
+} catch (err) {
+  console.error(`\n✗ ${err instanceof Error ? err.message : err}`);
+  await diagnostics();
+  throw err;
 } finally {
   cleanUp();
 }
