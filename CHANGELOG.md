@@ -2,6 +2,21 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [0.3.3] - unreleased
+
+**Updating:** apps and server can be updated in any order. A 0.3.3 app works with 0.3.1 and 0.3.2 servers. On Android 17, the app asks once for access to the local network (Android calls it "Nearby devices"); allow it if your server is at home.
+
+### Added
+
+- When an app cannot reach the server, it says why instead of only "Server unreachable": nothing answers at that address (with the system's reason), a reverse proxy answers but Teahouse behind it does not, a proxy blocks the app (for example by redirecting to a login page), the address does not speak HTTPS, or the device does not trust the server's certificate. For a certificate, the app names the likely cause (expired, issued for another name, self-signed, unknown CA) and shows who it is for, who issued it, how long it is valid and its SHA-256 fingerprint. ([#26](https://github.com/Linyeir/teahouse/issues/26))
+- The Android app trusts CAs you installed on the phone, for example from mkcert or step-ca, as the desktop apps already do with the system's certificates. Android shows a "network may be monitored" notice for such a CA; that is expected. ([#26](https://github.com/Linyeir/teahouse/issues/26))
+- [docs/https.md](docs/https.md) explains the ways to serve Teahouse over HTTPS: a publicly trusted certificate (Let's Encrypt, `tailscale serve`), your own CA with install steps for Linux, Windows, macOS and Android, or plain HTTP inside your LAN or VPN.
+
+### Fixed
+
+- On Android 17 the app could not reach a server on the local network at all, because Android 17 blocks it until the user allows it. The app now asks before it first connects to a server at home. If you decline, it says why it is offline and offers to allow it; once Android stops asking, it opens the app's settings. When allowed, it reconnects by itself, and without the permission requests fail at once instead of hanging for two minutes.
+- The server address field no longer capitalizes the first letter on phones.
+
 ## [0.3.2] - unreleased
 
 **Updating:** apps and server can be updated in any order. A 0.3.2 app works with a 0.3.1 server.
@@ -89,6 +104,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.3.3]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.0

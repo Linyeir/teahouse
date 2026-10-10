@@ -1,0 +1,41 @@
+/* Below the offline banner's own text. */
+.offline {
+  margin-top: 6px;
+  color: var(--color-text);
+}
+
+.text {
+  margin: 0 0 6px;
+}
+
+/* The system's own wording (resolver, TLS library), for anyone who wants to look it up. */
+.reason {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.problems {
+  margin: 0 0 8px;
+  padding-left: 1.2em;
+}
+
+.certificate {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.certificate dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Compared character by character with the server's, so it must be easy to read. */
+.fingerprint {
+  font-family: ui-monospace, monospace;
+}
