@@ -213,7 +213,13 @@ jobs:
       - name: Start an Android 17 emulator
         run: |
           image="system-images;android-37.0;google_apis;x86_64"
-          sdkmanager --install emulator "$image" > /dev/null
+          # Downloads occasionally arrive corrupted ("Error reading Zip content").
+          for attempt in 1 2 3; do
+            sdkmanager --install emulator "$image" > /dev/null && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "::warning::sdkmanager failed, retrying"
+            sleep 10
+          done
           echo no | avdmanager create avd -n e2e -k "$image"
           nohup "$ANDROID_HOME/emulator/emulator" -avd e2e -no-window -no-audio -no-snapshot \
             -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &

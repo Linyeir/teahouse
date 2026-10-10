@@ -364,25 +364,35 @@ class Page {
 }
 
 /** Taps a native element (a system dialog, the settings) by its text. */
-async function tapNative(text: RegExp, timeoutMs = 15_000) {
-  const [x, y] = await until(
-    `"${text.source}" on the device`,
-    () => {
-      shell('uiautomator dump /sdcard/e2e-ui.xml');
-      const xml = shell('cat /sdcard/e2e-ui.xml');
-      for (const node of xml.matchAll(/<node [^>]*>/g)) {
-        const label = /text="([^"]*)"/.exec(node[0])?.[1] ?? '';
-        const bounds = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0]);
-        if (bounds && text.test(label.replace(/&apos;/g, "'"))) {
-          const [x1, y1, x2, y2] = bounds.slice(1).map(Number);
-          return [(x1 + x2) >> 1, (y1 + y2) >> 1];
-        }
-      }
-      return null;
-    },
-    timeoutMs,
-  );
-  shell(`input tap ${x} ${y}`);
+/** The centre of the first native element whose text matches, or null. */
+function findNative(text: RegExp): [number, number] | null {
+  shell('uiautomator dump /sdcard/e2e-ui.xml');
+  const xml = shell('cat /sdcard/e2e-ui.xml');
+  for (const node of xml.matchAll(/<node [^>]*>/g)) {
+    const label = /text="([^"]*)"/.exec(node[0])?.[1] ?? '';
+    const bounds = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0]);
+    if (bounds && text.test(label.replace(/&apos;/g, "'"))) {
+      const [x1, y1, x2, y2] = bounds.slice(1).map(Number);
+      return [(x1 + x2) >> 1, (y1 + y2) >> 1];
+    }
+  }
+  return null;
+}
+
+/**
+ * Taps a native element (a system dialog, the settings) by its text. A dialog that is still
+ * animating in ignores taps on a slow emulator, so it taps again until the element is gone.
+ */
+async function tapNative(text: RegExp, timeoutMs = 20_000) {
+  const end = Date.now() + timeoutMs;
+  await until(`"${text.source}" on the device`, () => findNative(text), timeoutMs);
+  while (Date.now() < end) {
+    const target = findNative(text);
+    if (!target) return;
+    shell(`input tap ${target[0]} ${target[1]}`);
+    await sleep(1000);
+  }
+  throw new Error(`"${text.source}" is still on the device after tapping it`);
 }
 
 const ALLOW = /^Allow$/;
@@ -466,8 +476,20 @@ try {
   step('Setup');
   const sdk = Number(shell('getprop ro.build.version.sdk'));
   check(sdk >= 37, `the emulator runs Android 17 or later (SDK ${sdk})`);
-  adb('root');
-  await until('adb after root', () => shell('id').includes('uid=0'));
+  // Right after boot adbd may still be restarting and refuse; ask until it runs as root.
+  await until(
+    'adb as root',
+    () => {
+      try {
+        adb('root');
+        adb('wait-for-device');
+      } catch {
+        return false;
+      }
+      return shell('id').includes('uid=0');
+    },
+    60_000,
+  );
   await until(
     'the server',
     async () => (await fetch(`http://127.0.0.1:${HTTP_PORT}/api/auth/status`)).ok,
@@ -495,8 +517,9 @@ try {
   await page.click(en.auth.connect);
   await tapNative(DONT_ALLOW);
   const refusedAt = Date.now();
-  await page.waitForText(en.server.localNetwork, 10_000);
-  check(Date.now() - refusedAt < 10_000, 'the request fails at once instead of hanging');
+  await page.waitForText(en.server.localNetwork, 20_000);
+  // Without the fix a request hangs for about two minutes.
+  check(Date.now() - refusedAt < 20_000, 'the request fails at once instead of hanging');
 
   step('Local network: allowed from the app');
   await page.click(en.server.localNetworkAllow);
@@ -588,7 +611,7 @@ try {
   page.close();
   page = await launch();
   await tapNative(DONT_ALLOW);
-  await page.waitForText(en.server.localNetwork, 10_000);
+  await page.waitForText(en.server.localNetwork, 20_000);
   check(true, 'the offline banner says why, at once');
   await page.click(en.server.localNetworkAllow);
   await page.waitForText(en.server.localNetworkRefused);
