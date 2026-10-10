@@ -80,6 +80,19 @@ fn invalid(message: impl ToString) -> FetchError {
     }
 }
 
+/// Whether the platform alone, without any pin, trusts a server's certificate.
+#[derive(Debug, Serialize)]
+#[serde(
+    tag = "result",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum PlatformTrust {
+    Trusted,
+    Untrusted { certificate: Certificate },
+    Unreachable { message: String },
+}
+
 /// One client per origin, rebuilt when its pin changes. Requests and the WebSocket share its
 /// TLS config and verifier.
 #[derive(Clone)]
@@ -154,6 +167,12 @@ impl Transport {
         if let Some(existing) = clients.get(origin).filter(|c| c.pin == pin) {
             return Ok(existing.clone());
         }
+        let origin_client = self.build_client(pin)?;
+        clients.insert(origin.to_owned(), origin_client.clone());
+        Ok(origin_client)
+    }
+
+    fn build_client(&self, pin: Option<[u8; 32]>) -> Result<OriginClient, FetchError> {
         let verifier = Arc::new(PinningVerifier::new(
             self.platform.clone(),
             self.provider.clone(),
@@ -170,14 +189,39 @@ impl Transport {
             .timeout(TIMEOUT)
             .build()
             .map_err(invalid)?;
-        let origin_client = OriginClient {
+        Ok(OriginClient {
             pin,
             client,
             tls: Arc::new(tls),
             verifier,
+        })
+    }
+
+    /// Whether the platform's verifier alone trusts `server` (pins left out). Where the webview
+    /// refuses a certificate the platform trusts, the app can connect through itself.
+    pub async fn platform_trust(&self, server: &str) -> PlatformTrust {
+        let unreachable = |message: String| PlatformTrust::Unreachable { message };
+        let url = match Url::parse(server) {
+            Ok(url) if url.scheme() == "https" => url,
+            _ => return unreachable("not an https address".into()),
         };
-        clients.insert(origin.to_owned(), origin_client.clone());
-        Ok(origin_client)
+        let OriginClient {
+            client, verifier, ..
+        } = match self.build_client(None) {
+            Ok(built) => built,
+            Err(err) => return unreachable(format!("{err:?}")),
+        };
+        match client.get(url.clone()).send().await {
+            Ok(_) => PlatformTrust::Trusted,
+            Err(err) => match explain(&err, &url, &verifier) {
+                FetchError::Untrusted { certificate, .. } => {
+                    PlatformTrust::Untrusted { certificate }
+                }
+                FetchError::Network { message } | FetchError::InvalidRequest { message } => {
+                    unreachable(message)
+                }
+            },
+        }
     }
 
     pub async fn fetch(&self, request: NativeRequest) -> Result<NativeResponse, FetchError> {
@@ -405,6 +449,14 @@ pub async fn native_fetch(
     request: NativeRequest,
 ) -> Result<NativeResponse, FetchError> {
     transport.fetch(request).await
+}
+
+#[tauri::command]
+pub async fn platform_trust(
+    transport: tauri::State<'_, Transport>,
+    server: String,
+) -> Result<PlatformTrust, ()> {
+    Ok(transport.platform_trust(&server).await)
 }
 
 #[tauri::command]
@@ -943,6 +995,52 @@ mod tests {
                 .await
                 .status,
             403
+        );
+    }
+
+    #[tokio::test]
+    async fn platform_trust_ignores_pins() {
+        let ca_key = KeyPair::generate().unwrap();
+        let mut ca_params = params("Teahouse Test CA");
+        ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+        let ca = CertifiedIssuer::self_signed(ca_params, ca_key).unwrap();
+        let key = KeyPair::generate().unwrap();
+        let signed = params("127.0.0.1").signed_by(&key, &ca).unwrap();
+        let trusted = https_server(signed.der().clone(), &key, 1, OK);
+        let self_signed_key = KeyPair::generate().unwrap();
+        let self_signed = params("127.0.0.1").self_signed(&self_signed_key).unwrap();
+        let pinned = https_server(self_signed.der().clone(), &self_signed_key, 1, OK);
+        let closed = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let transport = transport(vec![ca.der().clone()], "platform-trust");
+        transport
+            .pin(
+                &format!("https://127.0.0.1:{pinned}"),
+                &fingerprint(self_signed.der()),
+            )
+            .unwrap();
+
+        let server = |port: u16| format!("https://127.0.0.1:{port}");
+        assert!(matches!(
+            transport.platform_trust(&server(trusted)).await,
+            PlatformTrust::Trusted
+        ));
+        match transport.platform_trust(&server(pinned)).await {
+            PlatformTrust::Untrusted { certificate } => {
+                assert_eq!(certificate.sha256, fingerprint(self_signed.der()));
+            }
+            other => panic!("expected untrusted, got {other:?}"),
+        }
+        assert!(matches!(
+            transport.platform_trust(&server(closed)).await,
+            PlatformTrust::Unreachable { .. }
+        ));
+        assert_eq!(
+            serde_json::to_value(PlatformTrust::Trusted).unwrap(),
+            serde_json::json!({ "result": "trusted" })
         );
     }
 

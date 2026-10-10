@@ -39,3 +39,30 @@
 .fingerprint {
   font-family: ui-monospace, monospace;
 }
+
+/* Checking a fingerprint before trusting it. */
+.accept {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+}
+
+.command {
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius);
+  user-select: all;
+}
+
+.large {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}

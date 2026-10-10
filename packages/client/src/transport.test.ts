@@ -38,7 +38,10 @@ vi.mock('./platform.ts', () => ({
 }));
 
 const {
+  acceptCertificate,
   assetSrc,
+  connectThroughApp,
+  forgetCertificate,
   NativeSocket,
   openServerSocket,
   originOf,
@@ -278,5 +281,37 @@ describe('assetSrc', () => {
   it('loads images of servers on the native transport through the app', () => {
     setNativeTransport(SERVER, true);
     expect(assetSrc(image)).toBe(`teahouse-asset://localhost/${encodeURIComponent(image)}`);
+  });
+});
+
+describe('trusting a server', () => {
+  let reconnects = 0;
+  beforeEach(() => {
+    reconnects = 0;
+    const window = new EventTarget();
+    window.addEventListener('online', () => reconnects++);
+    vi.stubGlobal('window', window);
+  });
+
+  it('accepts exactly the checked certificate and connects through the app', async () => {
+    await acceptCertificate(SERVER, 'AB:CD');
+    expect(native.commands).toContainEqual({
+      command: 'pin_certificate',
+      args: { server: SERVER, sha256: 'AB:CD' },
+    });
+    expect(usesNativeTransport(`${SERVER}/api/chats`)).toBe(true);
+    expect(reconnects).toBe(1);
+  });
+
+  it('connects through the app without a pin when the device trusts the server', () => {
+    connectThroughApp(SERVER);
+    expect(usesNativeTransport(`${SERVER}/api/chats`)).toBe(true);
+    expect(native.commands.some((c) => c.command === 'pin_certificate')).toBe(false);
+    expect(reconnects).toBe(1);
+  });
+
+  it('forgets a trusted certificate', async () => {
+    await forgetCertificate(SERVER);
+    expect(native.commands).toContainEqual({ command: 'remove_pin', args: { server: SERVER } });
   });
 });

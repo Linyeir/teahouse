@@ -15,6 +15,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             probe::probe_server,
             transport::native_fetch,
+            transport::platform_trust,
             transport::native_socket_open,
             transport::native_socket_send,
             transport::native_socket_close,

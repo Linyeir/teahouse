@@ -1,6 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
 import { localNetworkAllowed, looksLocal } from './localNetwork.ts';
+import {
+  acceptedCertificates,
+  originOf,
+  platformTrusts,
+  serverFetch,
+  UntrustedCertificateError,
+  usesNativeTransport,
+} from './transport.ts';
 
 /**
  * Why the app cannot reach the server. A rejected certificate and a server that is down are
@@ -21,8 +29,15 @@ export type Diagnosis =
   | { kind: 'unreachable'; reason?: string }
   /** Something answers, but not with TLS, or the TLS handshake fails. */
   | { kind: 'tlsFailed'; reason: string }
-  /** The server answers with TLS, but the device does not trust its certificate. */
-  | { kind: 'untrusted'; certificate: Certificate };
+  /** The server answers with TLS, but neither the device nor the user trusts its certificate. */
+  | { kind: 'untrusted'; certificate: Certificate }
+  /**
+   * The device trusts the certificate, the webview does not: some webviews (LineageOS's) ignore
+   * CAs the user installed. The app can connect through itself (transport.ts).
+   */
+  | { kind: 'webviewOnly'; certificate: Certificate }
+  /** The user accepted a certificate for this server, and it now presents another one. */
+  | { kind: 'certificateChanged'; certificate: Certificate; accepted: string | null };
 
 /** The server's own certificate, as the probe saw it. */
 export interface Certificate {
@@ -56,16 +71,51 @@ async function attempt(url: string, mode: RequestMode): Promise<Response | null>
 export async function diagnose(server: string): Promise<Diagnosis> {
   // Requests to a local address fail at once without the permission (api.ts).
   if (looksLocal(server) && !(await localNetworkAllowed())) return { kind: 'localNetwork' };
+  if (usesNativeTransport(server)) return diagnoseNative(server);
   const url = `${server}/api/auth/status`;
   const response = await attempt(url, 'cors');
-  if (response) {
-    return response.status >= 502 && response.status <= 504
-      ? { kind: 'gateway' }
-      : { kind: 'reachable' };
-  }
+  if (response) return answered(response);
   // An opaque answer means the connection, certificate included, was fine.
   if (await attempt(url, 'no-cors')) return { kind: 'blocked' };
   const probe = await invoke<Probe>('probe_server', { url: server });
+  if (probe.result === 'tls') {
+    // The webview refused a certificate the handshake shows; does the device trust it?
+    return (await platformTrusts(server))
+      ? { kind: 'webviewOnly', certificate: probe.certificate }
+      : { kind: 'untrusted', certificate: probe.certificate };
+  }
+  return fromProbe(probe);
+}
+
+/** A server the app connects to itself: its own request says what is wrong. */
+async function diagnoseNative(server: string): Promise<Diagnosis> {
+  try {
+    return answered(await serverFetch(`${server}/api/auth/status`, { cache: 'no-store' }));
+  } catch (err) {
+    if (err instanceof UntrustedCertificateError) {
+      if (!err.pinned) return { kind: 'untrusted', certificate: err.certificate };
+      const origin = originOf(server);
+      const accepted = (await acceptedCertificates().catch(() => [])).find(
+        (pin) => pin.origin === origin,
+      );
+      return {
+        kind: 'certificateChanged',
+        certificate: err.certificate,
+        accepted: accepted?.sha256 ?? null,
+      };
+    }
+  }
+  const probe = await invoke<Probe>('probe_server', { url: server });
+  return probe.result === 'tls' ? { kind: 'unreachable' } : fromProbe(probe);
+}
+
+function answered(response: Response): Diagnosis {
+  return response.status >= 502 && response.status <= 504
+    ? { kind: 'gateway' }
+    : { kind: 'reachable' };
+}
+
+async function fromProbe(probe: Exclude<Probe, { result: 'tls' }>): Promise<Diagnosis> {
   switch (probe.result) {
     case 'notTls':
     case 'unreachable':
@@ -76,8 +126,6 @@ export async function diagnose(server: string): Promise<Diagnosis> {
         : { kind: 'unreachable', reason: probe.reason };
     case 'tlsFailed':
       return { kind: 'tlsFailed', reason: probe.reason };
-    case 'tls':
-      return { kind: 'untrusted', certificate: probe.certificate };
   }
 }
 

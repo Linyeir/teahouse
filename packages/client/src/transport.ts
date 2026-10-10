@@ -51,6 +51,50 @@ export function setNativeTransport(server: string, on: boolean): void {
   }
 }
 
+/** A certificate the user accepted, by origin (packages/app/src-tauri/src/transport/pins.rs). */
+export interface AcceptedCertificate {
+  origin: string;
+  sha256: string;
+}
+
+export function acceptedCertificates(): Promise<AcceptedCertificate[]> {
+  return invoke<AcceptedCertificate[]>('list_pins');
+}
+
+/** Whether the platform alone (Android, the OS) trusts the server's certificate. */
+export async function platformTrusts(server: string): Promise<boolean> {
+  try {
+    const trust = await invoke<{ result: string }>('platform_trust', { server });
+    return trust.result === 'trusted';
+  } catch {
+    // An app without the native transport (Android before it is set up there).
+    return false;
+  }
+}
+
+/** Retries right away instead of waiting for the next probe (events.ts listens for this). */
+function reconnect(): void {
+  window.dispatchEvent(new Event('online'));
+}
+
+/** Connects to `server` through the app from now on: its certificate is fine, the webview is not. */
+export function connectThroughApp(server: string): void {
+  setNativeTransport(server, true);
+  reconnect();
+}
+
+/** Trusts exactly the certificate with this fingerprint for `server` and connects through the app. */
+export async function acceptCertificate(server: string, sha256: string): Promise<void> {
+  await invoke('pin_certificate', { server, sha256 });
+  setNativeTransport(server, true);
+  reconnect();
+}
+
+/** Forgets the accepted certificate of `server`. The next attempt asks again. */
+export function forgetCertificate(server: string): Promise<void> {
+  return invoke('remove_pin', { server });
+}
+
 /** Neither the platform nor an accepted certificate trusts the server. */
 export class UntrustedCertificateError extends Error {
   constructor(
