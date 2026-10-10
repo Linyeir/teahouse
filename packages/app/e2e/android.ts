@@ -406,6 +406,11 @@ async function tapNative(text: RegExp, timeoutMs = 20_000) {
 const ALLOW = /^Allow$/;
 const DONT_ALLOW = /^Don.t allow$/;
 
+/** The activity in front, e.g. `io.github.linyeir.teahouse/.MainActivity`. */
+function topActivity(): string {
+  return /topResumedActivity=.*? (\S+\/\S+)/.exec(shell('dumpsys activity activities'))?.[1] ?? '';
+}
+
 function permission(): string {
   return /ACCESS_LOCAL_NETWORK: granted=(\w+)/.exec(shell(`dumpsys package ${APP}`))?.[1] ?? '?';
 }
@@ -431,6 +436,11 @@ async function diagnostics() {
   const section = (title: string, text: string) =>
     console.log(`\n--- ${title}\n${text.trim() || '(nothing)'}`);
   section('HTTPS front', JSON.stringify(front.seen, null, 2));
+  try {
+    section('activity in front', topActivity());
+  } catch (err) {
+    section('activity in front', `unavailable: ${err}`);
+  }
   try {
     section(
       'local network permission',
@@ -636,11 +646,7 @@ try {
   await page.waitForText(en.server.localNetworkRefused);
   check(true, 'Android does not ask again, and the app says so');
   await page.click(en.server.localNetworkSettingsOpen);
-  await until('the app settings', () =>
-    /topResumedActivity=.*(settings|permissioncontroller)/i.test(
-      shell('dumpsys activity activities'),
-    ),
-  );
+  await until('the app settings', () => /settings|permissioncontroller/i.test(topActivity()));
   check(true, 'the app opens its settings page');
   // What the user does there: allow "Nearby devices", then go back to the app. On a slow
   // emulator the settings page may still be opening, so check that the grant took.
@@ -648,7 +654,13 @@ try {
     shell(`pm grant ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
     return permission() === 'true';
   });
-  shell(`monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
+  // Back to the app. Android pauses the webview's timers, and so the app's retries, while it
+  // is in the background, so make sure it really is in front again.
+  await until('the app in front', () => {
+    if (topActivity().startsWith(`${APP}/`)) return true;
+    shell(`monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
+    return false;
+  });
   await until(
     'the app to reconnect',
     async () => !(await page?.text())?.includes(en.app.offlineMode),
