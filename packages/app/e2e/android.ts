@@ -204,8 +204,9 @@ function startServer(): ChildProcess {
 
 /** Forwards HTTPS to the server and counts what passes through. */
 function startHttpsFront(key: Buffer, cert: Buffer) {
-  const seen = { tls: 0, tlsErrors: [] as string[], webSockets: 0, assets: 0 };
+  const seen = { tls: 0, tlsErrors: [] as string[], requests: 0, webSockets: 0, assets: 0 };
   const server = https.createServer({ key, cert }, (req, res) => {
+    seen.requests++;
     if (req.url?.includes('/assets/')) seen.assets++;
     const upstream = http.request(
       {
@@ -524,8 +525,20 @@ try {
   adb('push', join(work, 'ca.pem'), userCa);
   shell(`chown -R system:system /data/misc/user/0/cacerts-added && chmod 644 ${userCa}`);
   page.close();
+  const httpsServer = `https://${HOST}:${HTTPS_PORT}`;
+  const requestsBefore = front.seen.requests;
   page = await launch();
+  // The webview writes localStorage to disk with a delay, so the force-stop above can lose the
+  // address set a moment earlier, and the app comes back on plain HTTP. Not what is tested here.
+  const stored = await page.eval<string | null>("localStorage.getItem('teahouse.server')");
+  if (stored !== httpsServer) {
+    console.log(`  (the restart lost the new server address, ${stored} was stored; set again)`);
+    await page.eval(
+      `localStorage.setItem('teahouse.server', ${JSON.stringify(httpsServer)}); location.reload()`,
+    );
+  }
   await page.waitForText(en.auth.setupTitle);
+  await until('a request through the HTTPS front', () => front.seen.requests > requestsBefore);
   check(true, 'requests work over HTTPS');
   const password = randomBytes(12).toString('hex');
   await page.fill(en.auth.password, password);
