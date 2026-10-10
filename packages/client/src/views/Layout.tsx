@@ -3,6 +3,7 @@ import type { Chat } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router';
 import { api } from '../api.ts';
+import { OfflineDiagnosis } from '../components/ServerDiagnosis.tsx';
 import type { ConnectionState } from '../events.ts';
 import { dismissNotice, useNotices } from '../notices.ts';
 import { useOnline } from '../offline.ts';
@@ -44,7 +45,10 @@ export function Layout({ connection }: { connection: ConnectionState }) {
       </aside>
       <main className={styles.main}>
         {!online ? (
-          <div className={styles.banner}>{t('app.offlineMode')}</div>
+          <div className={styles.banner}>
+            {t('app.offlineMode')}
+            <OfflineDiagnosis offline={!online} />
+          </div>
         ) : (
           connection === 'closed' && <div className={styles.banner}>{t('app.offline')}</div>
         )}

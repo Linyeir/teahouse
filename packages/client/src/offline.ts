@@ -27,10 +27,11 @@ export function setReachable(next: boolean): void {
   notify?.(next);
 }
 
-/** The request never reached the server. */
+/** The request never reached the server. `cause` is what the webview reported. */
 export class NetworkError extends Error {
   constructor(cause: unknown) {
     super('Server unreachable', { cause });
+    console.warn('Server unreachable:', cause);
   }
 }
 

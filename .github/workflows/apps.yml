@@ -123,10 +123,9 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter "@teahouse/app..." --filter "@teahouse/client..."
       # The Android project is generated rather than committed until it needs changes.
       - run: pnpm --filter @teahouse/app tauri android init --ci
-      # init writes the template's default icons; Tauri does not pick up icons/android itself.
-      - run: cp -r packages/app/src-tauri/icons/android/. packages/app/src-tauri/gen/android/app/src/main/res/
-      # A debug build: it allows plain-HTTP servers on the LAN. Gradle signs it with a throwaway
-      # debug key, which the next step replaces.
+      # Icons, and trust in CAs the user installed on the phone (packages/app/src-tauri/android).
+      - run: packages/app/src-tauri/android/overlay.sh
+      # A debug build, which Gradle signs with a throwaway debug key that the next step replaces.
       # One APK per architecture instead of a universal one: arm64 for current phones, arm for
       # old ones, x86_64 for emulators and Chromebooks. 32-bit x86 devices are long gone.
       - run: pnpm --filter @teahouse/app tauri android build --debug --apk --split-per-abi --target aarch64 armv7 x86_64

@@ -46,6 +46,27 @@
     "cameraDenied": "Teahouse needs the camera to scan the code. Allow it in the system settings, or paste the link instead.",
     "connectHintScan": "Scan the pairing QR code shown under Settings → Pair a device on a signed-in device, or enter the server address."
   },
+  "server": {
+    "unreachable": "Server unreachable.",
+    "checking": "Checking the connection…",
+    "reachable": "The server answers again. Try once more.",
+    "gateway": "The reverse proxy answers, but the Teahouse server behind it does not. Check that Teahouse is running.",
+    "blocked": "The server answers, but the app may not read its response. A reverse proxy in front of Teahouse probably redirects the app (for example to a login page) or drops the CORS headers.",
+    "down": "Nothing answers at %{server}. Check the address, that the server is running and that this device is on the same network or VPN.",
+    "tlsFailed": "%{server} does not answer with a secure connection. If the server runs without HTTPS, enter the address with http://.",
+    "untrusted": "The server answers, but this device does not trust its certificate:",
+    "certExpired": "The certificate expired on %{date}.",
+    "certNotYetValid": "The certificate is only valid from %{date}. Check the date and time on this device.",
+    "certWrongHost": "The certificate is not issued for %{host}. Connect with a name it lists, or issue a new one.",
+    "certSelfSigned": "The certificate is self-signed. Install it on this device as a trusted CA certificate, or replace it with one from your own CA or a public one (see the guide below).",
+    "certUnknownCa": "It was issued by a CA this device does not know. Install that CA in the system's certificate store, then restart Teahouse.",
+    "certUnknownCaAndroid": "It was issued by a CA this device does not know. Install that CA under Settings → Security → Encryption & credentials → Install a certificate → CA certificate (the path varies by phone), then restart Teahouse.",
+    "certSubject": "Issued to",
+    "certIssuer": "Issued by",
+    "certValidity": "Valid",
+    "certFingerprint": "SHA-256 fingerprint",
+    "httpsDocs": "How to set up HTTPS for Teahouse"
+  },
   "chats": {
     "empty": "No chats yet.",
     "pick": "Pick a chat or start a new one.",
