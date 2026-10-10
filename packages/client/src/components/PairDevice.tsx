@@ -3,8 +3,9 @@ import type { Device, PairingCode, ServerAddresses } from '@teahouse/shared';
 import QRCode from 'qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, getServer } from '../api.ts';
+import { api, getServer, isApp } from '../api.ts';
 import { isLoopback, pairingLink } from '../pairing.ts';
+import { acceptedCertificates, originOf } from '../transport.ts';
 import { ErrorText, Field } from './Field.tsx';
 import styles from './PairDevice.module.css';
 import ui from './ui.module.css';
@@ -40,7 +41,16 @@ export function PairDevice({ devices }: { devices: Device[] | undefined }) {
   const pairing = create.data;
   const seconds = useCountdown(pairing?.expiresAt);
   const open = pairing !== undefined && knownDevices !== null;
-  const link = pairing ? pairingLink(address, pairing.code) : '';
+  // This app trusts the server's certificate by fingerprint: the paired device will too.
+  const pin = useQuery({
+    queryKey: ['trusted-certificate', own],
+    enabled: isApp,
+    networkMode: 'always',
+    queryFn: async () =>
+      (await acceptedCertificates()).find((accepted) => accepted.origin === originOf(own))
+        ?.sha256 ?? null,
+  });
+  const link = pairing ? pairingLink(address, pairing.code, pin.data ?? null) : '';
 
   // localhost is useless on a phone: offer the server's network addresses instead.
   const loopback = isLoopback(own);
