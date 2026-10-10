@@ -1,8 +1,9 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
-import type { MouseEvent } from 'react';
+import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getServer, isApp } from '../api.ts';
 import { type Certificate, type Diagnosis, useDiagnosis } from '../diagnose.ts';
+import { requestLocalNetwork } from '../localNetwork.ts';
 import type { NetworkError } from '../offline.ts';
 import styles from './ServerDiagnosis.module.css';
 import ui from './ui.module.css';
@@ -53,6 +54,8 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
       return <p className={styles.text}>{t('server.gateway')}</p>;
     case 'blocked':
       return <p className={styles.text}>{t('server.blocked')}</p>;
+    case 'localNetwork':
+      return <LocalNetwork />;
     case 'unreachable':
       return (
         <>
@@ -70,6 +73,27 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
     case 'untrusted':
       return <Untrusted certificate={diagnosis.certificate} server={server} />;
   }
+}
+
+function LocalNetwork() {
+  const { t } = useTranslation();
+  const [granted, setGranted] = useState(false);
+  if (granted) return <p className={styles.text}>{t('server.localNetworkGranted')}</p>;
+  const allow = () =>
+    void requestLocalNetwork().then(setGranted, (err: unknown) =>
+      console.warn('Local network permission:', err),
+    );
+  return (
+    <>
+      <p className={styles.text}>{t('server.localNetwork')}</p>
+      <p className={styles.text}>
+        <button className={ui.button} type="button" onClick={allow}>
+          {t('server.localNetworkAllow')}
+        </button>
+      </p>
+      <p className={styles.reason}>{t('server.localNetworkSettings')}</p>
+    </>
+  );
 }
 
 function Untrusted({ certificate: cert, server }: { certificate: Certificate; server: string }) {

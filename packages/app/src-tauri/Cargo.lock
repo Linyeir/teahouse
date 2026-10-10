@@ -3739,6 +3739,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-local-network"
+version = "0.1.0"
+dependencies = [
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
 name = "tauri-plugin-log"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3892,6 +3900,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-barcode-scanner",
+ "tauri-plugin-local-network",
  "tauri-plugin-log",
  "tauri-plugin-opener",
  "url",

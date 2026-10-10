@@ -1,11 +1,12 @@
 import type { ApiError } from '@teahouse/shared';
+import { ensureLocalNetwork } from './localNetwork.ts';
 import { NetworkError, setReachable } from './offline.ts';
+import { isApp } from './platform.ts';
+
+export { isApp };
 
 const TOKEN_KEY = 'teahouse.token';
 const SERVER_KEY = 'teahouse.server';
-
-/** Whether the client runs inside a Tauri app rather than a browser tab of the server. */
-export const isApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /**
  * Base URL of the server, without a trailing slash. Empty means the origin the client was
@@ -86,6 +87,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
   const token = getToken();
   const isForm = body instanceof FormData;
   let response: Response;
+  await ensureLocalNetwork(getServer());
   try {
     response = await fetch(serverUrl(path), {
       method,

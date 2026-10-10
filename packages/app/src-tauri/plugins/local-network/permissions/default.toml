@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Checking and requesting the local network permission."
+permissions = ["allow-check-permissions", "allow-request-permissions"]
