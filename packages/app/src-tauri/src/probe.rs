@@ -252,7 +252,13 @@ impl ServerCertVerifier for Recorder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rcgen::{
+        BasicConstraints, CertificateParams, CertifiedIssuer, DnType, IsCa, KeyPair, date_time_ymd,
+    };
+    use rustls::ServerConnection;
+    use rustls::pki_types::PrivateKeyDer;
     use std::net::TcpListener;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn plain_http_is_not_probed() {
@@ -290,5 +296,129 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    fn params(name: &str) -> CertificateParams {
+        let mut params = CertificateParams::new(vec![name.to_owned()]).unwrap();
+        params.distinguished_name.push(DnType::CommonName, name);
+        params
+    }
+
+    /// A TLS server on 127.0.0.1 for one handshake, presenting `cert` with `key`.
+    fn tls_server(cert: CertificateDer<'static>, key: &KeyPair) -> u16 {
+        let config = rustls::ServerConfig::builder_with_provider(Arc::new(
+            rustls::crypto::ring::default_provider(),
+        ))
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_no_client_auth()
+        .with_single_cert(vec![cert], PrivateKeyDer::Pkcs8(key.serialize_der().into()))
+        .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut tcp, _) = listener.accept().unwrap();
+            let mut conn = ServerConnection::new(Arc::new(config)).unwrap();
+            while conn.is_handshaking() {
+                if conn.complete_io(&mut tcp).is_err() {
+                    return;
+                }
+            }
+            let _ = conn.complete_io(&mut tcp);
+        });
+        port
+    }
+
+    fn tls_certificate(url: &str) -> Certificate {
+        match probe(url) {
+            Probe::Tls { certificate } => certificate,
+            other => panic!("expected a TLS handshake, got {other:?}"),
+        }
+    }
+
+    fn now() -> i64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64
+    }
+
+    #[test]
+    fn certificate_from_a_private_ca_is_described() {
+        let ca_key = KeyPair::generate().unwrap();
+        let mut ca_params = params("Teahouse Test CA");
+        ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+        let ca = CertifiedIssuer::self_signed(ca_params, ca_key).unwrap();
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").signed_by(&key, &ca).unwrap();
+        let der = cert.der().clone();
+        let port = tls_server(der.clone(), &key);
+
+        let certificate = tls_certificate(&format!("https://127.0.0.1:{port}"));
+        assert_eq!(certificate.subject.as_deref(), Some("CN=127.0.0.1"));
+        assert_eq!(certificate.issuer.as_deref(), Some("CN=Teahouse Test CA"));
+        assert!(!certificate.self_signed);
+        assert!(certificate.matches_host);
+        assert!(certificate.not_before.unwrap() <= now() && now() < certificate.not_after.unwrap());
+        // What the user compares with `openssl x509 -fingerprint -sha256`.
+        let expected = Sha256::digest(&der)
+            .iter()
+            .map(|byte| format!("{byte:02X}"))
+            .collect::<Vec<_>>()
+            .join(":");
+        assert_eq!(certificate.sha256, expected);
+        assert_eq!(certificate.sha256.len(), 32 * 3 - 1);
+    }
+
+    #[test]
+    fn self_signed_certificate_is_flagged() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let port = tls_server(cert.der().clone(), &key);
+
+        let certificate = tls_certificate(&format!("https://127.0.0.1:{port}"));
+        assert!(certificate.self_signed);
+        assert!(certificate.matches_host);
+    }
+
+    #[test]
+    fn certificate_for_another_name_does_not_match() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("teahouse.lan").self_signed(&key).unwrap();
+        let port = tls_server(cert.der().clone(), &key);
+
+        assert!(!tls_certificate(&format!("https://127.0.0.1:{port}")).matches_host);
+    }
+
+    #[test]
+    fn host_name_is_matched_against_the_certificate() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("localhost").self_signed(&key).unwrap();
+        let port = tls_server(cert.der().clone(), &key);
+
+        assert!(tls_certificate(&format!("https://localhost:{port}")).matches_host);
+    }
+
+    #[test]
+    fn expired_certificate_is_still_described() {
+        let key = KeyPair::generate().unwrap();
+        let mut params = params("127.0.0.1");
+        params.not_before = date_time_ymd(2020, 1, 1);
+        params.not_after = date_time_ymd(2020, 2, 1);
+        let cert = params.self_signed(&key).unwrap();
+        let port = tls_server(cert.der().clone(), &key);
+
+        let certificate = tls_certificate(&format!("https://127.0.0.1:{port}"));
+        assert!(certificate.not_after.unwrap() < now());
+    }
+
+    #[test]
+    fn name_that_does_not_resolve_is_unreachable() {
+        match probe("https://teahouse.invalid") {
+            Probe::Unreachable { reason } => {
+                assert!(reason.contains("does not resolve"), "{reason}")
+            }
+            other => panic!("expected unreachable, got {other:?}"),
+        }
     }
 }
