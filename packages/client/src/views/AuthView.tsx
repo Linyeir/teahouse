@@ -104,6 +104,9 @@ export function AuthView() {
               className={ui.input}
               required
               inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="http://192.168.1.10:8787"
               value={server}
               onChange={(e) => setServerDraft(e.target.value)}

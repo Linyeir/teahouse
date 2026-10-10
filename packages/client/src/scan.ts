@@ -1,7 +1,7 @@
-import { isApp } from './api.ts';
+import { isAndroidApp } from './platform.ts';
 
 /** The Android app can read the pairing QR code with the camera. */
-export const canScan = isApp && /Android/i.test(navigator.userAgent);
+export const canScan = isAndroidApp;
 
 export class ScanError extends Error {}
 

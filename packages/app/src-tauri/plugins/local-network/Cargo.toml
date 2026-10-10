@@ -1,0 +1,16 @@
+[package]
+name = "tauri-plugin-local-network"
+version = "0.1.0"
+description = "Asks for Android 17's local network permission"
+authors = ["Teahouse contributors"]
+license = "AGPL-3.0-only"
+edition = "2024"
+rust-version = "1.90"
+# Lets tauri-build find the Android project and the permissions of this plugin.
+links = "tauri-plugin-local-network"
+
+[dependencies]
+tauri = "2.12.1"
+
+[build-dependencies]
+tauri-plugin = { version = "2.7.1", features = ["build"] }

@@ -1,13 +1,14 @@
 {
   "name": "@teahouse/app",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build"
+    "build": "tauri build",
+    "e2e:android": "node e2e/android.ts"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.1"

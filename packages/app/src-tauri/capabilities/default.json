@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Permissions of the main window on every platform",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/Linyeir/teahouse/*" }]
+    }
+  ]
 }

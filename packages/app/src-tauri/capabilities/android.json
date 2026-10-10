@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "android",
+  "description": "Asking for the local network permission (Android 17)",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": ["local-network:default"]
+}

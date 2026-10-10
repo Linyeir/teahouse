@@ -1,5 +1,5 @@
-# Lint, typecheck and tests. Runs on every pull request and push to main, and from the Apps
-# workflow before a release is drafted.
+# Lint, typecheck and tests, for the workspace and the app's Rust code. Runs on every pull
+# request and push to main, and from the Apps workflow before a release is drafted.
 name: CI
 
 on:
@@ -30,3 +30,31 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+
+  # The app's Rust code. The certificate probe's tests run against real TLS servers.
+  rust:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/app/src-tauri
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+      # The app embeds the built client at compile time.
+      - run: pnpm install --frozen-lockfile --filter "@teahouse/client..."
+      - run: pnpm --filter @teahouse/client build
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: packages/app/src-tauri
+      - run: cargo test
+        working-directory: packages/app/src-tauri
