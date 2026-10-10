@@ -11,6 +11,8 @@ const native = vi.hoisted(() => ({
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
+  convertFileSrc: (path: string, protocol: string) =>
+    `${protocol}://localhost/${encodeURIComponent(path)}`,
   Channel: class {
     onmessage: (event: unknown) => void = () => {};
     constructor() {
@@ -36,6 +38,7 @@ vi.mock('./platform.ts', () => ({
 }));
 
 const {
+  assetSrc,
   NativeSocket,
   openServerSocket,
   originOf,
@@ -262,5 +265,18 @@ describe('NativeSocket', () => {
     setNativeTransport('https://teahouse.lan', true);
     expect(openServerSocket('wss://teahouse.lan/api/ws')).toBeInstanceOf(NativeSocket);
     expect(fake).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('assetSrc', () => {
+  const image = `${SERVER}/api/worlds/w1/assets/backgrounds/harbor-1.png?token=t`;
+
+  it('loads images of other servers directly', () => {
+    expect(assetSrc(image)).toBe(image);
+  });
+
+  it('loads images of servers on the native transport through the app', () => {
+    setNativeTransport(SERVER, true);
+    expect(assetSrc(image)).toBe(`teahouse-asset://localhost/${encodeURIComponent(image)}`);
   });
 });

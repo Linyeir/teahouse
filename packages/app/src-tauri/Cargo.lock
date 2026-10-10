@@ -4165,6 +4165,7 @@ dependencies = [
  "base64 0.22.1",
  "futures-util",
  "log",
+ "percent-encoding",
  "rcgen",
  "reqwest",
  "rustls",

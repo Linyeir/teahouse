@@ -1,4 +1,4 @@
-import { Channel, invoke } from '@tauri-apps/api/core';
+import { Channel, convertFileSrc, invoke } from '@tauri-apps/api/core';
 import type { Certificate } from './diagnose.ts';
 import { isApp } from './platform.ts';
 
@@ -72,6 +72,17 @@ interface NativeResponse {
 type NativeError =
   | { kind: 'untrusted'; certificate: Certificate; pinned: boolean }
   | { kind: 'network' | 'invalidRequest'; message: string };
+
+/** The app's URI scheme for images (packages/app/src-tauri/src/transport/assets.rs). */
+const ASSET_SCHEME = 'teahouse-asset';
+
+/**
+ * The `src` for an image of the server: an image of a server on the native transport loads
+ * through the app's scheme, which fetches and caches it there.
+ */
+export function assetSrc(url: string): string {
+  return usesNativeTransport(url) ? convertFileSrc(url, ASSET_SCHEME) : url;
+}
 
 /** The server's fetch: through the app for servers that need it, else the webview's. */
 export function serverFetch(url: string, init: RequestInit = {}): Promise<Response> {

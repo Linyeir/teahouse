@@ -6,7 +6,6 @@ mod probe;
 mod test_tls;
 mod transport;
 
-#[cfg(not(target_os = "android"))]
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -22,7 +21,29 @@ pub fn run() {
             transport::pin_certificate,
             transport::remove_pin,
             transport::list_pins,
-        ]);
+        ])
+        .register_asynchronous_uri_scheme_protocol(
+            transport::assets::SCHEME,
+            |ctx, request, responder| {
+                let app = ctx.app_handle().clone();
+                let path = request.uri().path().to_owned();
+                tauri::async_runtime::spawn(async move {
+                    let asset = match app.try_state::<transport::Transport>() {
+                        Some(transport) => transport.serve_asset(&path).await,
+                        None => transport::AssetResponse {
+                            status: 503,
+                            content_type: None,
+                            body: Vec::new(),
+                        },
+                    };
+                    let mut response = tauri::http::Response::builder().status(asset.status);
+                    if let Some(content_type) = asset.content_type {
+                        response = response.header(tauri::http::header::CONTENT_TYPE, content_type);
+                    }
+                    responder.respond(response.body(asset.body).unwrap_or_default());
+                });
+            },
+        );
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     #[cfg(target_os = "android")]
@@ -41,6 +62,7 @@ pub fn run() {
             #[cfg(not(target_os = "android"))]
             app.manage(transport::Transport::new(
                 app.path().app_data_dir()?.join("pins.json"),
+                app.path().app_cache_dir()?.join("assets"),
             )?);
             Ok(())
         })

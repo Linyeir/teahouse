@@ -4,6 +4,7 @@
 //! which disregards the app's network security config). The trust decision is the same on every
 //! platform: the platform's verifier first, then the pin (verifier.rs).
 
+pub mod assets;
 mod pins;
 mod socket;
 mod verifier;
@@ -23,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::probe::{Certificate, describe};
+use assets::AssetCache;
 use pins::{Pins, origin_of, parse_fingerprint};
 pub use socket::SocketEvent;
 use socket::{Outgoing, Sockets};
@@ -94,22 +96,47 @@ pub struct Transport {
     pins: Mutex<Pins>,
     clients: Mutex<HashMap<String, OriginClient>>,
     sockets: Sockets,
+    assets: AssetCache,
+}
+
+/// What the asset scheme answers.
+#[derive(Debug)]
+pub struct AssetResponse {
+    pub status: u16,
+    pub content_type: Option<String>,
+    pub body: Vec<u8>,
+}
+
+impl AssetResponse {
+    fn status(status: u16) -> Self {
+        Self {
+            status,
+            content_type: None,
+            body: Vec::new(),
+        }
+    }
 }
 
 // Not set up on Android yet: the platform verifier needs its Kotlin component there first.
 #[cfg_attr(target_os = "android", allow(dead_code))]
 impl Transport {
-    pub fn new(pins_file: PathBuf) -> Result<Self, String> {
+    pub fn new(pins_file: PathBuf, asset_dir: PathBuf) -> Result<Self, String> {
         let provider = Arc::new(rustls::crypto::ring::default_provider());
         let platform = rustls_platform_verifier::Verifier::new(provider.clone())
             .map_err(|err| err.to_string())?;
-        Ok(Self::with_platform(Arc::new(platform), provider, pins_file))
+        Ok(Self::with_platform(
+            Arc::new(platform),
+            provider,
+            pins_file,
+            asset_dir,
+        ))
     }
 
     fn with_platform(
         platform: Arc<dyn ServerCertVerifier>,
         provider: Arc<CryptoProvider>,
         pins_file: PathBuf,
+        asset_dir: PathBuf,
     ) -> Self {
         Self {
             provider,
@@ -117,6 +144,7 @@ impl Transport {
             pins: Mutex::new(Pins::load(pins_file)),
             clients: Mutex::new(HashMap::new()),
             sockets: Sockets::default(),
+            assets: AssetCache::new(asset_dir),
         }
     }
 
@@ -220,6 +248,59 @@ impl Transport {
             }
         };
         Ok(self.sockets.run(stream, on_event))
+    }
+
+    /// Answers a request of the asset scheme: from the cache, else fetched like native_fetch.
+    pub async fn serve_asset(&self, path: &str) -> AssetResponse {
+        let Some(url) = assets::asset_url(path) else {
+            return AssetResponse::status(403);
+        };
+        if let Some((body, content_type)) = self.assets.get(&url) {
+            return AssetResponse {
+                status: 200,
+                content_type: Some(content_type),
+                body,
+            };
+        }
+        let Some(origin) = origin_of(&url) else {
+            return AssetResponse::status(403);
+        };
+        let Ok(OriginClient {
+            client, verifier, ..
+        }) = self.client_for(&origin)
+        else {
+            return AssetResponse::status(500);
+        };
+        let response = match client.get(url.clone()).send().await {
+            Ok(response) => response,
+            Err(err) => {
+                return match explain(&err, &url, &verifier) {
+                    FetchError::Untrusted { .. } => AssetResponse::status(502),
+                    _ => AssetResponse::status(504),
+                };
+            }
+        };
+        let status = response.status().as_u16();
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("application/octet-stream")
+            .to_owned();
+        let Ok(body) = response.bytes().await else {
+            return AssetResponse::status(504);
+        };
+        if status != 200 {
+            return AssetResponse::status(status);
+        }
+        if let Err(err) = self.assets.put(&url, &body, &content_type) {
+            log::warn!("caching {url} failed: {err}");
+        }
+        AssetResponse {
+            status,
+            content_type: Some(content_type),
+            body: body.to_vec(),
+        }
     }
 
     pub fn send_socket(&self, id: u32, data: String) -> Result<(), String> {
@@ -416,7 +497,9 @@ mod tests {
             std::process::id()
         ));
         let _ = std::fs::remove_file(&file);
-        Transport::with_platform(platform, provider, file)
+        let assets = file.with_file_name("assets");
+        let _ = std::fs::remove_dir_all(&assets);
+        Transport::with_platform(platform, provider, file, assets)
     }
 
     fn get(port: u16) -> NativeRequest {
@@ -604,7 +687,8 @@ mod tests {
             std::process::id()
         ));
         let _ = std::fs::remove_file(&file);
-        let transport = Transport::with_platform(Arc::new(platform), provider, file);
+        let assets = file.with_file_name("assets");
+        let transport = Transport::with_platform(Arc::new(platform), provider, file, assets);
         transport
             .pin(
                 &format!("https://127.0.0.1:{pinned_port}"),
@@ -773,6 +857,93 @@ mod tests {
             Err(FetchError::InvalidRequest { .. })
         ));
         assert!(transport.send_socket(99, "nobody".into()).is_err());
+    }
+
+    /// The scheme's request path for an asset URL, as convertFileSrc builds it.
+    fn asset_path(url: &str) -> String {
+        format!(
+            "/{}",
+            percent_encoding::utf8_percent_encode(url, percent_encoding::NON_ALPHANUMERIC)
+        )
+    }
+
+    const PNG: &str = "HTTP/1.1 200 OK\r\ncontent-type: image/png\r\ncontent-length: 7\r\ncache-control: private, max-age=31536000, immutable\r\nconnection: close\r\n\r\nPNGDATA";
+
+    #[tokio::test]
+    async fn asset_is_fetched_once_then_served_from_the_cache() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        // One connection only: a second fetch would fail.
+        let port = https_server(cert.der().clone(), &key, 1, PNG);
+        let transport = transport(vec![], "assets");
+        transport
+            .pin(
+                &format!("https://127.0.0.1:{port}"),
+                &fingerprint(cert.der()),
+            )
+            .unwrap();
+        let asset = |token: &str| {
+            asset_path(&format!(
+                "https://127.0.0.1:{port}/api/worlds/w1/assets/backgrounds/harbor-1.png?token={token}"
+            ))
+        };
+
+        let first = transport.serve_asset(&asset("one")).await;
+        assert_eq!(first.status, 200);
+        assert_eq!(first.content_type.as_deref(), Some("image/png"));
+        assert_eq!(first.body, b"PNGDATA");
+        // Another sign-in, the same image: from the cache.
+        let second = transport.serve_asset(&asset("two")).await;
+        assert_eq!(second.status, 200);
+        assert_eq!(second.body, b"PNGDATA");
+    }
+
+    #[tokio::test]
+    async fn missing_asset_is_not_cached() {
+        const NOT_FOUND: &str =
+            "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let port = https_server(cert.der().clone(), &key, 2, NOT_FOUND);
+        let transport = transport(vec![], "assets-missing");
+        transport
+            .pin(
+                &format!("https://127.0.0.1:{port}"),
+                &fingerprint(cert.der()),
+            )
+            .unwrap();
+        let path = asset_path(&format!(
+            "https://127.0.0.1:{port}/api/worlds/w1/assets/gone.png"
+        ));
+        assert_eq!(transport.serve_asset(&path).await.status, 404);
+        assert_eq!(transport.serve_asset(&path).await.status, 404);
+    }
+
+    #[tokio::test]
+    async fn asset_from_an_untrusted_server_is_refused() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let port = https_server(cert.der().clone(), &key, 1, PNG);
+        let path = asset_path(&format!(
+            "https://127.0.0.1:{port}/api/worlds/w1/assets/a.png"
+        ));
+        let response = transport(vec![], "assets-untrusted")
+            .serve_asset(&path)
+            .await;
+        assert_eq!(response.status, 502);
+        assert!(response.body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_scheme_serves_only_world_assets() {
+        let transport = transport(vec![], "assets-other");
+        assert_eq!(
+            transport
+                .serve_asset(&asset_path("https://127.0.0.1:1/api/chats"))
+                .await
+                .status,
+            403
+        );
     }
 
     /// The JSON shapes packages/client/src/transport.ts sends and expects.

@@ -2,7 +2,7 @@ import type { ApiError } from '@teahouse/shared';
 import { ensureLocalNetwork } from './localNetwork.ts';
 import { NetworkError, setReachable } from './offline.ts';
 import { isApp } from './platform.ts';
-import { serverFetch } from './transport.ts';
+import { assetSrc, serverFetch } from './transport.ts';
 
 export { isApp };
 
@@ -140,7 +140,9 @@ export function assetUrl(worldId: string, file: string): string {
     .split('/')
     .map(encodeURIComponent)
     .join('/');
-  return `${getServer()}/api/worlds/${worldId}/assets/${rel}?token=${encodeURIComponent(getToken() ?? '')}`;
+  return assetSrc(
+    `${getServer()}/api/worlds/${worldId}/assets/${rel}?token=${encodeURIComponent(getToken() ?? '')}`,
+  );
 }
 
 /** Downloads an authenticated file (e.g. a world export) through the browser. */
