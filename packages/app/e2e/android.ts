@@ -18,7 +18,7 @@
  */
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
@@ -192,14 +192,19 @@ function startServer(): ChildProcess {
       TEAHOUSE_PORT: String(HTTP_PORT),
       TEAHOUSE_HOST: '127.0.0.1',
     },
-    stdio: 'ignore',
+    // Kept for the diagnostics printed when a check fails.
+    stdio: [
+      'ignore',
+      openSync(join(work, 'server.log'), 'w'),
+      openSync(join(work, 'server.log'), 'a'),
+    ],
     detached: true,
   });
 }
 
 /** Forwards HTTPS to the server and counts what passes through. */
 function startHttpsFront(key: Buffer, cert: Buffer) {
-  const seen = { webSockets: 0, assets: 0 };
+  const seen = { tls: 0, tlsErrors: [] as string[], webSockets: 0, assets: 0 };
   const server = https.createServer({ key, cert }, (req, res) => {
     if (req.url?.includes('/assets/')) seen.assets++;
     const upstream = http.request(
@@ -233,6 +238,9 @@ function startHttpsFront(key: Buffer, cert: Buffer) {
     upstream.on('error', () => socket.destroy());
     socket.on('error', () => upstream.destroy());
   });
+  // A client that rejects the certificate never gets as far as a request.
+  server.on('secureConnection', () => seen.tls++);
+  server.on('tlsClientError', (err) => seen.tlsErrors.push(err.message));
   server.listen(HTTPS_PORT, '127.0.0.1');
   const close = () => {
     server.close();
@@ -244,6 +252,9 @@ function startHttpsFront(key: Buffer, cert: Buffer) {
 
 // --- the app: Chrome DevTools protocol for the webview, uiautomator for Android ----------
 
+/** The webview's console messages and uncaught errors, across app restarts. */
+const consoleLog: string[] = [];
+
 class Page {
   private id = 0;
   private pending = new Map<number, (message: { result?: unknown; error?: unknown }) => void>();
@@ -254,9 +265,19 @@ class Page {
     this.socket = socket;
     socket.onmessage = (event) => {
       const message = JSON.parse(String(event.data));
+      if (message.method === 'Runtime.consoleAPICalled') {
+        const args = message.params.args.map(
+          (arg: { value?: unknown; description?: string }) => arg.description ?? String(arg.value),
+        );
+        consoleLog.push(`${message.params.type}: ${args.join(' ')}`);
+      } else if (message.method === 'Runtime.exceptionThrown') {
+        const details = message.params.exceptionDetails;
+        consoleLog.push(`exception: ${details.exception?.description ?? details.text}`);
+      }
       this.pending.get(message.id)?.(message);
       this.pending.delete(message.id);
     };
+    socket.send(JSON.stringify({ id: ++this.id, method: 'Runtime.enable' }));
   }
 
   /** Attaches to the app's webview (debug builds allow it). */
@@ -386,6 +407,35 @@ const front = startHttpsFront(certs.key, certs.cert);
 const userCa = `/data/misc/user/0/cacerts-added/${certs.caHash}.0`;
 let page: Page | undefined;
 
+/** What a failed run needs explained: printed before the temporary files are gone. */
+async function diagnostics() {
+  const section = (title: string, text: string) =>
+    console.log(`\n--- ${title}\n${text.trim() || '(nothing)'}`);
+  section('HTTPS front', JSON.stringify(front.seen, null, 2));
+  section('webview console', consoleLog.slice(-40).join('\n'));
+  try {
+    section('page text', ((await page?.text()) ?? '').slice(0, 2000));
+  } catch (err) {
+    section('page text', `unavailable: ${err}`);
+  }
+  try {
+    section(
+      'server log',
+      readFileSync(join(work, 'server.log'), 'utf8').split('\n').slice(-40).join('\n'),
+    );
+  } catch (err) {
+    section('server log', `unavailable: ${err}`);
+  }
+  try {
+    const logcat = adb('logcat', '-d', '-t', '2000')
+      .split('\n')
+      .filter((line) => /chromium|cr_|ssl|cert|websocket|Tauri|teahouse/i.test(line));
+    section('logcat', logcat.slice(-60).join('\n'));
+  } catch (err) {
+    section('logcat', `unavailable: ${err}`);
+  }
+}
+
 function cleanUp() {
   page?.close();
   try {
@@ -481,7 +531,8 @@ try {
   await page.fill(en.auth.password, password);
   await page.click(en.auth.setup);
   await page.waitForText(en.nav.worlds);
-  await until('the WebSocket over HTTPS', () => front.seen.webSockets > 0);
+  // A first attempt that fails is retried with a growing delay.
+  await until('the WebSocket over HTTPS', () => front.seen.webSockets > 0, 60_000);
   check(!(await page.text()).includes(en.app.offline), 'the WebSocket stays connected');
 
   const login = (await (
@@ -546,6 +597,10 @@ try {
   check(true, 'the app reconnects by itself once allowed');
 
   console.log('\nAll checks passed.');
+} catch (err) {
+  console.error(`\n✗ ${err instanceof Error ? err.message : err}`);
+  await diagnostics();
+  throw err;
 } finally {
   cleanUp();
 }
