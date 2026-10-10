@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
+import { localNetworkAllowed, looksLocal } from './localNetwork.ts';
 
 /**
  * Why the app cannot reach the server. A rejected certificate and a server that is down are
@@ -14,6 +15,8 @@ export type Diagnosis =
   | { kind: 'gateway' }
   /** The webview connects, but may not read the answer (CORS, or a redirect by a proxy). */
   | { kind: 'blocked' }
+  /** Android 17 keeps the app off the local network until the user allows it. */
+  | { kind: 'localNetwork' }
   /** Nothing answers: wrong address, server down, or not on the same network. */
   | { kind: 'unreachable'; reason?: string }
   /** Something answers, but not with TLS, or the TLS handshake fails. */
@@ -51,6 +54,8 @@ async function attempt(url: string, mode: RequestMode): Promise<Response | null>
 }
 
 export async function diagnose(server: string): Promise<Diagnosis> {
+  // Requests to a local address fail at once without the permission (api.ts).
+  if (looksLocal(server) && !(await localNetworkAllowed())) return { kind: 'localNetwork' };
   const url = `${server}/api/auth/status`;
   const response = await attempt(url, 'cors');
   if (response) {
@@ -63,9 +68,12 @@ export async function diagnose(server: string): Promise<Diagnosis> {
   const probe = await invoke<Probe>('probe_server', { url: server });
   switch (probe.result) {
     case 'notTls':
-      return { kind: 'unreachable' };
     case 'unreachable':
-      return { kind: 'unreachable', reason: probe.reason };
+      // Without the permission, a server on the local network fails like one that is down.
+      if (!(await localNetworkAllowed())) return { kind: 'localNetwork' };
+      return probe.result === 'notTls'
+        ? { kind: 'unreachable' }
+        : { kind: 'unreachable', reason: probe.reason };
     case 'tlsFailed':
       return { kind: 'tlsFailed', reason: probe.reason };
     case 'tls':

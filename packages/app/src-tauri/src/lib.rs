@@ -10,6 +10,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![probe::probe_server]);
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_local_network::init());
     builder
         .setup(|app| {
             if cfg!(debug_assertions) {

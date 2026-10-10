@@ -1,8 +1,9 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
-import type { MouseEvent } from 'react';
+import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getServer, isApp } from '../api.ts';
 import { type Certificate, type Diagnosis, useDiagnosis } from '../diagnose.ts';
+import { openAppSettings, requestLocalNetwork } from '../localNetwork.ts';
 import type { NetworkError } from '../offline.ts';
 import styles from './ServerDiagnosis.module.css';
 import ui from './ui.module.css';
@@ -53,6 +54,8 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
       return <p className={styles.text}>{t('server.gateway')}</p>;
     case 'blocked':
       return <p className={styles.text}>{t('server.blocked')}</p>;
+    case 'localNetwork':
+      return <LocalNetwork />;
     case 'unreachable':
       return (
         <>
@@ -70,6 +73,38 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
     case 'untrusted':
       return <Untrusted certificate={diagnosis.certificate} server={server} />;
   }
+}
+
+function LocalNetwork() {
+  const { t } = useTranslation();
+  // After the second refusal Android stops asking: then only the settings page helps.
+  const [answer, setAnswer] = useState<'granted' | 'refused'>();
+  if (answer === 'granted') return <p className={styles.text}>{t('server.localNetworkGranted')}</p>;
+  const warn = (err: unknown) => console.warn('Local network permission:', err);
+  const allow = () =>
+    void requestLocalNetwork().then((granted) => setAnswer(granted ? 'granted' : 'refused'), warn);
+  return (
+    <>
+      <p className={styles.text}>
+        {answer === 'refused' ? t('server.localNetworkRefused') : t('server.localNetwork')}
+      </p>
+      <p className={styles.text}>
+        {answer === 'refused' ? (
+          <button
+            className={ui.button}
+            type="button"
+            onClick={() => void openAppSettings().catch(warn)}
+          >
+            {t('server.localNetworkSettingsOpen')}
+          </button>
+        ) : (
+          <button className={ui.button} type="button" onClick={allow}>
+            {t('server.localNetworkAllow')}
+          </button>
+        )}
+      </p>
+    </>
+  );
 }
 
 function Untrusted({ certificate: cert, server }: { certificate: Certificate; server: string }) {
