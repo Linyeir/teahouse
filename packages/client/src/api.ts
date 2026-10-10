@@ -87,7 +87,10 @@ export async function request<T>(method: string, path: string, body?: unknown): 
   const token = getToken();
   const isForm = body instanceof FormData;
   let response: Response;
-  await ensureLocalNetwork(getServer());
+  if (!(await ensureLocalNetwork(getServer()))) {
+    setReachable(false);
+    throw new NetworkError(new Error('Local network access not allowed'));
+  }
   try {
     response = await fetch(serverUrl(path), {
       method,

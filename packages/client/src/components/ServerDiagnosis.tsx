@@ -3,7 +3,7 @@ import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getServer, isApp } from '../api.ts';
 import { type Certificate, type Diagnosis, useDiagnosis } from '../diagnose.ts';
-import { requestLocalNetwork } from '../localNetwork.ts';
+import { openAppSettings, requestLocalNetwork } from '../localNetwork.ts';
 import type { NetworkError } from '../offline.ts';
 import styles from './ServerDiagnosis.module.css';
 import ui from './ui.module.css';
@@ -77,21 +77,32 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
 
 function LocalNetwork() {
   const { t } = useTranslation();
-  const [granted, setGranted] = useState(false);
-  if (granted) return <p className={styles.text}>{t('server.localNetworkGranted')}</p>;
+  // After the second refusal Android stops asking: then only the settings page helps.
+  const [answer, setAnswer] = useState<'granted' | 'refused'>();
+  if (answer === 'granted') return <p className={styles.text}>{t('server.localNetworkGranted')}</p>;
+  const warn = (err: unknown) => console.warn('Local network permission:', err);
   const allow = () =>
-    void requestLocalNetwork().then(setGranted, (err: unknown) =>
-      console.warn('Local network permission:', err),
-    );
+    void requestLocalNetwork().then((granted) => setAnswer(granted ? 'granted' : 'refused'), warn);
   return (
     <>
-      <p className={styles.text}>{t('server.localNetwork')}</p>
       <p className={styles.text}>
-        <button className={ui.button} type="button" onClick={allow}>
-          {t('server.localNetworkAllow')}
-        </button>
+        {answer === 'refused' ? t('server.localNetworkRefused') : t('server.localNetwork')}
       </p>
-      <p className={styles.reason}>{t('server.localNetworkSettings')}</p>
+      <p className={styles.text}>
+        {answer === 'refused' ? (
+          <button
+            className={ui.button}
+            type="button"
+            onClick={() => void openAppSettings().catch(warn)}
+          >
+            {t('server.localNetworkSettingsOpen')}
+          </button>
+        ) : (
+          <button className={ui.button} type="button" onClick={allow}>
+            {t('server.localNetworkAllow')}
+          </button>
+        )}
+      </p>
     </>
   );
 }

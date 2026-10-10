@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
-import { localNetworkAllowed } from './localNetwork.ts';
+import { localNetworkAllowed, looksLocal } from './localNetwork.ts';
 
 /**
  * Why the app cannot reach the server. A rejected certificate and a server that is down are
@@ -54,6 +54,8 @@ async function attempt(url: string, mode: RequestMode): Promise<Response | null>
 }
 
 export async function diagnose(server: string): Promise<Diagnosis> {
+  // Requests to a local address fail at once without the permission (api.ts).
+  if (looksLocal(server) && !(await localNetworkAllowed())) return { kind: 'localNetwork' };
   const url = `${server}/api/auth/status`;
   const response = await attempt(url, 'cors');
   if (response) {

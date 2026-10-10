@@ -1,7 +1,10 @@
 package io.github.linyeir.teahouse.localnetwork
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import app.tauri.annotation.Command
 import app.tauri.annotation.Permission
 import app.tauri.annotation.TauriPlugin
@@ -17,7 +20,7 @@ private const val ANDROID_17 = 37
         Permission(strings = ["android.permission.ACCESS_LOCAL_NETWORK"], alias = "localNetwork")
     ]
 )
-class LocalNetworkPlugin(activity: Activity) : Plugin(activity) {
+class LocalNetworkPlugin(private val activity: Activity) : Plugin(activity) {
     // Before Android 17 the INTERNET permission covers the local network. Asking for a
     // permission the system does not know would come back as denied.
 
@@ -29,6 +32,18 @@ class LocalNetworkPlugin(activity: Activity) : Plugin(activity) {
     @Command
     override fun requestPermissions(invoke: Invoke) {
         if (Build.VERSION.SDK_INT < ANDROID_17) grantedBefore17(invoke) else super.requestPermissions(invoke)
+    }
+
+    /** After the second refusal Android no longer asks; only the settings page can allow it. */
+    @Command
+    fun openAppSettings(invoke: Invoke) {
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", activity.packageName, null),
+        )
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        activity.startActivity(intent)
+        invoke.resolve()
     }
 
     private fun grantedBefore17(invoke: Invoke) {

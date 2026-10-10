@@ -1,4 +1,4 @@
-import { checkPermissions, requestPermissions } from '@tauri-apps/api/core';
+import { checkPermissions, invoke, requestPermissions } from '@tauri-apps/api/core';
 import { isAndroidApp } from './platform.ts';
 
 type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale';
@@ -23,6 +23,11 @@ export async function requestLocalNetwork(): Promise<boolean> {
     'local-network',
   );
   return localNetwork === 'granted';
+}
+
+/** The app's page in the system settings, where "Nearby devices" can still be allowed. */
+export function openAppSettings(): Promise<void> {
+  return invoke('plugin:local-network|open_app_settings');
 }
 
 /**
@@ -53,13 +58,23 @@ export function looksLocal(server: string): boolean {
   return !host.includes('.') || /\.(local|lan|home|internal|home\.arpa)$/.test(host);
 }
 
-let asked: Promise<void> | null = null;
+// The one dialog per start; later requests wait for its answer instead of asking again.
+let asked: Promise<boolean> | null = null;
 
-/** Asks once per start, before the first request to a server on the local network. */
-export function ensureLocalNetwork(server: string): Promise<void> {
-  if (!isAndroidApp || !looksLocal(server)) return Promise.resolve();
-  asked ??= (async () => {
-    if (!(await localNetworkAllowed())) await requestLocalNetwork();
-  })().catch((err: unknown) => console.warn('Local network permission:', err));
-  return asked;
+/**
+ * Whether a request to `server` may go out. Asks once per start for a server on the local
+ * network. Android drops blocked connections silently, so without the permission a request
+ * would hang for about two minutes before it fails; the caller fails it at once instead.
+ */
+export async function ensureLocalNetwork(server: string): Promise<boolean> {
+  if (!isAndroidApp || !looksLocal(server)) return true;
+  try {
+    if (await localNetworkAllowed()) return true;
+    asked ??= requestLocalNetwork();
+    return (await asked) || (await localNetworkAllowed());
+  } catch (err) {
+    // Unknown: let the request try.
+    console.warn('Local network permission:', err);
+    return true;
+  }
 }
