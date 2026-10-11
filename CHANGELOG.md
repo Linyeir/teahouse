@@ -2,19 +2,15 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [Unreleased]
+## [0.3.4] - unreleased
 
-**Updating:** apps and server can be updated in any order; the server does not change.
+**Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on; the server itself does not change.
 
 ### Added
 
 - The apps can connect to a server through themselves instead of through their web view. Some web views ignore CAs you installed (LineageOS's does, although Android itself trusts them), so the Android app could not reach a server with a certificate from your own CA. When the device trusts a certificate and the web view does not, the app says so and offers "Connect through the app", with the same check Android uses for other apps. Requests, live updates and world images then go through the app. ([#27](https://github.com/Linyeir/teahouse/issues/27))
 - A server with a self-signed certificate can be trusted in the apps by its fingerprint: the app shows the fingerprint and the command that prints it on the server, and trusts exactly that certificate once you confirm that they match. Pairing links and QR codes from a device that trusts it carry the fingerprint along. If the server later presents another certificate, the app refuses it and shows both fingerprints; you forget the old one and check the new one. ([#27](https://github.com/Linyeir/teahouse/issues/27))
 - Settings → Connection shows whether the app connects through itself or its web view, can switch between them, and lists the certificates you trusted, each with a button to forget it.
-
-## [0.3.4] - unreleased
-
-**Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on. Only the web client changed.
 
 ### Changed
 
@@ -128,7 +124,6 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
-[Unreleased]: https://github.com/Linyeir/teahouse/compare/v0.3.3...HEAD
 [0.3.4]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.2
