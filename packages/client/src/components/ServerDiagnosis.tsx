@@ -11,8 +11,17 @@ import ui from './ui.module.css';
 
 const HTTPS_DOCS = 'https://github.com/Linyeir/teahouse/blob/main/docs/https.md';
 
-/** A request that never reached the server; the apps also say why. */
-export function NetworkErrorText({ error }: { error: NetworkError }) {
+/**
+ * A request that never reached the server; the apps also say why. `onRetry` repeats the failed
+ * action once the user changed how the app connects (a view that does not refetch by itself).
+ */
+export function NetworkErrorText({
+  error,
+  onRetry,
+}: {
+  error: NetworkError;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   const server = getServer();
   const diagnosis = useDiagnosis(server, isApp && error);
@@ -21,7 +30,7 @@ export function NetworkErrorText({ error }: { error: NetworkError }) {
       <p className={styles.text}>{t('server.unreachable')}</p>
       {isApp &&
         (diagnosis ? (
-          <DiagnosisText diagnosis={diagnosis} server={server} />
+          <DiagnosisText diagnosis={diagnosis} server={server} onRetry={onRetry} />
         ) : (
           <p className={`${styles.text} ${ui.muted}`}>{t('server.checking')}</p>
         ))}
@@ -46,7 +55,15 @@ export function OfflineDiagnosis({ offline }: { offline: boolean }) {
   );
 }
 
-function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: string }) {
+function DiagnosisText({
+  diagnosis,
+  server,
+  onRetry,
+}: {
+  diagnosis: Diagnosis;
+  server: string;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   switch (diagnosis.kind) {
     case 'reachable':
@@ -72,9 +89,9 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
         </>
       );
     case 'untrusted':
-      return <Untrusted certificate={diagnosis.certificate} server={server} />;
+      return <Untrusted certificate={diagnosis.certificate} server={server} onRetry={onRetry} />;
     case 'webviewOnly':
-      return <WebviewOnly certificate={diagnosis.certificate} server={server} />;
+      return <WebviewOnly certificate={diagnosis.certificate} server={server} onRetry={onRetry} />;
     case 'certificateChanged':
       return (
         <CertificateChanged
@@ -124,7 +141,15 @@ function useDate() {
     new Date(seconds * 1000).toLocaleDateString(i18n.language, { dateStyle: 'medium' });
 }
 
-function Untrusted({ certificate: cert, server }: { certificate: Certificate; server: string }) {
+function Untrusted({
+  certificate: cert,
+  server,
+  onRetry,
+}: {
+  certificate: Certificate;
+  server: string;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   const date = useDate();
   const now = Date.now() / 1000;
@@ -157,7 +182,7 @@ function Untrusted({ certificate: cert, server }: { certificate: Certificate; se
         ))}
       </ul>
       <CertificateDetails certificate={cert} />
-      <AcceptCertificate certificate={cert} server={server} />
+      <AcceptCertificate certificate={cert} server={server} onRetry={onRetry} />
       <DocsLink />
     </>
   );
@@ -167,7 +192,15 @@ function Untrusted({ certificate: cert, server }: { certificate: Certificate; se
  * Trusting a certificate nobody vouches for: only after the user compared its fingerprint with
  * the one the server shows, so a machine in between cannot slip its own in.
  */
-function AcceptCertificate({ certificate, server }: { certificate: Certificate; server: string }) {
+function AcceptCertificate({
+  certificate,
+  server,
+  onRetry,
+}: {
+  certificate: Certificate;
+  server: string;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   const [step, setStep] = useState<'offer' | 'check' | 'accepted'>('offer');
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +219,10 @@ function AcceptCertificate({ certificate, server }: { certificate: Certificate; 
   const command = `openssl s_client -connect ${hostname}:${port || 443} -servername ${hostname} </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256`;
   const accept = () =>
     void acceptCertificate(server, certificate.sha256).then(
-      () => setStep('accepted'),
+      () => {
+        setStep('accepted');
+        onRetry?.();
+      },
       (err: unknown) => setError(String(err)),
     );
   return (
@@ -208,7 +244,15 @@ function AcceptCertificate({ certificate, server }: { certificate: Certificate; 
   );
 }
 
-function WebviewOnly({ certificate, server }: { certificate: Certificate; server: string }) {
+function WebviewOnly({
+  certificate,
+  server,
+  onRetry,
+}: {
+  certificate: Certificate;
+  server: string;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   const [switched, setSwitched] = useState(false);
   return (
@@ -225,6 +269,7 @@ function WebviewOnly({ certificate, server }: { certificate: Certificate; server
             onClick={() => {
               connectThroughApp(server);
               setSwitched(true);
+              onRetry?.();
             }}
           >
             {t('server.connectThroughApp')}

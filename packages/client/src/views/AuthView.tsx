@@ -120,7 +120,7 @@ export function AuthView() {
               onChange={(e) => setServerDraft(e.target.value)}
             />
           </Field>
-          <ErrorText error={connect.error} />
+          <ErrorText error={connect.error} onRetry={() => connect.mutate()} />
           <button className={ui.primary} type="submit" disabled={connect.isPending}>
             {t('auth.connect')}
           </button>
