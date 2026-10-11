@@ -408,10 +408,16 @@ pub struct Pin {
     sha256: String,
 }
 
-/// A failed connection: an untrusted certificate when the verifier rejected one, else the
+/// A failed connection: an untrusted certificate when the verifier rejected it, else the
 /// network error.
-fn explain(err: &dyn std::error::Error, url: &Url, verifier: &PinningVerifier) -> FetchError {
-    let rejected = verifier.take_rejected();
+fn explain(
+    err: &(dyn std::error::Error + 'static),
+    url: &Url,
+    verifier: &PinningVerifier,
+) -> FetchError {
+    let rejected = is_certificate_error(err)
+        .then(|| verifier.rejected())
+        .flatten();
     let server_name = url
         .host_str()
         .map(|host| {
@@ -429,6 +435,30 @@ fn explain(err: &dyn std::error::Error, url: &Url, verifier: &PinningVerifier) -
             message: error_chain(err),
         },
     }
+}
+
+/// Whether rustls refused the server's certificate somewhere in the causes of `err`. io::Error
+/// hides its inner error from `source()` (and hyper nests one in another), so those are
+/// unwrapped as well.
+fn is_certificate_error(err: &(dyn std::error::Error + 'static)) -> bool {
+    let mut cause = Some(err);
+    while let Some(err) = cause {
+        let mut inner = err;
+        while let Some(wrapped) = inner
+            .downcast_ref::<std::io::Error>()
+            .and_then(|io| io.get_ref())
+        {
+            inner = wrapped;
+        }
+        if matches!(
+            inner.downcast_ref::<rustls::Error>(),
+            Some(rustls::Error::InvalidCertificate(_))
+        ) {
+            return true;
+        }
+        cause = err.source();
+    }
+    false
 }
 
 /// reqwest's own message is only "error sending request"; the causes say what happened.
@@ -602,6 +632,26 @@ mod tests {
                 assert!(!pinned);
             }
             other => panic!("expected an untrusted certificate, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn an_earlier_rejection_does_not_explain_a_later_failure() {
+        let key = KeyPair::generate().unwrap();
+        let cert = params("127.0.0.1").self_signed(&key).unwrap();
+        let port = https_server(cert.der().clone(), &key, 1, OK);
+        let transport = transport(vec![], "earlier-rejection");
+
+        let first = transport.fetch(get(port)).await;
+        assert!(
+            matches!(first, Err(FetchError::Untrusted { .. })),
+            "{first:?}"
+        );
+        // The server stops listening after its one connection: now nothing answers at all.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        match transport.fetch(get(port)).await {
+            Err(FetchError::Network { .. }) => {}
+            other => panic!("expected a network error, got {other:?}"),
         }
     }
 

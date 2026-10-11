@@ -34,9 +34,10 @@ impl PinningVerifier {
         }
     }
 
-    /// The certificate rejected most recently, if any; taking it clears it.
-    pub fn take_rejected(&self) -> Option<CertificateDer<'static>> {
-        self.rejected.lock().ok()?.take()
+    /// The certificate rejected most recently, if any. Kept, not taken: requests and the
+    /// WebSocket share the verifier, and may fail on the same certificate at the same time.
+    pub fn rejected(&self) -> Option<CertificateDer<'static>> {
+        self.rejected.lock().ok()?.clone()
     }
 
     pub fn pin(&self) -> Option<[u8; 32]> {
