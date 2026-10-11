@@ -1,16 +1,35 @@
-import type { World } from '@teahouse/shared';
+import { useQuery } from '@tanstack/react-query';
+import type { Chat, World } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { api } from '../api.ts';
 import { CharacterRow } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
+import styles from './HomeView.module.css';
 
 export function HomeView() {
   const { t } = useTranslation();
   const worlds = useWorlds();
+  const chats = useQuery({ queryKey: ['chats'], queryFn: () => api.get<Chat[]>('/api/chats') });
 
   return (
     <div className={ui.page}>
+      {/* On larger screens the sidebar lists the chats. */}
+      {Boolean(chats.data?.length) && (
+        <section className={ui.phoneOnly}>
+          <h2 className={ui.title}>{t('nav.chats')}</h2>
+          <ul className={ui.list}>
+            {chats.data?.map((chat) => (
+              <li key={chat.id}>
+                <Link className={`${ui.listItem} ${styles.chat}`} to={`/chats/${chat.id}`}>
+                  <span>{chat.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {worlds.data?.length === 0 ? (
         <p className={ui.muted}>
           {t('home.noWorlds')} <Link to="/worlds">{t('home.toWorlds')}</Link>

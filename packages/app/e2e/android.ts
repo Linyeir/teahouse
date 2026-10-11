@@ -29,6 +29,8 @@ import { crc32, deflateSync } from 'node:zlib';
 const APP = 'io.github.linyeir.teahouse';
 const HTTP_PORT = 8787;
 const HTTPS_PORT = 8443;
+/** A server with a self-signed certificate, which the user trusts by its fingerprint. */
+const PINNED_PORT = 8444;
 const HOST = '10.0.2.2';
 const root = new URL('../../..', import.meta.url).pathname;
 const en = JSON.parse(readFileSync(join(root, 'packages/client/src/locales/en.json'), 'utf8'));
@@ -164,22 +166,48 @@ function makeCertificates() {
     '-extfile',
     file('ext.cnf'),
   ]);
-  const fingerprint = run('openssl', [
-    'x509',
-    '-in',
-    file('server.pem'),
-    '-noout',
-    '-fingerprint',
-    '-sha256',
-  ])
-    .trim()
-    .split('=')[1];
+  const fingerprint = fingerprintOf(file('server.pem'));
   return {
     caPem: readFileSync(file('ca.pem'), 'utf8'),
     caHash: run('openssl', ['x509', '-in', file('ca.pem'), '-noout', '-subject_hash_old']).trim(),
     key: readFileSync(file('server.key')),
     cert: readFileSync(file('server.pem')),
     fingerprint,
+  };
+}
+
+/** `AB:CD:…`, as the app shows it. */
+function fingerprintOf(pem: string): string {
+  const out = run('openssl', ['x509', '-in', pem, '-noout', '-fingerprint', '-sha256']);
+  return out.trim().split('=')[1] ?? '';
+}
+
+/** A self-signed certificate for the host the emulator connects to: no CA vouches for it. */
+function makeSelfSigned(name: string) {
+  const file = (ext: string) => join(work, `${name}.${ext}`);
+  run('openssl', [
+    'req',
+    '-x509',
+    '-newkey',
+    'ec',
+    '-pkeyopt',
+    'ec_paramgen_curve:P-256',
+    '-nodes',
+    '-keyout',
+    file('key'),
+    '-out',
+    file('pem'),
+    '-days',
+    '1',
+    '-subj',
+    '/CN=teahouse.lan',
+    '-addext',
+    `subjectAltName=IP:${HOST},DNS:teahouse.lan`,
+  ]);
+  return {
+    key: readFileSync(file('key')),
+    cert: readFileSync(file('pem')),
+    fingerprint: fingerprintOf(file('pem')),
   };
 }
 
@@ -203,7 +231,7 @@ function startServer(): ChildProcess {
 }
 
 /** Forwards HTTPS to the server and counts what passes through. */
-function startHttpsFront(key: Buffer, cert: Buffer) {
+function startHttpsFront(key: Buffer, cert: Buffer, port = HTTPS_PORT) {
   const seen = { tls: 0, tlsErrors: [] as string[], requests: 0, webSockets: 0, assets: 0 };
   const server = https.createServer({ key, cert }, (req, res) => {
     seen.requests++;
@@ -242,7 +270,7 @@ function startHttpsFront(key: Buffer, cert: Buffer) {
   // A client that rejects the certificate never gets as far as a request.
   server.on('secureConnection', () => seen.tls++);
   server.on('tlsClientError', (err) => seen.tlsErrors.push(err.message));
-  server.listen(HTTPS_PORT, '127.0.0.1');
+  server.listen(port, '127.0.0.1');
   const close = () => {
     server.close();
     server.closeAllConnections();
@@ -428,6 +456,7 @@ async function launch(): Promise<Page> {
 const certs = makeCertificates();
 const server = startServer();
 const front = startHttpsFront(certs.key, certs.cert);
+let pinnedFront: ReturnType<typeof startHttpsFront> | undefined;
 const userCa = `/data/misc/user/0/cacerts-added/${certs.caHash}.0`;
 let page: Page | undefined;
 
@@ -436,6 +465,7 @@ async function diagnostics() {
   const section = (title: string, text: string) =>
     console.log(`\n--- ${title}\n${text.trim() || '(nothing)'}`);
   section('HTTPS front', JSON.stringify(front.seen, null, 2));
+  if (pinnedFront) section('self-signed HTTPS front', JSON.stringify(pinnedFront.seen, null, 2));
   try {
     section('activity in front', topActivity());
   } catch (err) {
@@ -485,6 +515,7 @@ function cleanUp() {
     // The emulator may be gone already.
   }
   front.close();
+  pinnedFront?.close();
   try {
     // The server runs in its own process group, with pnpm and tsx in front of node.
     if (server.pid) process.kill(-server.pid);
@@ -634,6 +665,14 @@ try {
   );
   check(image.src.startsWith(`https://${HOST}:${HTTPS_PORT}/`), 'the image loads over HTTPS');
   check(front.seen.assets > 0, 'the image request went through the HTTPS front');
+  // The app's own connections ask Android too (rustls-platform-verifier through JNI).
+  const trust = await page.eval<{ result: string }>(
+    `window.__TAURI_INTERNALS__.invoke('platform_trust', { server: ${JSON.stringify(httpsServer)} })`,
+  );
+  check(
+    trust.result === 'trusted',
+    `Android trusts the user CA for the app as well (${trust.result})`,
+  );
 
   step('Local network: refused for good, allowed in the settings');
   shell(`pm revoke ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
@@ -667,6 +706,71 @@ try {
     60_000,
   );
   check(true, 'the app reconnects by itself once allowed');
+
+  step('A self-signed certificate, trusted by its fingerprint');
+  const selfSigned = makeSelfSigned('self-signed');
+  pinnedFront = startHttpsFront(selfSigned.key, selfSigned.cert, PINNED_PORT);
+  const pinnedServer = `https://${HOST}:${PINNED_PORT}`;
+  // The same server behind another front, so the device stays signed in.
+  await page.eval(
+    `localStorage.setItem('teahouse.server', ${JSON.stringify(pinnedServer)}); location.reload()`,
+  );
+  await page.waitForText(en.server.untrusted, 60_000);
+  check((await page.text()).includes(en.server.certSelfSigned), 'the app says it is self-signed');
+  await page.click(en.server.acceptStart);
+  await page.waitForText(en.server.acceptCheck);
+  check(
+    (await page.text()).includes(selfSigned.fingerprint),
+    `the app shows the fingerprint to compare (${selfSigned.fingerprint.slice(0, 11)}…)`,
+  );
+  check(pinnedFront.seen.requests === 0, 'nothing reached the server before the user decided');
+  await page.click(en.server.acceptConfirm);
+  await until('the WebSocket through the app', () => pinnedFront?.seen.webSockets, 60_000);
+  await until(
+    'the app to connect',
+    async () => !(await page?.text())?.includes(en.app.offlineMode),
+    60_000,
+  );
+  check(pinnedFront.seen.requests > 0, 'requests go through the app');
+  const pins = await page.eval<{ origin: string; sha256: string }[]>(
+    "window.__TAURI_INTERNALS__.invoke('list_pins')",
+  );
+  check(
+    pins.some((pin) => pin.origin === pinnedServer && pin.sha256 === selfSigned.fingerprint),
+    'the app keeps the trusted certificate',
+  );
+  await page.eval(
+    `history.pushState(null, '', '/worlds/${world.id}'); dispatchEvent(new PopStateEvent('popstate'))`,
+  );
+  const pinnedImage = await until('the background image through the app', () =>
+    page?.eval<{ src: string } | null>(`(() => {
+      const img = [...document.images].find((i) => i.src.includes('teahouse-asset'));
+      return img?.complete && img.naturalWidth > 0 ? { src: img.src } : null;
+    })()`),
+  );
+  check(
+    pinnedFront.seen.assets > 0,
+    `the image loads through the app (${pinnedImage.src.slice(0, 40)}…)`,
+  );
+
+  step('A self-signed certificate that changed');
+  pinnedFront.close();
+  const replaced = makeSelfSigned('replaced');
+  pinnedFront = startHttpsFront(replaced.key, replaced.cert, PINNED_PORT);
+  // The closed front ends the WebSocket; reconnecting meets the new certificate.
+  await page.waitForText(en.server.certChanged, 60_000);
+  const changed = await page.text();
+  check(
+    changed.includes(selfSigned.fingerprint) && changed.includes(replaced.fingerprint),
+    'the app shows the trusted and the presented fingerprint',
+  );
+  check(pinnedFront.seen.requests === 0, 'nothing reaches the server with the new certificate');
+  await page.click(en.server.forgetCertificate);
+  await page.waitForText(en.server.forgotten);
+  const forgotten = await page.eval<{ origin: string }[]>(
+    "window.__TAURI_INTERNALS__.invoke('list_pins')",
+  );
+  check(!forgotten.some((pin) => pin.origin === pinnedServer), 'the app forgets it');
 
   console.log('\nAll checks passed.');
 } catch (err) {

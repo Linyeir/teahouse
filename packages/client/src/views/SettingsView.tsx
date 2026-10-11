@@ -3,6 +3,7 @@ import { type Device, type Profile, type Settings, TEAHOUSE_VERSION } from '@tea
 import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, setToken } from '../api.ts';
+import { ConnectionSettings } from '../components/ConnectionSettings.tsx';
 import { ErrorText, Field } from '../components/Field.tsx';
 import { PairDevice } from '../components/PairDevice.tsx';
 import ui from '../components/ui.module.css';
@@ -151,6 +152,8 @@ export function SettingsView() {
       <button className={ui.danger} type="button" onClick={() => logout.mutate()}>
         {t('auth.logout')}
       </button>
+
+      <ConnectionSettings />
 
       <h3>{t('settings.about')}</h3>
       <p className={ui.muted}>

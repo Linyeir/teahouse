@@ -2,6 +2,7 @@ import type { ApiError } from '@teahouse/shared';
 import { ensureLocalNetwork } from './localNetwork.ts';
 import { NetworkError, setReachable } from './offline.ts';
 import { isApp } from './platform.ts';
+import { assetSrc, serverFetch } from './transport.ts';
 
 export { isApp };
 
@@ -92,7 +93,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     throw new NetworkError(new Error('Local network access not allowed'));
   }
   try {
-    response = await fetch(serverUrl(path), {
+    response = await serverFetch(serverUrl(path), {
       method,
       headers: {
         ...(body !== undefined && !isForm && { 'content-type': 'application/json' }),
@@ -139,13 +140,15 @@ export function assetUrl(worldId: string, file: string): string {
     .split('/')
     .map(encodeURIComponent)
     .join('/');
-  return `${getServer()}/api/worlds/${worldId}/assets/${rel}?token=${encodeURIComponent(getToken() ?? '')}`;
+  return assetSrc(
+    `${getServer()}/api/worlds/${worldId}/assets/${rel}?token=${encodeURIComponent(getToken() ?? '')}`,
+  );
 }
 
 /** Downloads an authenticated file (e.g. a world export) through the browser. */
 export async function download(path: string): Promise<void> {
   const token = getToken();
-  const response = await fetch(serverUrl(path), {
+  const response = await serverFetch(serverUrl(path), {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
   if (!response.ok) {

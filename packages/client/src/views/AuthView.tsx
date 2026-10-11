@@ -7,6 +7,7 @@ import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 import { parsePairing } from '../pairing.ts';
 import { canScan, ScanError, scanQrCode } from '../scan.ts';
+import { acceptCertificate } from '../transport.ts';
 import { assertCompatibleServer } from '../version.ts';
 
 const defaultDeviceName = () => {
@@ -24,9 +25,16 @@ const defaultDeviceName = () => {
 };
 
 /** Claims a pairing code on `server` and signs this device in. */
-async function claim(server: string | null, code: string, deviceName: string) {
+async function claim(
+  server: string | null,
+  code: string,
+  deviceName: string,
+  pin: string | null = null,
+) {
   if (server !== null) {
     setServer(server);
+    // The pairing device trusts the server's certificate by its fingerprint: so does this one.
+    if (pin && isApp) await acceptCertificate(getServer(), pin);
     await assertCompatibleServer();
   }
   const { token } = await api.post<TokenResponse>('/api/pairing/claim', { code, deviceName });
@@ -43,7 +51,7 @@ function ScanButton() {
       if (text === null) return;
       const pairing = parsePairing(text);
       if (!pairing) throw new Error(t('auth.invalidCode'));
-      await claim(pairing.server, pairing.code, defaultDeviceName());
+      await claim(pairing.server, pairing.code, defaultDeviceName(), pairing.pin);
     },
   });
   if (!canScan) return null;
@@ -75,7 +83,7 @@ export function AuthView() {
       // A pasted pairing link answers both questions at once and signs in directly.
       const pairing = parsePairing(server);
       if (pairing?.server) {
-        await claim(pairing.server, pairing.code, defaultDeviceName());
+        await claim(pairing.server, pairing.code, defaultDeviceName(), pairing.pin);
         return;
       }
       setServer(normalizeServer(server));
@@ -112,7 +120,7 @@ export function AuthView() {
               onChange={(e) => setServerDraft(e.target.value)}
             />
           </Field>
-          <ErrorText error={connect.error} />
+          <ErrorText error={connect.error} onRetry={() => connect.mutate()} />
           <button className={ui.primary} type="submit" disabled={connect.isPending}>
             {t('auth.connect')}
           </button>
@@ -215,7 +223,7 @@ function CodeForm() {
     networkMode: 'always',
     mutationFn: () => {
       if (!parsed) throw new Error(t('auth.invalidCode'));
-      return claim(parsed.server, parsed.code, deviceName);
+      return claim(parsed.server, parsed.code, deviceName, parsed.pin);
     },
   });
 

@@ -5,6 +5,7 @@ import { api, getToken, serverUrl, setToken } from './api.ts';
 import { applyUpdate, type PathUpdate, streamBuffers } from './chat-state.ts';
 import { setReachable } from './offline.ts';
 import { syncLocalCopy } from './sync.ts';
+import { type NativeSocket, openServerSocket } from './transport.ts';
 import { checkServerVersion } from './version.ts';
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
@@ -38,7 +39,7 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
       setLocalState(next);
       publish(next);
     };
-    let socket: WebSocket | null = null;
+    let socket: WebSocket | NativeSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     let stopped = false;
@@ -50,7 +51,7 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
       const url = new URL(serverUrl('/api/ws'), window.location.href);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       url.searchParams.set('token', token);
-      socket = new WebSocket(url);
+      socket = openServerSocket(url.href);
       socket.onopen = () => {
         attempt = 0;
         setState('open');

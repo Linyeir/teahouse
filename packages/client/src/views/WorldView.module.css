@@ -14,6 +14,11 @@
   gap: var(--space);
 }
 
+/* A long list scrolls instead of squeezing its entries. */
+.files > * {
+  flex-shrink: 0;
+}
+
 .group h4 {
   margin: 0 0 4px;
   font-size: 0.8rem;
@@ -102,8 +107,10 @@
 }
 
 @media (max-width: 720px) {
+  /* Takes the height of its content, and the layout's pane scrolls it. */
   .layout {
     grid-template-columns: 1fr;
     height: auto;
+    flex-shrink: 0;
   }
 }
