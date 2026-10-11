@@ -3,10 +3,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const native = vi.hoisted(() => ({
   probe: { result: 'notTls' } as unknown,
   localNetwork: 'granted',
+  /** What platform_trust answers; an Error makes the command fail (no native transport). */
+  platformTrust: { result: 'untrusted' } as unknown,
+  pins: [] as { origin: string; sha256: string }[],
+  /** What native_fetch answers or throws. */
+  nativeFetch: { status: 200, headers: [], body: '' } as unknown,
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(async () => native.probe),
+  invoke: vi.fn(async (command: string) => {
+    const answers: Record<string, unknown> = {
+      probe_server: native.probe,
+      platform_trust: native.platformTrust,
+      list_pins: native.pins,
+      native_fetch: native.nativeFetch,
+    };
+    const answer = answers[command];
+    if (answer instanceof Error || (answer as { kind?: string } | undefined)?.kind) throw answer;
+    return answer;
+  }),
   checkPermissions: vi.fn(async () => ({ localNetwork: native.localNetwork })),
   requestPermissions: vi.fn(async () => ({ localNetwork: native.localNetwork })),
 }));
@@ -42,6 +57,15 @@ describe('diagnose', () => {
   beforeEach(() => {
     native.probe = { result: 'notTls' };
     native.localNetwork = 'granted';
+    native.platformTrust = { result: 'untrusted' };
+    native.pins = [];
+    native.nativeFetch = { status: 200, headers: [], body: '' };
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
   });
 
   it('reports a server that answers again', async () => {
@@ -105,5 +129,55 @@ describe('diagnose', () => {
     native.localNetwork = 'denied';
     native.probe = { result: 'tls', certificate };
     expect((await diagnose('https://teahouse.example.com')).kind).toBe('untrusted');
+  });
+
+  it('offers the app connection when the device trusts what the webview refuses', async () => {
+    webview(null, false);
+    native.probe = { result: 'tls', certificate };
+    native.platformTrust = { result: 'trusted' };
+    expect(await diagnose('https://teahouse.lan')).toEqual({ kind: 'webviewOnly', certificate });
+  });
+
+  it('reports an untrusted certificate when the platform cannot check it', async () => {
+    webview(null, false);
+    native.probe = { result: 'tls', certificate };
+    native.platformTrust = new Error('command platform_trust not found');
+    expect(await diagnose('https://teahouse.lan')).toEqual({ kind: 'untrusted', certificate });
+  });
+
+  describe('for a server the app connects to itself', () => {
+    beforeEach(() => {
+      localStorage.setItem('teahouse.native', JSON.stringify(['https://teahouse.lan:443']));
+    });
+
+    it('reports a server that answers', async () => {
+      const fetch = webview(null, false);
+      expect(await diagnose('https://teahouse.lan')).toEqual({ kind: 'reachable' });
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports a changed certificate with the one that was trusted', async () => {
+      native.pins = [{ origin: 'https://teahouse.lan:443', sha256: '11:22' }];
+      native.nativeFetch = { kind: 'untrusted', certificate, pinned: true };
+      expect(await diagnose('https://teahouse.lan')).toEqual({
+        kind: 'certificateChanged',
+        certificate,
+        accepted: '11:22',
+      });
+    });
+
+    it('reports an untrusted certificate when none was trusted', async () => {
+      native.nativeFetch = { kind: 'untrusted', certificate, pinned: false };
+      expect(await diagnose('https://teahouse.lan')).toEqual({ kind: 'untrusted', certificate });
+    });
+
+    it('asks the probe why it cannot connect', async () => {
+      native.nativeFetch = { kind: 'network', message: 'refused' };
+      native.probe = { result: 'unreachable', reason: 'Connection refused' };
+      expect(await diagnose('https://teahouse.lan')).toEqual({
+        kind: 'unreachable',
+        reason: 'Connection refused',
+      });
+    });
   });
 });

@@ -22,8 +22,8 @@ export function Field({
   );
 }
 
-export function ErrorText({ error }: { error: unknown }) {
+export function ErrorText({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   if (!error) return null;
-  if (error instanceof NetworkError) return <NetworkErrorText error={error} />;
+  if (error instanceof NetworkError) return <NetworkErrorText error={error} onRetry={onRetry} />;
   return <p className={ui.error}>{error instanceof Error ? error.message : String(error)}</p>;
 }

@@ -5,13 +5,23 @@ import { getServer, isApp } from '../api.ts';
 import { type Certificate, type Diagnosis, useDiagnosis } from '../diagnose.ts';
 import { openAppSettings, requestLocalNetwork } from '../localNetwork.ts';
 import type { NetworkError } from '../offline.ts';
+import { acceptCertificate, connectThroughApp, forgetCertificate } from '../transport.ts';
 import styles from './ServerDiagnosis.module.css';
 import ui from './ui.module.css';
 
 const HTTPS_DOCS = 'https://github.com/Linyeir/teahouse/blob/main/docs/https.md';
 
-/** A request that never reached the server; the apps also say why. */
-export function NetworkErrorText({ error }: { error: NetworkError }) {
+/**
+ * A request that never reached the server; the apps also say why. `onRetry` repeats the failed
+ * action once the user changed how the app connects (a view that does not refetch by itself).
+ */
+export function NetworkErrorText({
+  error,
+  onRetry,
+}: {
+  error: NetworkError;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   const server = getServer();
   const diagnosis = useDiagnosis(server, isApp && error);
@@ -20,7 +30,7 @@ export function NetworkErrorText({ error }: { error: NetworkError }) {
       <p className={styles.text}>{t('server.unreachable')}</p>
       {isApp &&
         (diagnosis ? (
-          <DiagnosisText diagnosis={diagnosis} server={server} />
+          <DiagnosisText diagnosis={diagnosis} server={server} onRetry={onRetry} />
         ) : (
           <p className={`${styles.text} ${ui.muted}`}>{t('server.checking')}</p>
         ))}
@@ -34,7 +44,8 @@ export function NetworkErrorText({ error }: { error: NetworkError }) {
  */
 export function OfflineDiagnosis({ offline }: { offline: boolean }) {
   const server = getServer();
-  const diagnosis = useDiagnosis(server, isApp && offline);
+  // As often as the app checks whether the server is back (events.ts).
+  const diagnosis = useDiagnosis(server, isApp && offline, 10_000);
   if (!diagnosis || diagnosis.kind === 'unreachable' || diagnosis.kind === 'reachable') {
     return null;
   }
@@ -45,7 +56,15 @@ export function OfflineDiagnosis({ offline }: { offline: boolean }) {
   );
 }
 
-function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: string }) {
+function DiagnosisText({
+  diagnosis,
+  server,
+  onRetry,
+}: {
+  diagnosis: Diagnosis;
+  server: string;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   switch (diagnosis.kind) {
     case 'reachable':
@@ -71,7 +90,17 @@ function DiagnosisText({ diagnosis, server }: { diagnosis: Diagnosis; server: st
         </>
       );
     case 'untrusted':
-      return <Untrusted certificate={diagnosis.certificate} server={server} />;
+      return <Untrusted certificate={diagnosis.certificate} server={server} onRetry={onRetry} />;
+    case 'webviewOnly':
+      return <WebviewOnly certificate={diagnosis.certificate} server={server} onRetry={onRetry} />;
+    case 'certificateChanged':
+      return (
+        <CertificateChanged
+          certificate={diagnosis.certificate}
+          accepted={diagnosis.accepted}
+          server={server}
+        />
+      );
   }
 }
 
@@ -107,10 +136,23 @@ function LocalNetwork() {
   );
 }
 
-function Untrusted({ certificate: cert, server }: { certificate: Certificate; server: string }) {
-  const { t, i18n } = useTranslation();
-  const date = (seconds: number) =>
+function useDate() {
+  const { i18n } = useTranslation();
+  return (seconds: number) =>
     new Date(seconds * 1000).toLocaleDateString(i18n.language, { dateStyle: 'medium' });
+}
+
+function Untrusted({
+  certificate: cert,
+  server,
+  onRetry,
+}: {
+  certificate: Certificate;
+  server: string;
+  onRetry?: () => void;
+}) {
+  const { t } = useTranslation();
+  const date = useDate();
   const now = Date.now() / 1000;
   const host = new URL(server).hostname;
 
@@ -132,11 +174,6 @@ function Untrusted({ certificate: cert, server }: { certificate: Certificate; se
     );
   }
 
-  const openDocs = (e: MouseEvent) => {
-    e.preventDefault();
-    void openUrl(HTTPS_DOCS);
-  };
-
   return (
     <>
       <p className={styles.text}>{t('server.untrusted')}</p>
@@ -145,35 +182,197 @@ function Untrusted({ certificate: cert, server }: { certificate: Certificate; se
           <li key={problem}>{problem}</li>
         ))}
       </ul>
-      <dl className={styles.certificate}>
-        {cert.subject && (
-          <>
-            <dt>{t('server.certSubject')}</dt>
-            <dd>{cert.subject}</dd>
-          </>
-        )}
-        {cert.issuer && (
-          <>
-            <dt>{t('server.certIssuer')}</dt>
-            <dd>{cert.issuer}</dd>
-          </>
-        )}
-        {cert.notBefore !== null && cert.notAfter !== null && (
-          <>
-            <dt>{t('server.certValidity')}</dt>
-            <dd>
-              {date(cert.notBefore)} – {date(cert.notAfter)}
-            </dd>
-          </>
-        )}
-        <dt>{t('server.certFingerprint')}</dt>
-        <dd className={styles.fingerprint}>{cert.sha256}</dd>
-      </dl>
-      <p className={styles.text}>
-        <a href={HTTPS_DOCS} onClick={openDocs}>
-          {t('server.httpsDocs')}
-        </a>
-      </p>
+      <CertificateDetails certificate={cert} />
+      <AcceptCertificate certificate={cert} server={server} onRetry={onRetry} />
+      <DocsLink />
     </>
+  );
+}
+
+/**
+ * Trusting a certificate nobody vouches for: only after the user compared its fingerprint with
+ * the one the server shows, so a machine in between cannot slip its own in.
+ */
+function AcceptCertificate({
+  certificate,
+  server,
+  onRetry,
+}: {
+  certificate: Certificate;
+  server: string;
+  onRetry?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [step, setStep] = useState<'offer' | 'check' | 'accepted'>('offer');
+  const [error, setError] = useState<string | null>(null);
+  if (!isApp || !server.startsWith('https:')) return null;
+  if (step === 'accepted') return <p className={styles.text}>{t('server.accepted')}</p>;
+  if (step === 'offer') {
+    return (
+      <p className={styles.text}>
+        <button className={ui.button} type="button" onClick={() => setStep('check')}>
+          {t('server.acceptStart')}
+        </button>
+      </p>
+    );
+  }
+  const { hostname, port } = new URL(server);
+  const command = `openssl s_client -connect ${hostname}:${port || 443} -servername ${hostname} </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256`;
+  const accept = () =>
+    void acceptCertificate(server, certificate.sha256).then(
+      () => {
+        setStep('accepted');
+        onRetry?.();
+      },
+      (err: unknown) => setError(String(err)),
+    );
+  return (
+    <div className={styles.accept}>
+      <p className={styles.text}>{t('server.acceptCheck')}</p>
+      <pre className={styles.command}>{command}</pre>
+      <p className={styles.text}>{t('server.acceptCompare')}</p>
+      <p className={`${styles.fingerprint} ${styles.large}`}>{certificate.sha256}</p>
+      {error && <p className={styles.reason}>{error}</p>}
+      <div className={ui.actions} style={{ justifyContent: 'flex-start' }}>
+        <button className={ui.primary} type="button" onClick={accept}>
+          {t('server.acceptConfirm')}
+        </button>
+        <button className={ui.ghost} type="button" onClick={() => setStep('offer')}>
+          {t('common.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WebviewOnly({
+  certificate,
+  server,
+  onRetry,
+}: {
+  certificate: Certificate;
+  server: string;
+  onRetry?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [switched, setSwitched] = useState(false);
+  return (
+    <>
+      <p className={styles.text}>{t('server.webviewOnly')}</p>
+      <CertificateDetails certificate={certificate} />
+      {switched ? (
+        <p className={styles.text}>{t('server.switched')}</p>
+      ) : (
+        <p className={styles.text}>
+          <button
+            className={ui.button}
+            type="button"
+            onClick={() => {
+              connectThroughApp(server);
+              setSwitched(true);
+              onRetry?.();
+            }}
+          >
+            {t('server.connectThroughApp')}
+          </button>
+        </p>
+      )}
+    </>
+  );
+}
+
+/** Never trusted again silently: the user forgets the old certificate, then checks the new one. */
+function CertificateChanged({
+  certificate,
+  accepted,
+  server,
+}: {
+  certificate: Certificate;
+  accepted: string | null;
+  server: string;
+}) {
+  const { t } = useTranslation();
+  const [forgotten, setForgotten] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const forget = () =>
+    void forgetCertificate(server).then(
+      () => setForgotten(true),
+      (err: unknown) => setError(String(err)),
+    );
+  return (
+    <div role="alert">
+      <p className={styles.text}>
+        <strong>{t('server.certChanged')}</strong>
+      </p>
+      <dl className={styles.certificate}>
+        {accepted && (
+          <>
+            <dt>{t('server.certAccepted')}</dt>
+            <dd className={styles.fingerprint}>{accepted}</dd>
+          </>
+        )}
+        <dt>{t('server.certPresented')}</dt>
+        <dd className={styles.fingerprint}>{certificate.sha256}</dd>
+      </dl>
+      {forgotten ? (
+        <p className={styles.text}>{t('server.forgotten')}</p>
+      ) : (
+        <>
+          <p className={styles.text}>{t('server.certChangedHint')}</p>
+          {error && <p className={styles.reason}>{error}</p>}
+          <p className={styles.text}>
+            <button className={ui.button} type="button" onClick={forget}>
+              {t('server.forgetCertificate')}
+            </button>
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CertificateDetails({ certificate: cert }: { certificate: Certificate }) {
+  const { t } = useTranslation();
+  const date = useDate();
+  return (
+    <dl className={styles.certificate}>
+      {cert.subject && (
+        <>
+          <dt>{t('server.certSubject')}</dt>
+          <dd>{cert.subject}</dd>
+        </>
+      )}
+      {cert.issuer && (
+        <>
+          <dt>{t('server.certIssuer')}</dt>
+          <dd>{cert.issuer}</dd>
+        </>
+      )}
+      {cert.notBefore !== null && cert.notAfter !== null && (
+        <>
+          <dt>{t('server.certValidity')}</dt>
+          <dd>
+            {date(cert.notBefore)} – {date(cert.notAfter)}
+          </dd>
+        </>
+      )}
+      <dt>{t('server.certFingerprint')}</dt>
+      <dd className={styles.fingerprint}>{cert.sha256}</dd>
+    </dl>
+  );
+}
+
+function DocsLink() {
+  const { t } = useTranslation();
+  const openDocs = (e: MouseEvent) => {
+    e.preventDefault();
+    void openUrl(HTTPS_DOCS);
+  };
+  return (
+    <p className={styles.text}>
+      <a href={HTTPS_DOCS} onClick={openDocs}>
+        {t('server.httpsDocs')}
+      </a>
+    </p>
   );
 }

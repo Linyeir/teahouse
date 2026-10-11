@@ -37,19 +37,19 @@ pub enum Probe {
 }
 
 /// The server's own (leaf) certificate.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Certificate {
-    subject: Option<String>,
-    issuer: Option<String>,
+    pub(crate) subject: Option<String>,
+    pub(crate) issuer: Option<String>,
     /// Unix seconds.
-    not_before: Option<i64>,
-    not_after: Option<i64>,
+    pub(crate) not_before: Option<i64>,
+    pub(crate) not_after: Option<i64>,
     /// SHA-256 of the DER encoding, as `AB:CD:…`, like browsers and `openssl x509 -fingerprint`.
-    sha256: String,
-    self_signed: bool,
+    pub(crate) sha256: String,
+    pub(crate) self_signed: bool,
     /// Whether the certificate names the host the client connects to.
-    matches_host: bool,
+    pub(crate) matches_host: bool,
 }
 
 #[tauri::command]
@@ -162,12 +162,17 @@ fn connect(addrs: &[SocketAddr]) -> Result<TcpStream, String> {
     Err(last)
 }
 
-fn describe(der: &CertificateDer<'_>, server_name: &ServerName<'_>) -> Certificate {
-    let sha256 = Sha256::digest(der)
+/// SHA-256 of a certificate as `AB:CD:…`, like browsers and `openssl x509 -fingerprint`.
+pub(crate) fn fingerprint(der: &[u8]) -> String {
+    Sha256::digest(der)
         .iter()
         .map(|byte| format!("{byte:02X}"))
         .collect::<Vec<_>>()
-        .join(":");
+        .join(":")
+}
+
+pub(crate) fn describe(der: &CertificateDer<'_>, server_name: &ServerName<'_>) -> Certificate {
+    let sha256 = fingerprint(der);
     let matches_host = ParsedCertificate::try_from(der)
         .is_ok_and(|cert| rustls::client::verify_server_name(&cert, server_name).is_ok());
     match x509_parser::parse_x509_certificate(der) {
@@ -252,13 +257,9 @@ impl ServerCertVerifier for Recorder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rcgen::{
-        BasicConstraints, CertificateParams, CertifiedIssuer, DnType, IsCa, KeyPair, date_time_ymd,
-    };
-    use rustls::ServerConnection;
-    use rustls::pki_types::PrivateKeyDer;
+    use crate::test_tls::{now, params, tls_server};
+    use rcgen::{BasicConstraints, CertifiedIssuer, IsCa, KeyPair, date_time_ymd};
     use std::net::TcpListener;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn plain_http_is_not_probed() {
@@ -298,49 +299,11 @@ mod tests {
         ));
     }
 
-    fn params(name: &str) -> CertificateParams {
-        let mut params = CertificateParams::new(vec![name.to_owned()]).unwrap();
-        params.distinguished_name.push(DnType::CommonName, name);
-        params
-    }
-
-    /// A TLS server on 127.0.0.1 for one handshake, presenting `cert` with `key`.
-    fn tls_server(cert: CertificateDer<'static>, key: &KeyPair) -> u16 {
-        let config = rustls::ServerConfig::builder_with_provider(Arc::new(
-            rustls::crypto::ring::default_provider(),
-        ))
-        .with_safe_default_protocol_versions()
-        .unwrap()
-        .with_no_client_auth()
-        .with_single_cert(vec![cert], PrivateKeyDer::Pkcs8(key.serialize_der().into()))
-        .unwrap();
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = listener.local_addr().unwrap().port();
-        std::thread::spawn(move || {
-            let (mut tcp, _) = listener.accept().unwrap();
-            let mut conn = ServerConnection::new(Arc::new(config)).unwrap();
-            while conn.is_handshaking() {
-                if conn.complete_io(&mut tcp).is_err() {
-                    return;
-                }
-            }
-            let _ = conn.complete_io(&mut tcp);
-        });
-        port
-    }
-
     fn tls_certificate(url: &str) -> Certificate {
         match probe(url) {
             Probe::Tls { certificate } => certificate,
             other => panic!("expected a TLS handshake, got {other:?}"),
         }
-    }
-
-    fn now() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64
     }
 
     #[test]

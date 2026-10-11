@@ -47,7 +47,7 @@ const persister = createAsyncStoragePersister({
 });
 
 /** Results that are not worth keeping offline, or would be wrong when restored. */
-const VOLATILE = new Set(['auth-status', 'pairing-addresses', 'proposal']);
+const VOLATILE = new Set(['auth-status', 'pairing-addresses', 'proposal', 'trusted-certificate']);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
