@@ -443,12 +443,38 @@ function permission(): string {
   return /ACCESS_LOCAL_NETWORK: granted=(\w+)/.exec(shell(`dumpsys package ${APP}`))?.[1] ?? '?';
 }
 
-async function launch(): Promise<Page> {
+/**
+ * Restarts the app. The webview writes localStorage to disk with a delay, so killing the app
+ * can lose what was stored before, even the sign-in: `keep` is set again where it was lost.
+ * Not what is tested here.
+ */
+async function launch(keep: Record<string, string> = {}): Promise<Page> {
   shell(`am force-stop ${APP}`);
   shell(`monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
   const page = await Page.attach();
-  await until('the client to load', () => page.eval<boolean>("document.readyState === 'complete'"));
+  const loaded = () =>
+    until('the client to load', () => page.eval<boolean>("document.readyState === 'complete'"));
+  await loaded();
+  const stored = await page.eval<Record<string, string | null>>(
+    `Object.fromEntries(${JSON.stringify(Object.keys(keep))}.map((k) => [k, localStorage.getItem(k)]))`,
+  );
+  const lost = Object.keys(keep).filter((key) => stored[key] !== keep[key]);
+  if (lost.length > 0) {
+    console.log(`  (the restart lost ${lost.join(', ')}; set again)`);
+    await page.eval(
+      `for (const [k, v] of Object.entries(${JSON.stringify(keep)})) localStorage.setItem(k, v); location.reload()`,
+    );
+    await sleep(500);
+    await loaded();
+  }
   return page;
+}
+
+/** What the app must keep across a restart: the server and the sign-in. */
+function session(page: Page) {
+  return page.eval<Record<string, string>>(
+    `Object.fromEntries(['teahouse.server', 'teahouse.token'].flatMap((k) => { const v = localStorage.getItem(k); return v === null ? [] : [[k, v]]; }))`,
+  );
 }
 
 // --- the test ----------------------------------------------------------------------------
@@ -610,16 +636,8 @@ try {
   page.close();
   const httpsServer = `https://${HOST}:${HTTPS_PORT}`;
   const requestsBefore = front.seen.requests;
-  page = await launch();
-  // The webview writes localStorage to disk with a delay, so the force-stop above can lose the
-  // address set a moment earlier, and the app comes back on plain HTTP. Not what is tested here.
-  const stored = await page.eval<string | null>("localStorage.getItem('teahouse.server')");
-  if (stored !== httpsServer) {
-    console.log(`  (the restart lost the new server address, ${stored} was stored; set again)`);
-    await page.eval(
-      `localStorage.setItem('teahouse.server', ${JSON.stringify(httpsServer)}); location.reload()`,
-    );
-  }
+  // Set a moment ago, so the restart is likely to lose it.
+  page = await launch({ 'teahouse.server': httpsServer });
   await page.waitForText(en.auth.setupTitle);
   await until('a request through the HTTPS front', () => front.seen.requests > requestsBefore);
   check(true, 'requests work over HTTPS');
@@ -675,12 +693,15 @@ try {
   );
 
   step('Local network: refused for good, allowed in the settings');
+  const signedIn = await session(page);
+  check(signedIn['teahouse.token'], 'the app is signed in');
+  // Revoking a permission kills the app.
   shell(`pm revoke ${APP} android.permission.ACCESS_LOCAL_NETWORK`);
   page.close();
-  page = await launch();
+  page = await launch(signedIn);
   await tapNative(DONT_ALLOW);
   await page.waitForText(en.server.localNetwork, 20_000);
-  check(true, 'the offline banner says why, at once');
+  check((await page.text()).includes(en.app.offlineMode), 'the offline banner says why, at once');
   await page.click(en.server.localNetworkAllow);
   await page.waitForText(en.server.localNetworkRefused);
   check(true, 'Android does not ask again, and the app says so');
@@ -702,10 +723,13 @@ try {
   });
   await until(
     'the app to reconnect',
-    async () => !(await page?.text())?.includes(en.app.offlineMode),
+    async () => {
+      const text = (await page?.text()) ?? '';
+      return text.includes(en.nav.worlds) && !text.includes(en.app.offlineMode);
+    },
     60_000,
   );
-  check(true, 'the app reconnects by itself once allowed');
+  check(true, 'the app reconnects by itself once allowed, still signed in');
 
   step('A self-signed certificate, trusted by its fingerprint');
   const selfSigned = makeSelfSigned('self-signed');
