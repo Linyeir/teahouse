@@ -46,6 +46,9 @@ tauri-plugin-barcode-scanner = "2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-local-network = { path = "plugins/local-network" }
+# Initializing rustls-platform-verifier with the JavaVM and context tao registers.
+jni = { version = "0.22", default-features = false }
+ndk-context = "0.1"
 
 [dev-dependencies]
 rcgen = "0.14"

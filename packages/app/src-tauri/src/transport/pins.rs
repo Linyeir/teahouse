@@ -39,7 +39,6 @@ pub struct Pins {
     by_origin: BTreeMap<String, String>,
 }
 
-#[cfg_attr(target_os = "android", allow(dead_code))]
 impl Pins {
     /// Reads `file`; a missing or unreadable file means no pins.
     pub fn load(file: PathBuf) -> Self {

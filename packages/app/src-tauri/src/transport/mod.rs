@@ -4,6 +4,8 @@
 //! which disregards the app's network security config). The trust decision is the same on every
 //! platform: the platform's verifier first, then the pin (verifier.rs).
 
+#[cfg(target_os = "android")]
+pub mod android;
 pub mod assets;
 mod pins;
 mod socket;
@@ -130,8 +132,6 @@ impl AssetResponse {
     }
 }
 
-// Not set up on Android yet: the platform verifier needs its Kotlin component there first.
-#[cfg_attr(target_os = "android", allow(dead_code))]
 impl Transport {
     pub fn new(pins_file: PathBuf, asset_dir: PathBuf) -> Result<Self, String> {
         let provider = Arc::new(rustls::crypto::ring::default_provider());

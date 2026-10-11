@@ -58,9 +58,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            // On Android the platform verifier needs its Kotlin component wired up first; until
-            // then the app there does not use the native transport.
-            #[cfg(not(target_os = "android"))]
+            #[cfg(target_os = "android")]
+            transport::android::init_platform_verifier()?;
             app.manage(transport::Transport::new(
                 app.path().app_data_dir()?.join("pins.json"),
                 app.path().app_cache_dir()?.join("assets"),
