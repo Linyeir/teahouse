@@ -7,6 +7,13 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Back to the chats, on phones (where the tab bar is hidden in a chat). */
+.back {
+  font-size: 1.5rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
 .title {
   flex: 1 1 160px;
   margin: 0;
