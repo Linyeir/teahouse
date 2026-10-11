@@ -40,9 +40,20 @@ export function usesNativeTransport(server: string): boolean {
   return origin !== null && nativeOrigins().includes(origin);
 }
 
+let trustChanges = 0;
+
+/**
+ * Counts changes to how the app connects and what it trusts: a diagnosis made before the last
+ * one may be out of date (diagnose.ts).
+ */
+export function trustGeneration(): number {
+  return trustChanges;
+}
+
 export function setNativeTransport(server: string, on: boolean): void {
   const origin = originOf(server);
   if (!origin) return;
+  trustChanges++;
   const others = nativeOrigins().filter((o) => o !== origin);
   try {
     localStorage.setItem(NATIVE_KEY, JSON.stringify(on ? [...others, origin] : others));
@@ -86,13 +97,15 @@ export function connectThroughApp(server: string): void {
 /** Trusts exactly the certificate with this fingerprint for `server` and connects through the app. */
 export async function acceptCertificate(server: string, sha256: string): Promise<void> {
   await invoke('pin_certificate', { server, sha256 });
+  trustChanges++;
   setNativeTransport(server, true);
   reconnect();
 }
 
 /** Forgets the accepted certificate of `server`. The next attempt asks again. */
-export function forgetCertificate(server: string): Promise<void> {
-  return invoke('remove_pin', { server });
+export async function forgetCertificate(server: string): Promise<void> {
+  await invoke('remove_pin', { server });
+  trustChanges++;
 }
 
 /** Neither the platform nor an accepted certificate trusts the server. */

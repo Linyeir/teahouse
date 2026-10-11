@@ -6,6 +6,7 @@ import {
   originOf,
   platformTrusts,
   serverFetch,
+  trustGeneration,
   UntrustedCertificateError,
   usesNativeTransport,
 } from './transport.ts';
@@ -129,35 +130,47 @@ async function fromProbe(probe: Exclude<Probe, { result: 'tls' }>): Promise<Diag
   }
 }
 
-// Several views fail at once when the server goes away; they share one diagnosis.
-const recent = new Map<string, { at: number; diagnosis: Promise<Diagnosis> }>();
+// Several views fail at once when the server goes away; they share one diagnosis, unless the
+// user changed what the app trusts since.
+const recent = new Map<string, { at: number; trust: number; diagnosis: Promise<Diagnosis> }>();
 
 function diagnoseOnce(server: string): Promise<Diagnosis> {
   const cached = recent.get(server);
-  if (cached && Date.now() - cached.at < 3000) return cached.diagnosis;
+  const trust = trustGeneration();
+  if (cached && cached.trust === trust && Date.now() - cached.at < 3000) return cached.diagnosis;
   const diagnosis = diagnose(server);
-  recent.set(server, { at: Date.now(), diagnosis });
+  recent.set(server, { at: Date.now(), trust, diagnosis });
   return diagnosis;
 }
 
 /**
  * Diagnoses `server` whenever `trigger` changes to something truthy (a new error, or going
- * offline). Undefined while it runs or when there is nothing to diagnose.
+ * offline), and again every `refreshMs` while it stays so, showing the last result meanwhile:
+ * what fails may change during an outage (a server restarted with a new certificate).
+ * Undefined while the first one runs or when there is nothing to diagnose.
  */
-export function useDiagnosis(server: string, trigger: unknown): Diagnosis | undefined {
+export function useDiagnosis(
+  server: string,
+  trigger: unknown,
+  refreshMs?: number,
+): Diagnosis | undefined {
   const [result, setResult] = useState<{ trigger: unknown; diagnosis: Diagnosis }>();
   useEffect(() => {
     if (!trigger || !server) return;
     let current = true;
-    diagnoseOnce(server).then(
-      (diagnosis) => {
-        if (current) setResult({ trigger, diagnosis });
-      },
-      (err: unknown) => console.warn('Diagnosis failed:', err),
-    );
+    const run = () =>
+      diagnoseOnce(server).then(
+        (diagnosis) => {
+          if (current) setResult({ trigger, diagnosis });
+        },
+        (err: unknown) => console.warn('Diagnosis failed:', err),
+      );
+    void run();
+    const timer = refreshMs ? setInterval(run, refreshMs) : undefined;
     return () => {
       current = false;
+      clearInterval(timer);
     };
-  }, [server, trigger]);
+  }, [server, trigger, refreshMs]);
   return result && result.trigger === trigger ? result.diagnosis : undefined;
 }

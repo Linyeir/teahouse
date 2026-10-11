@@ -44,7 +44,8 @@ export function NetworkErrorText({
  */
 export function OfflineDiagnosis({ offline }: { offline: boolean }) {
   const server = getServer();
-  const diagnosis = useDiagnosis(server, isApp && offline);
+  // As often as the app checks whether the server is back (events.ts).
+  const diagnosis = useDiagnosis(server, isApp && offline, 10_000);
   if (!diagnosis || diagnosis.kind === 'unreachable' || diagnosis.kind === 'reachable') {
     return null;
   }
