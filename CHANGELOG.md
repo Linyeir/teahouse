@@ -2,7 +2,7 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [0.3.4] - unreleased
+## [0.3.4] - 2026-10-11
 
 **Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on; the server itself does not change.
 
