@@ -2,14 +2,16 @@ import {
   type Beat,
   type CharacterSummary,
   type PathMessage,
+  parseUserInput,
   stageAfter,
+  stageBeats,
   USER_SPEAKER,
   type WorldBackground,
 } from '@teahouse/shared';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { assetUrl } from '../api.ts';
-import { formatStory, messageBeats, speakerName } from '../components/Beats.tsx';
+import { formatStory, speakerName } from '../components/Beats.tsx';
 import styles from './VnStage.module.css';
 
 interface Entry {
@@ -48,8 +50,12 @@ export function VnStage({
   const { t } = useTranslation();
   const known = new Set(backgrounds.map((b) => b.id));
   // An unknown background keeps the current one (concept, section 6).
+  // Replies start with their speaker entering, so they show up even when they only act.
   const entries: Entry[] = messages.flatMap((message) =>
-    messageBeats(message)
+    (message.role === 'user'
+      ? parseUserInput(message.content)
+      : stageBeats(message, { final: message.status !== 'streaming' })
+    )
       .filter((beat) => beat.type !== 'bg' || known.has(beat.id))
       .map((beat) => ({ beat, message })),
   );

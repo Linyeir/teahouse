@@ -4,6 +4,7 @@ import {
   closeSceneInput,
   type EditMessageResult,
   editMessageInput,
+  generateInput,
   id,
   type SendMessageResult,
   sceneProposalInput,
@@ -73,9 +74,9 @@ export async function chatRoutes(
   const r = typed(app);
   const changed = (chatId: string) => hub.broadcast({ type: 'chat.changed', chatId });
 
-  const startGeneration = async (chatId: string, parentId: string | null) => {
+  const startGeneration = async (chatId: string, parentId: string | null, speaker?: string) => {
     try {
-      return await generator.start(chatId, parentId);
+      return await generator.start(chatId, parentId, speaker);
     } catch (err) {
       throw generationHttpError(err);
     }
@@ -194,16 +195,20 @@ export async function chatRoutes(
         });
         changed(chat.id);
       }
-      return { messageId: (await startGeneration(chat.id, messageId)).id, forked };
+      return { messageId: (await startGeneration(chat.id, messageId, body.speaker)).id, forked };
     },
   );
 
-  /** Generates a reply to the active leaf, e.g. after a failed request. */
-  r.post('/api/chats/:id/generate', { schema: { params } }, async ({ params }) => {
-    const chat = getChatRow(db, params.id);
-    if (!chat) throw notFound('Chat');
-    return { messageId: (await startGeneration(chat.id, chat.activeLeafId)).id };
-  });
+  /** Generates a reply to the active leaf: someone's turn without user input, or a retry. */
+  r.post(
+    '/api/chats/:id/generate',
+    { schema: { params, body: generateInput.nullish() } },
+    async ({ params, body }) => {
+      const chat = getChatRow(db, params.id);
+      if (!chat) throw notFound('Chat');
+      return { messageId: (await startGeneration(chat.id, chat.activeLeafId, body?.speaker)).id };
+    },
+  );
 
   r.post('/api/chats/:id/leaf', { schema: { params, body: selectLeafInput } }, async (req) => {
     const chat = getChatRow(db, req.params.id);
@@ -225,7 +230,9 @@ export async function chatRoutes(
     if (message.parentId === null) {
       throw new HttpError(400, 'invalid_request', 'The start message is edited, not regenerated');
     }
-    return { messageId: (await startGeneration(message.chatId, message.parentId)).id };
+    // The same speaker again; replies from before speakers default like a new turn.
+    const speaker = message.speaker ?? undefined;
+    return { messageId: (await startGeneration(message.chatId, message.parentId, speaker)).id };
   });
 
   r.post('/api/messages/:id/stop', { schema: { params } }, async ({ params }) => ({

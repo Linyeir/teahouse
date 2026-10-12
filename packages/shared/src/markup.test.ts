@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { findUserLine, parseMarkup, parseUserInput, stageAfter, USER_SPEAKER } from './markup.ts';
+import {
+  defaultSpeaker,
+  findForeignLine,
+  NARRATOR_SPEAKER,
+  parseMarkup,
+  parseUserInput,
+  sceneStage,
+  stageAfter,
+  USER_SPEAKER,
+} from './markup.ts';
 
 describe('parseMarkup', () => {
   it('parses the documented tags', () => {
@@ -59,12 +68,14 @@ describe('parseUserInput', () => {
   });
 });
 
-describe('findUserLine', () => {
-  it('finds a line written for the persona', () => {
-    const text = '<narration>Mira waits.</narration><say who="Ash">Fine.</say>';
-    expect(findUserLine(text, ['Ash'])).toBe(text.indexOf('<say'));
-    expect(findUserLine('<say who="user">x</say>', [])).toBe(0);
-    expect(findUserLine('<say who="mira">Ash?</say>', ['Ash'])).toBeNull();
+describe('findForeignLine', () => {
+  it('finds the first line by someone the test rejects', () => {
+    const notMira = (who: string) => who.toLowerCase() !== 'mira';
+    const text =
+      '<say who="Mira">Hi.</say><narration>Ash waits.</narration><say who="Ash">Fine.</say>';
+    expect(findForeignLine(text, notMira)).toBe(text.lastIndexOf('<say'));
+    expect(findForeignLine('<say who="mira">Ash?</say></say>', notMira)).toBeNull();
+    expect(findForeignLine('<say>No speaker.</say>', notMira)).toBeNull();
   });
 });
 
@@ -80,6 +91,38 @@ describe('stageAfter', () => {
       present: [{ who: 'mira', mood: 'angry' }],
       speaker: 'mira',
     });
+  });
+});
+
+describe('sceneStage', () => {
+  const reply = (content: string, speaker: string | null) => ({
+    role: 'assistant' as const,
+    content,
+    speaker,
+  });
+
+  it('brings a speaker on stage even when they only act', () => {
+    const state = sceneStage(
+      [
+        reply('<narration>Mira looks up.</narration>', null),
+        { role: 'user', content: 'Hello?', speaker: null },
+        reply('<narration>Tomas nods.</narration>', 'tomas'),
+        reply('<narration>Thunder.</narration>', NARRATOR_SPEAKER),
+      ],
+      ['mira'],
+    );
+    expect(state.present.map((p) => p.who)).toEqual(['mira', 'tomas']);
+  });
+});
+
+describe('defaultSpeaker', () => {
+  it('is whoever had the last turn, skipping the narrator, else the first of the cast', () => {
+    const turn = (speaker: string | null) => ({ role: 'assistant' as const, content: '', speaker });
+    expect(defaultSpeaker([turn('tomas'), turn(NARRATOR_SPEAKER), turn(null)], ['mira'])).toBe(
+      'tomas',
+    );
+    expect(defaultSpeaker([turn(null)], ['mira', 'tomas'])).toBe('mira');
+    expect(defaultSpeaker([], [])).toBe(NARRATOR_SPEAKER);
   });
 });
 

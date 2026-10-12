@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { type CanonProposal, markupToText } from '@teahouse/shared';
+import { type CanonProposal, markupToText, NARRATOR_SPEAKER } from '@teahouse/shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { contextWindow, countTokens } from '../context/tokens.ts';
 import { memoryOnPath } from '../context/turn.ts';
@@ -203,7 +203,13 @@ export class CanonProposals {
 
     // What the canon looks like now: an index of all files, full text of the core files.
     const files = await worlds.files(chat.worldId);
-    const corePaths = ['world.md', 'user.md', ...scene.cast.map((c) => `characters/${c}.md`)];
+    // The cast, and whoever joined the scene with a turn of their own.
+    const path = scene.closedLeafId ? activePath(db, chat.id, scene.closedLeafId) : [];
+    const speakers = path.flatMap((m) =>
+      m.speaker && m.speaker !== NARRATOR_SPEAKER ? [m.speaker] : [],
+    );
+    const characters = [...new Set([...scene.cast, ...speakers])];
+    const corePaths = ['world.md', 'user.md', ...characters.map((c) => `characters/${c}.md`)];
     const index = files.map(
       (f) => `- ${f.path} (${f.type ?? 'file'}): ${f.name}${f.summary ? ` – ${f.summary}` : ''}`,
     );

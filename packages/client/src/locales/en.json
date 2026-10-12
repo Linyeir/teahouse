@@ -100,7 +100,12 @@
     "noProfile": "Add a profile before chatting.",
     "previousVersion": "Previous version",
     "nextVersion": "Next version",
-    "emptyReply": "The reply came back empty. Regenerate, or check the profile in the log view."
+    "emptyReply": "The reply came back empty. Regenerate, or check the profile in the log view.",
+    "nextTurn": "Next turn",
+    "present": "In the scene",
+    "others": "Elsewhere in the world",
+    "narrator": "Narrator",
+    "takeTurn": "Continue"
   },
   "profiles": {
     "new": "New profile",

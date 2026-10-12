@@ -13,6 +13,8 @@ export interface SendVariables {
   content: string;
   /** The leaf the user answered; the server forks when the chat has moved on. */
   parentId: string | null;
+  /** Who answers. Missing in messages an older version queued; the server then picks. */
+  speaker?: string;
 }
 
 export interface EditVariables {
@@ -36,11 +38,12 @@ export function registerOfflineMutations(queryClient: QueryClient): void {
   const refresh = (chatId: string) => queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
 
   queryClient.setMutationDefaults<SendMessageResult, Error, SendVariables>(['send'], {
-    mutationFn: ({ chatId, id, content, parentId }) =>
+    mutationFn: ({ chatId, id, content, parentId, speaker }) =>
       api.post<SendMessageResult>(`/api/chats/${chatId}/messages`, {
         id,
         content,
         ...(parentId && { parentId }),
+        speaker,
       }),
     retry: retryWhileOffline,
     onSuccess: (result) => {

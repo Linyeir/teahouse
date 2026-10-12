@@ -214,6 +214,17 @@ describe('scenes', () => {
     expect(system).toContain('Owes Ash for the crate.');
   });
 
+  it('gives the canon role the full file of a character who joined with a turn', async () => {
+    const { api, chatId, path, proposal, worlds, world, calls } = await setup();
+    await worlds.write(world.id, 'characters/tomas.md', '---\ntype: character\nname: Tomas\n---\n');
+    await api('POST', `/api/chats/${chatId}/generate`, { speaker: 'tomas' });
+    await waitFor(async () => (await path()).messages.at(-1)?.status === 'complete');
+    const sceneId = (await path()).scene?.id ?? '';
+    await api('POST', `/api/chats/${chatId}/scene/close`, { withCanon: true });
+    await waitFor(async () => (await proposal(sceneId))?.status === 'ready');
+    expect(String(calls.canon[0]?.at(-1)?.content)).toContain('<file path="characters/tomas.md">');
+  });
+
   it('merges proposals with edits made in the meantime and surfaces conflicts', async () => {
     const { api, chatId, send, path, proposal, worlds, world } = await setup();
     await send('Deal.');

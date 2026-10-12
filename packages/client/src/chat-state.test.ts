@@ -8,6 +8,7 @@ const msg = (id: string, parentId: string | null, content = ''): Message => ({
   parentId,
   role: 'assistant',
   content,
+  speaker: null,
   status: 'complete',
   error: null,
   createdAt: '',

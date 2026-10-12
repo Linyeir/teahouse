@@ -17,10 +17,15 @@ export type Beat =
   | { type: 'narration'; text: string; complete: boolean }
   | { type: 'say'; who: string; mood: string | null; text: string; complete: boolean }
   | { type: 'bg'; id: string }
-  | { type: 'leave'; who: string };
+  | { type: 'leave'; who: string }
+  /** Not in the markup: a character's turn brings them on stage (see `stageBeats`). */
+  | { type: 'enter'; who: string };
 
 /** `who` of beats spoken by the user's persona (from `*action* speech` input). */
 export const USER_SPEAKER = '@user';
+
+/** `speaker` of a reply written by the narrator rather than by one character. */
+export const NARRATOR_SPEAKER = '@narrator';
 
 const TAG = /<(\/?)(narration|say|bg|leave)\b([^<>]*?)(\/?)>/gi;
 const ATTR = /([a-z_][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/gi;
@@ -123,16 +128,12 @@ export function parseUserInput(text: string): Beat[] {
   return beats;
 }
 
-/**
- * Index of the first `<say>` for the user's persona, if the model starts speaking for them.
- * `names` are the persona's name and aliases (compared case-insensitively).
- */
-export function findUserLine(text: string, names: string[]): number | null {
-  const wanted = new Set(['user', '{{user}}', USER_SPEAKER, ...names].map((n) => n.toLowerCase()));
+/** Index of the first `<say>` whose speaker `foreign` rejects, e.g. when the model speaks for someone else. */
+export function findForeignLine(text: string, foreign: (who: string) => boolean): number | null {
   for (const match of text.matchAll(TAG)) {
     if (match[1] === '/' || (match[2] ?? '').toLowerCase() !== 'say') continue;
-    const who = attributes(match[3] ?? '').who?.toLowerCase();
-    if (who && wanted.has(who)) return match.index ?? null;
+    const who = attributes(match[3] ?? '').who;
+    if (who && foreign(who)) return match.index ?? null;
   }
   return null;
 }
@@ -154,7 +155,11 @@ export function stageAfter(beats: Beat[], initial?: StageState): StageState {
   };
   for (const beat of beats) {
     if (beat.type === 'bg') state.background = beat.id;
-    else if (beat.type === 'leave') {
+    else if (beat.type === 'enter') {
+      if (!state.present.some((p) => p.who === beat.who)) {
+        state.present.push({ who: beat.who, mood: null });
+      }
+    } else if (beat.type === 'leave') {
       state.present = state.present.filter((p) => p.who !== beat.who);
       if (state.speaker === beat.who) state.speaker = null;
     } else if (beat.type === 'say' && beat.who !== USER_SPEAKER) {
@@ -168,6 +173,45 @@ export function stageAfter(beats: Beat[], initial?: StageState): StageState {
     }
   }
   return state;
+}
+
+/** A message as far as the stage is concerned: its markup, after its speaker enters. */
+export interface StageMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  speaker: string | null;
+}
+
+/**
+ * Beats of a reply for the stage. A character whose turn it is enters before their reply, so
+ * they appear even when they only act and say nothing.
+ */
+export function stageBeats(message: StageMessage, options: { final?: boolean } = {}): Beat[] {
+  const beats = parseMarkup(message.content, options);
+  const speaker = message.speaker;
+  return speaker && speaker !== NARRATOR_SPEAKER
+    ? [{ type: 'enter', who: speaker }, ...beats]
+    : beats;
+}
+
+/** The stage after a scene's replies, starting with the cast present. */
+export function sceneStage(messages: StageMessage[], cast: string[]): StageState {
+  return stageAfter(
+    messages.filter((m) => m.role === 'assistant').flatMap((m) => stageBeats(m)),
+    { background: null, present: cast.map((who) => ({ who, mood: null })), speaker: null },
+  );
+}
+
+/**
+ * Who takes the next turn unless the user picks someone: the character whose turn was last,
+ * else the first of the cast, else the narrator.
+ */
+export function defaultSpeaker(messages: StageMessage[], cast: string[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const speaker = messages[i]?.speaker;
+    if (speaker && speaker !== NARRATOR_SPEAKER) return speaker;
+  }
+  return cast[0] ?? NARRATOR_SPEAKER;
 }
 
 /**

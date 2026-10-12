@@ -58,6 +58,8 @@ export const messages = sqliteTable(
     parentId: text('parent_id'),
     role: text('role', { enum: ['user', 'assistant'] }).notNull(),
     content: text('content').notNull(),
+    /** Whose turn a reply is: character slug or `@narrator`; null for user and start messages. */
+    speaker: text('speaker'),
     status: text('status', { enum: ['complete', 'streaming', 'stopped', 'error'] }).notNull(),
     error: text('error'),
     profileId: text('profile_id'),

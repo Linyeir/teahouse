@@ -1,4 +1,4 @@
-import { findUserLine, type Message } from '@teahouse/shared';
+import { findForeignLine, type Message, NARRATOR_SPEAKER, USER_SPEAKER } from '@teahouse/shared';
 import { eq } from 'drizzle-orm';
 import { buildTurnContext, currentScene, narratorPrompt } from './context/turn.ts';
 import type { Db } from './db/index.ts';
@@ -61,9 +61,10 @@ export class Generator {
 
   /**
    * Creates an assistant message under `parentId`, makes it the active leaf and streams the
-   * reply into it in the background. Returns the new (still streaming) message.
+   * reply into it in the background. Returns the new (still streaming) message. `speaker` is
+   * whose turn it is (a character slug or `NARRATOR_SPEAKER`); omitted, `defaultSpeaker` picks.
    */
-  async start(chatId: string, parentId: string | null): Promise<Message> {
+  async start(chatId: string, parentId: string | null, speaker?: string): Promise<Message> {
     const chat = getChatRow(this.db, chatId);
     if (!chat) throw new GenerationError('not_found', 'Chat not found');
     this.#assertIdle(chatId);
@@ -78,16 +79,18 @@ export class Generator {
       if (err instanceof NoProfileError) throw new GenerationError('no_profile', err.message);
       throw err;
     }
-    for (const slug of scene.cast) {
-      if (!(await this.worlds.character(chat.worldId, slug).catch(() => null))) {
-        throw new GenerationError('not_found', `Character ${slug} not found`);
-      }
-    }
 
-    let ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile);
+    let ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile, speaker);
+    const character =
+      ctx.speaker === NARRATOR_SPEAKER
+        ? null
+        : await this.worlds.character(chat.worldId, ctx.speaker).catch(() => null);
+    if (ctx.speaker !== NARRATOR_SPEAKER && !character) {
+      throw new GenerationError('not_found', `Character ${ctx.speaker} not found`);
+    }
     // History over budget: wait for (or run) a summary, then rebuild with it.
     if (await this.memory.ensureFits(chatId, ctx)) {
-      ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile);
+      ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile, ctx.speaker);
     }
     const prompt = narratorPrompt(this.db, ctx);
     // Building the context was async: another request may have started a reply meanwhile.
@@ -102,6 +105,7 @@ export class Generator {
       parentId,
       role: 'assistant' as const,
       content: '',
+      speaker: ctx.speaker,
       status: 'streaming' as const,
       error: null,
       profileId: profile.id,
@@ -121,7 +125,9 @@ export class Generator {
     const controller = new AbortController();
     this.#running.set(row.id, { chatId, controller });
     this.hub.broadcast({ type: 'generation.started', chatId, message });
-    void this.#run(message, profile, prompt, controller, profile.name);
+    // Lines the reply may contain: the speaker's own, under their slug or name.
+    const own = new Set(character ? [ctx.speaker, character.summary.name] : []);
+    void this.#run(message, profile, prompt, controller, profile.name, own);
     return message;
   }
 
@@ -153,11 +159,12 @@ export class Generator {
     prompt: ChatMessage[],
     controller: AbortController,
     profileName: string,
+    own: Set<string>,
   ): Promise<void> {
     let content = '';
     let lastPersist = Date.now();
     let status: Message['status'] = 'complete';
-    let wroteForUser = false;
+    let wroteForOther = false;
     let error: string | null = null;
     const started = Date.now();
     const where = {
@@ -169,17 +176,21 @@ export class Generator {
     this.log.info({ ...where, promptMessages: prompt.length }, 'Generating reply');
 
     try {
-      const userNames = [getSettings(this.db).userName];
+      const allowed = new Set([...own].map((who) => who.toLowerCase()));
+      allowed.delete(USER_SPEAKER);
+      allowed.delete(getSettings(this.db).userName.toLowerCase());
+      const foreign = (who: string) => !allowed.has(who.toLowerCase());
       for await (const raw of this.stream(profile, prompt, controller.signal)) {
         let delta = raw;
-        // The model started a line for the user's persona: keep what came before, end the reply.
-        // The start of that tag may already be in `content`; the final message replaces it.
-        const cut = findUserLine(content + delta, userNames);
+        // The model started a line for someone else (the user's persona, another character):
+        // keep what came before, end the reply. The start of that tag may already be in
+        // `content`; the final message replaces it.
+        const cut = findForeignLine(content + delta, foreign);
         if (cut !== null) {
           const kept = (content + delta).slice(0, cut);
           delta = kept.slice(Math.min(content.length, kept.length));
           content = kept.slice(0, kept.length - delta.length);
-          wroteForUser = true;
+          wroteForOther = true;
         }
         if (delta) {
           this.hub.broadcast({
@@ -191,7 +202,7 @@ export class Generator {
           });
         }
         content += delta;
-        if (wroteForUser) {
+        if (wroteForOther) {
           controller.abort();
           break;
         }
@@ -210,7 +221,7 @@ export class Generator {
       }
     }
     if (controller.signal.aborted) status = 'stopped';
-    if (wroteForUser) {
+    if (wroteForOther) {
       status = 'complete';
       error = null;
       content = content.trimEnd();
@@ -222,7 +233,7 @@ export class Generator {
     if (status === 'error') this.log.warn({ ...outcome, error }, 'Reply failed');
     else if (!content.trim() && status === 'complete')
       this.log.warn(outcome, 'Reply came back empty');
-    else this.log.info({ ...outcome, wroteForUser }, 'Reply finished');
+    else this.log.info({ ...outcome, wroteForOther }, 'Reply finished');
     if (updated) {
       this.hub.broadcast({ type: 'generation.finished', chatId: message.chatId, message: updated });
     }
