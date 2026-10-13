@@ -23,6 +23,7 @@ import { onDraftRestored, readDraft, restoreDraft, writeDraft } from '../drafts.
 import { useConnection } from '../events.ts';
 import { type EditVariables, editKey, type SendVariables, sendKey } from '../mutations.ts';
 import { useOnline } from '../offline.ts';
+import { shownContent } from '../placeholders.ts';
 import { backgroundsQuery, chatPathQuery, useCharacters, useWorlds } from '../queries.ts';
 import styles from './ChatView.module.css';
 import sceneStyles from './Scene.module.css';
@@ -150,7 +151,11 @@ export function ChatView() {
   const lastAssistant = last?.role === 'assistant' ? last : undefined;
   // Send and edit errors arrive as notices, because a queued one may fail in another view.
   const actionError = generate.error ?? regenerate.error;
-  const canGenerate = online && active && !streaming && (!last || last.role === 'user');
+  const placeholders = {
+    userName,
+    names,
+    chatCharacter: names.get(data.chat.characterSlug) ?? data.chat.characterSlug,
+  };
   const pending = queued.filter((v) => !messages.some((m) => m.id === v.id));
   const memoryAt = new Map(data.memory.map((node) => [node.messageId, node]));
 
@@ -212,7 +217,7 @@ export function ChatView() {
           <>
             <VnStage
               worldId={worldId}
-              messages={messages}
+              messages={messages.map((m) => ({ ...m, content: shownContent(m, placeholders) }))}
               cast={scene?.cast ?? []}
               characters={characters.data ?? []}
               backgrounds={backgrounds.data ?? []}
@@ -241,6 +246,7 @@ export function ChatView() {
                 <MessageView
                   key={message.id}
                   message={message}
+                  shown={shownContent(message, placeholders)}
                   names={names}
                   userName={userName}
                   readOnly
@@ -259,6 +265,7 @@ export function ChatView() {
             <Fragment key={message.id}>
               <MessageView
                 message={message}
+                shown={shownContent(message, placeholders)}
                 names={names}
                 userName={userName}
                 isLast={message === last}
@@ -275,13 +282,6 @@ export function ChatView() {
               )}
             </Fragment>
           ))}
-        {canGenerate && last && (
-          <div className={styles.message}>
-            <button className={ui.button} type="button" onClick={() => generate.mutate(undefined)}>
-              {t('chats.retry')}
-            </button>
-          </div>
-        )}
         {pending.map((draft) => (
           <QueuedMessage key={draft.id} draft={draft} online={online} />
         ))}
@@ -328,6 +328,7 @@ export function ChatView() {
 
 function MessageView({
   message,
+  shown,
   names,
   userName,
   isLast = false,
@@ -338,6 +339,8 @@ function MessageView({
   onEdit = () => {},
 }: {
   message: PathMessage;
+  /** The text with its placeholders filled in; editing shows the stored one. */
+  shown: string;
   names: Map<string, string>;
   userName: string;
   isLast?: boolean;
@@ -361,9 +364,13 @@ function MessageView({
       {draft === null ? (
         <div className={`${styles.body} ${streaming ? styles.cursor : ''}`}>
           {message.role === 'user' ? (
-            formatStory(message.content)
+            formatStory(shown)
           ) : (
-            <BeatsText beats={messageBeats(message)} names={names} userName={userName} />
+            <BeatsText
+              beats={messageBeats({ ...message, content: shown })}
+              names={names}
+              userName={userName}
+            />
           )}
         </div>
       ) : (

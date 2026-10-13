@@ -93,7 +93,6 @@
     "send": "Senden",
     "stop": "Stopp",
     "regenerate": "Neu erzeugen",
-    "retry": "Antwort erzeugen",
     "rename": "Umbenennen",
     "error": "Erzeugung fehlgeschlagen: %{message}",
     "stopped": "Gestoppt",
