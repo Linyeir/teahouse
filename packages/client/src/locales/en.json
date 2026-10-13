@@ -246,8 +246,8 @@
     "showLog": "Log",
     "showNovel": "Novel",
     "empty": "The scene has not started yet.",
-    "back": "Previous line",
-    "next": "Next line"
+    "back": "Previous message",
+    "next": "Next message"
   },
   "images": {
     "characterTitle": "Images of %{name}",

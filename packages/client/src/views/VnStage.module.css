@@ -125,6 +125,27 @@
   opacity: 0.9;
 }
 
+/* The whole message, one line after the other. */
+.text {
+  display: block;
+  width: 100%;
+}
+
+.line {
+  display: block;
+}
+
+.line + .line {
+  margin-top: 0.5em;
+}
+
+/* The speaker of a line in an older reply with several speakers. */
+.lineName {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-style: normal;
+}
+
 .text em {
   opacity: 0.8;
 }
