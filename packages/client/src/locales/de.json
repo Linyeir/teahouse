@@ -246,8 +246,8 @@
     "showLog": "Verlauf",
     "showNovel": "Novel",
     "empty": "Die Szene hat noch nicht begonnen.",
-    "back": "Vorige Zeile",
-    "next": "Nächste Zeile"
+    "back": "Vorige Nachricht",
+    "next": "Nächste Nachricht"
   },
   "images": {
     "characterTitle": "Bilder von %{name}",
