@@ -33,7 +33,7 @@ A chat is a sequence of scenes. While a scene runs, **Active Memory** summarizes
 
 The canon in the prompt gets 30 % of the context window, filled by priority: `world.md`, `user.md` and the present characters, then the last two events of the chat, then files whose tags, aliases or name appear in the recent story, then older events. Over budget, files are cut to their `summary`, then dropped; the first group is never dropped.
 
-When you **end a scene**, you choose with or without canon. With canon, an LLM proposes structured changes (a new `events/` file plus section and frontmatter edits); you accept, edit or reject each file as a diff, and the accepted ones become one commit. Files edited in the meantime are merged three-way with `git merge-file`. The next scene starts from a short brief: Teahouse proposes an opening and a cast.
+When you **end a scene**, you choose with or without canon. With canon, an LLM proposes structured changes (a new `events/` file plus section and frontmatter edits). It reads the files the scene mentions and adds names the scene used for them as aliases. You accept, edit or reject each file as a diff, and the accepted ones become one commit. Files edited in the meantime are merged three-way with `git merge-file`. The next scene starts from a short brief: Teahouse proposes an opening and a cast.
 
 Each role (narrator, summary, canon, scene start) can use its own profile under **Settings**.
 

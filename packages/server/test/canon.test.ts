@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mergeThreeWay } from '../src/canon/merge.ts';
 import { applyOps, upsertSection } from '../src/canon/ops.ts';
+import { fitFiles } from '../src/canon/proposals.ts';
 import { mentions, selectCanon } from '../src/context/canon.ts';
 import { countTokens } from '../src/context/tokens.ts';
 import { parseDocument } from '../src/worlds/frontmatter.ts';
@@ -200,5 +201,33 @@ describe('selectCanon', () => {
     expect(minimal.entries.slice(0, 3).every((e) => e.mode === 'short')).toBe(true);
     expect(minimal.text).toContain('A rainy port.');
     expect(countTokens(minimal.text)).toBeGreaterThan(10); // priority 1 stays even over budget
+  });
+});
+
+describe('fitFiles', () => {
+  const canonFile = (path: string, summary: string) => ({
+    path,
+    type: null,
+    name: path,
+    summary,
+    tags: [],
+    aliases: [],
+    error: null,
+  });
+
+  it('keeps files in full while they fit, then their summary, then drops them', () => {
+    const long = 'word '.repeat(200);
+    const files = [
+      canonFile('a.md', 'A in short.'),
+      canonFile('b.md', 'B in short.'),
+      canonFile('c.md', ''),
+    ];
+    const texts = new Map(files.map((f) => [f.path, long]));
+    const budget = countTokens(`<file path="a.md">\n${long}\n</file>`) + 30;
+    const out = fitFiles(files, texts, budget);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toContain(long);
+    expect(out[1]).toBe('<file path="b.md" summary="true">\nB in short.\n</file>');
+    expect(fitFiles(files, texts, 0)).toEqual([]);
   });
 });

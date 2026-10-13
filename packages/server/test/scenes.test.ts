@@ -225,6 +225,38 @@ describe('scenes', () => {
     expect(String(calls.canon[0]?.at(-1)?.content)).toContain('<file path="characters/tomas.md">');
   });
 
+  it('shows the canon role the files the scene mentions, and their aliases', async () => {
+    const { api, chatId, send, path, proposal, worlds, world, calls } = await setup();
+    const place = (name: string, extra: string, body: string) =>
+      `---\ntype: place\nname: ${name}\n${extra}---\n\n${body}\n`;
+    await worlds.write(
+      world.id,
+      'places/tavern.md',
+      place('Leaky Cup', 'aliases:\n  - the Cup\n', 'Smoky. Mira owes the owner.'),
+    );
+    await worlds.write(
+      world.id,
+      'lore/fog.md',
+      place('Harbor Fog', 'tags:\n  - harbor\n', 'Rolls in at dusk.'),
+    );
+    await worlds.write(world.id, 'places/lighthouse.md', place('Lighthouse', '', 'Abandoned.'));
+    await send('*I wave at the bar of the Leaky Cup.* Is the harbor quiet tonight?');
+    const sceneId = (await path()).scene?.id ?? '';
+    await api('POST', `/api/chats/${chatId}/scene/close`, { withCanon: true });
+    await waitFor(async () => (await proposal(sceneId))?.status === 'ready');
+
+    const [system, user] = (calls.canon[0] ?? []).map((m) => String(m.content));
+    expect(system).toContain('add that name with add_alias');
+    expect(user).toContain('- places/tavern.md (place): Leaky Cup (aliases: the Cup)');
+    // Mentioned by name first, then by a tag; the lighthouse only in the index.
+    const tavern = user?.indexOf('<file path="places/tavern.md">') ?? -1;
+    const fog = user?.indexOf('<file path="lore/fog.md">') ?? -1;
+    expect(tavern).toBeGreaterThan(-1);
+    expect(fog).toBeGreaterThan(tavern);
+    expect(user).toContain('Smoky. Mira owes the owner.');
+    expect(user).not.toContain('<file path="places/lighthouse.md">');
+  });
+
   it('merges proposals with edits made in the meantime and surfaces conflicts', async () => {
     const { api, chatId, send, path, proposal, worlds, world } = await setup();
     await send('Deal.');
