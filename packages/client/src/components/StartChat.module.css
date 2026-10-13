@@ -13,6 +13,20 @@
   font-family: var(--font-story);
 }
 
+/* Who joins a group chat. */
+.members {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.members legend {
+  margin-bottom: 4px;
+}
+
 .greeting {
   width: auto;
   max-width: 220px;

@@ -196,7 +196,11 @@
     "export": "Welt exportieren",
     "importWorld": "Welt importieren",
     "importWorldHint": "Ein .teahouse.tar.gz-Export: die Welt mit Verlauf, Bildern und Chats. Eine Welt, die es hier schon gibt, wird als Kopie importiert.",
-    "archiveFile": "Archiv"
+    "archiveFile": "Archiv",
+    "groupChat": "Gruppenchat …",
+    "groupChatWho": "Wer ist von Anfang an dabei? Andere können später dazukommen.",
+    "opening": "Beginnt mit",
+    "startGroupChat": "Gruppenchat starten"
   },
   "scenes": {
     "title": "Szene %{n}",

@@ -35,7 +35,7 @@ async function setup(replies: string[][]) {
   const path = async () => (await ctx.api<ChatPath>('GET', `/api/chats/${id}`)).body;
   const settled = () => waitFor(async () => (await path()).messages.at(-1)?.status !== 'streaming');
   const system = (n: number) => String(prompts[n]?.[0]?.content);
-  return { ...ctx, id, path, settled, prompts, system };
+  return { ...ctx, world, id, path, settled, prompts, system };
 }
 
 describe('one character per turn', () => {
@@ -136,6 +136,43 @@ describe('one character per turn', () => {
   it('refuses a speaker who is not in the world', async () => {
     const { api, id } = await setup([]);
     const res = await api('POST', `/api/chats/${id}/generate`, { speaker: 'nobody' });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('group chats', () => {
+  it('starts with several characters, opened by one greeting', async () => {
+    const { api, worlds, world, settled, system } = await setup([]);
+    await worlds.write(
+      world.id,
+      'characters/tomas.md',
+      '---\ntype: character\nname: Tomas\ngreetings:\n  - "{{char}} wipes the bar. {{user}}?"\n---\n',
+    );
+    const chat = await api<ChatPath>('POST', '/api/chats', {
+      worldId: world.id,
+      characterSlug: 'tomas',
+      cast: ['mira', 'tomas'],
+    });
+    expect(chat.status).toBe(200);
+    expect(chat.body.chat.title).toBe('Tomas, Mira');
+    expect(chat.body.scene?.cast).toEqual(['tomas', 'mira']);
+    // {{char}} is the opener for good; {{user}} still follows the settings.
+    expect(chat.body.messages.map((m) => m.content)).toEqual(['Tomas wipes the bar. {{user}}?']);
+
+    await api('POST', `/api/chats/${chat.body.chat.id}/messages`, { content: 'A room, please.' });
+    await settled();
+    // Nobody had a turn yet: the opener goes first.
+    expect(system(0)).toContain("This turn is Tomas's.");
+    expect(system(0)).toContain('Present: tomas, mira.');
+  });
+
+  it('refuses a cast with a character who is not in the world', async () => {
+    const { api, world } = await setup([]);
+    const res = await api('POST', '/api/chats', {
+      worldId: world.id,
+      characterSlug: 'mira',
+      cast: ['mira', 'nobody'],
+    });
     expect(res.status).toBe(404);
   });
 });

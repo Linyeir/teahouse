@@ -3,7 +3,7 @@ import type { Chat, World } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { api } from '../api.ts';
-import { CharacterRow } from '../components/StartChat.tsx';
+import { CharacterRow, GroupChatStart } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
 import styles from './HomeView.module.css';
@@ -57,6 +57,7 @@ function WorldCharacters({ world }: { world: World }) {
           <CharacterRow key={c.slug} worldId={world.id} character={c} />
         ))}
       </ul>
+      <GroupChatStart worldId={world.id} characters={characters.data} />
     </>
   );
 }

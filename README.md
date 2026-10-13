@@ -17,7 +17,7 @@ The narrator answers in a small tag markup, which the view parses while it strea
 <leave who="tomas"/>
 ```
 
-Every LLM call plays one character. Above the text field you pick who takes the next turn: a character in the scene, the narrator (who only describes), or anyone else from the world, who then joins the scene. It starts on whoever had the last turn. Leave the field empty and press **Continue** to let them go on without writing anything yourself.
+Every LLM call plays one character. Above the text field you pick who takes the next turn: a character in the scene, the narrator (who only describes), or anyone else from the world, who then joins the scene. It starts on whoever had the last turn. Leave the field empty and press **Continue** to let them go on without writing anything yourself. **Group chat…** below a world's characters starts a chat with several of them from the start, opened by the greeting you pick.
 
 The narrator gets every character of the world with its image labels and the world's backgrounds with their descriptions. The view shows the background, the present characters in the mood of their last line (falling back to `neutral`, any image, then a placeholder) and one message at a time: the whole reply in one text box, under the name of the character whose turn it was. A long reply scrolls; click, space or Enter read on and then turn to the next message, the arrow keys step between messages. **Log** switches to the full text. If the model starts writing a line for you or for another character, Teahouse cuts the reply there.
 

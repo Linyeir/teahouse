@@ -196,7 +196,11 @@
     "export": "Export world",
     "importWorld": "Import world",
     "importWorldHint": "A .teahouse.tar.gz export: the world with its history, images and chats. A world that already exists here is imported as a copy.",
-    "archiveFile": "Archive"
+    "archiveFile": "Archive",
+    "groupChat": "Group chat…",
+    "groupChatWho": "Who is there from the start? Others can join later.",
+    "opening": "Opens with",
+    "startGroupChat": "Start group chat"
   },
   "scenes": {
     "title": "Scene %{n}",

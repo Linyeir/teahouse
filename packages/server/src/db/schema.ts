@@ -41,7 +41,7 @@ export const chats = sqliteTable('chats', {
   title: text('title').notNull(),
   /** ID from the world's `world.md`. Worlds are folders, not rows. */
   worldId: text('world_id').notNull(),
-  /** File slug of the character: `characters/<slug>.md`. */
+  /** File slug of the character whose greeting opened the chat: `characters/<slug>.md`. */
   characterSlug: text('character_slug').notNull(),
   activeLeafId: text('active_leaf_id'),
   ...syncColumns,

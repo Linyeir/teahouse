@@ -194,7 +194,7 @@ Swiping a single beat (regenerating from a beat via assistant prefill) is postpo
 - **Only the user ends a scene**, with a button.
 - When ending, the user picks the path if the scene has forks. All other branches are hidden, not deleted.
 - A scene can be closed **with or without canon**. Without canon (e.g. for side scenes) no `events/` file and no commit is created, and the scene is closed immediately.
-- **Start message and cast** of a new scene are proposed by the scene start role, based on a short brief from the user. The user can edit both. For the first chat with an imported card, its `first_mes` is the start message and `alternate_greetings` are offered as alternatives.
+- **Start message and cast** of a new scene are proposed by the scene start role, based on a short brief from the user. The user can edit both. For the first chat with an imported card, its `first_mes` is the start message and `alternate_greetings` are offered as alternatives. A group chat starts with several characters in the cast of scene 1; one of their greetings is the start message, with `{{char}}` in it fixed to that character.
 - A new scene sees the canon and its start message. The event priority (section 5) guarantees that the previous scene is in context.
 
 ## 8. Memory
