@@ -1,7 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { type CanonProposal, markupToText, NARRATOR_SPEAKER } from '@teahouse/shared';
+import {
+  type CanonFile,
+  type CanonProposal,
+  markupToText,
+  NARRATOR_SPEAKER,
+} from '@teahouse/shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
+import { mentions } from '../context/canon.ts';
 import { contextWindow, countTokens } from '../context/tokens.ts';
 import { memoryOnPath } from '../context/turn.ts';
 import type { Db } from '../db/index.ts';
@@ -39,10 +45,15 @@ Rules:
 - Only record lasting facts: relationships, injuries, decisions, promises, possessions, places, new characters, what someone learned.
 - Never remove or contradict existing canon unless the scene clearly changed it; then use replace_section.
 - Prefer small changes to existing files over new files. Create files only for people, places or things that will matter again.
+- <core_files> shows files in full, or by their summary where it says summary="true". A file you only know from <canon_index> or by its summary may hold more than you see: change it only with append_section, add_alias or add_tag.
+- When the scene calls an existing character, place or thing by another name, nickname or title than its name and aliases in <canon_index>, add that name with add_alias, so later scenes find the file by it.
 - Write the event body and all text in {{language}}. Refer to the user's persona as {{user}}.
 - Return only the JSON object.`;
 
 const SECTION_BUDGET_SHARE = 0.5;
+
+/** Lower bound for the answer, as passed to `completeJson`. */
+const ANSWER_TOKENS = 4000;
 
 export class ProposalError extends Error {}
 
@@ -210,24 +221,38 @@ export class CanonProposals {
     );
     const characters = [...new Set([...scene.cast, ...speakers])];
     const corePaths = ['world.md', 'user.md', ...characters.map((c) => `characters/${c}.md`)];
-    const index = files.map(
-      (f) => `- ${f.path} (${f.type ?? 'file'}): ${f.name}${f.summary ? ` – ${f.summary}` : ''}`,
-    );
+    const index = files.map((f) => {
+      const aliases = f.aliases.length ? ` (aliases: ${f.aliases.join(', ')})` : '';
+      return `- ${f.path} (${f.type ?? 'file'}): ${f.name}${aliases}${f.summary ? ` – ${f.summary}` : ''}`;
+    });
     const core: string[] = [];
     for (const path of corePaths) {
       const text = await worlds.readIfExists(chat.worldId, path);
       if (text !== null) core.push(`<file path="${path}">\n${text.trim()}\n</file>`);
     }
 
-    const transcript = this.#transcript(
-      scene,
-      chat,
-      Math.floor(contextWindow(profile) * SECTION_BUDGET_SHARE),
-    );
+    const window = contextWindow(profile);
+    const transcript = this.#transcript(scene, chat, Math.floor(window * SECTION_BUDGET_SHARE));
     const system = CANON_PROMPT.replaceAll('{{language}}', settings.outputLanguage).replaceAll(
       '{{user}}',
       settings.userName,
     );
+
+    // Files the scene mentions, in whatever room is left, so the canon role sees what it edits.
+    const used = [system, ...index, ...core, transcript].reduce((n, t) => n + countTokens(t), 0);
+    const room = window - used - Math.max(profile.maxTokens ?? 0, ANSWER_TOKENS);
+    const touched = files.filter(
+      (f) => !corePaths.includes(f.path) && !isEvent(f) && mentionedIn(transcript, f) !== null,
+    );
+    touched.sort(
+      (a, b) =>
+        (mentionedIn(transcript, a) ?? 0) - (mentionedIn(transcript, b) ?? 0) ||
+        a.path.localeCompare(b.path),
+    );
+    const texts = new Map<string, string>();
+    for (const f of touched) texts.set(f.path, (await worlds.read(chat.worldId, f.path)).trim());
+    core.push(...fitFiles(touched, texts, room));
+
     const user = [
       `<canon_index>\n${index.join('\n')}\n</canon_index>`,
       `<core_files>\n${core.join('\n\n')}\n</core_files>`,
@@ -240,7 +265,7 @@ export class CanonProposals {
     ];
     const update = await completeJson(this.#complete, profile, messages, canonUpdate, {
       name: 'canon_update',
-      minTokens: 4000,
+      minTokens: ANSWER_TOKENS,
     });
 
     const world = await worlds.get(chat.worldId);
@@ -355,4 +380,37 @@ export class CanonProposals {
 /** Conflict markers for a file that appeared or vanished since the proposal. */
 function conflictText(current: string, proposal: string): string {
   return `<<<<<<< current\n${current}=======\n${proposal}>>>>>>> proposal\n`;
+}
+
+const isEvent = (f: CanonFile) => f.type === 'event' || f.path.startsWith('events/');
+
+/** How the scene refers to a file: 0 by name or alias, 1 only by a tag, null not at all. */
+function mentionedIn(text: string, file: CanonFile): 0 | 1 | null {
+  if (mentions(text, [file.name, ...file.aliases])) return 0;
+  if (mentions(text, file.tags)) return 1;
+  return null;
+}
+
+/**
+ * Renders files for `<core_files>` within `budget` tokens, most relevant first: each in full
+ * while it fits, else by its summary, else not at all.
+ */
+export function fitFiles(files: CanonFile[], texts: Map<string, string>, budget: number): string[] {
+  const out: string[] = [];
+  let left = budget;
+  for (const file of files) {
+    const full = `<file path="${file.path}">\n${texts.get(file.path) ?? ''}\n</file>`;
+    const short = file.summary
+      ? `<file path="${file.path}" summary="true">\n${file.summary}\n</file>`
+      : null;
+    for (const text of [full, short]) {
+      if (text === null) continue;
+      const tokens = countTokens(text);
+      if (tokens > left) continue;
+      out.push(text);
+      left -= tokens;
+      break;
+    }
+  }
+  return out;
 }

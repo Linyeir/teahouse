@@ -224,6 +224,7 @@ Swiping a single beat (regenerating from a beat via assistant prefill) is postpo
   - `add_alias(path, alias)` / `add_tag(path, tag)`
 
   The frontmatter is managed by code. The diff view is generated from the result of the operations.
+- **What the LLM sees:** an index of all files (name, aliases, summary), the full text of `world.md`, `user.md` and every character with a turn in the scene, and the files the scene mentions by name, alias or tag, in full or by their summary while they fit the context window. Files it only knows from the index may only be changed with `append_section`, `add_alias` or `add_tag`. When the scene calls a known file by another name, it adds that name as an alias, so context selection finds the file by it next time.
 - **Review as a per-file diff:** accept, edit, discard. Can be turned off, in which case proposals are applied automatically.
 - After review, one commit whose message references chat and scene. Only then is the scene closed and the next one can start.
 - If the canon is changed externally before review (editor, file watcher), the proposal is reconciled by a three-way merge against its base commit. Conflicts are shown in the diff view.
