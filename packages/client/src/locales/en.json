@@ -93,7 +93,6 @@
     "send": "Send",
     "stop": "Stop",
     "regenerate": "Regenerate",
-    "retry": "Generate reply",
     "rename": "Rename",
     "error": "Generation failed: %{message}",
     "stopped": "Stopped",
