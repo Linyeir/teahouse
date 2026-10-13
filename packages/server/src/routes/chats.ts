@@ -6,6 +6,7 @@ import {
   editMessageInput,
   generateInput,
   id,
+  renderTemplate,
   type SendMessageResult,
   sceneProposalInput,
   sceneStartInput,
@@ -93,16 +94,25 @@ export async function chatRoutes(
   );
 
   r.post('/api/chats', { schema: { body: chatInput } }, async ({ body }) => {
-    const character = await worlds.character(body.worldId, body.characterSlug);
-    if (!character) throw notFound('Character');
-    const greeting = character.summary.greetings[body.greetingIndex] ?? '';
+    const cast = [...new Set([body.characterSlug, ...(body.cast ?? [])])];
+    const characters = [];
+    for (const slug of cast) {
+      const character = await worlds.character(body.worldId, slug);
+      if (!character) throw notFound(`Character ${slug}`);
+      characters.push(character.summary);
+    }
+    const names = characters.map((c) => c.name);
+    // The opener comes first. {{char}} in their greeting is them, whoever speaks later.
+    const greeting = renderTemplate(characters[0]?.greetings[body.greetingIndex] ?? '', {
+      char: names[0] ?? '',
+    });
 
     const timestamp = now();
     const chatId = newId();
     db.insert(chats)
       .values({
         id: chatId,
-        title: body.title?.trim() || character.summary.name,
+        title: body.title?.trim() || names.join(', '),
         worldId: body.worldId,
         characterSlug: body.characterSlug,
         activeLeafId: null,
@@ -110,7 +120,7 @@ export async function chatRoutes(
         updatedAt: timestamp,
       })
       .run();
-    sceneService.createFirst(chatId, [body.characterSlug], greeting);
+    sceneService.createFirst(chatId, cast, greeting);
     return chatPath(db, chatId);
   });
 

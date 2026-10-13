@@ -9,12 +9,16 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 ### Changed
 
 - Every LLM call now plays one character instead of the whole cast. Above the text field you pick who takes the next turn: a character in the scene, the narrator (who only describes the scene), or another character of the world, who then joins. The choice starts on whoever had the last turn. With the field empty, **Continue** lets that character go on without your input, so several characters can answer in a row. Regenerating a reply keeps its character. ([#40](https://github.com/Linyeir/teahouse/issues/40))
+- **Group chat…** below a world's characters, on the chats page and in the world view, starts a chat with several characters present from the start. You pick who is there and whose greeting opens it; the chat is named after them. Others can still join later through the picker.
 - The log view shows above each reply whose turn it was.
 - The novel view shows a whole message in one text box instead of one line at a time, under the name of the character whose turn it was. Sprites and background show how the message leaves the stage. A long reply scrolls in the box: click, space or Enter read on, then turn to the next message; the arrow keys step between messages. ([#41](https://github.com/Linyeir/teahouse/issues/41))
 - If the model starts writing a line for another character, Teahouse cuts the reply there, as it already did for lines written for you.
 - At the end of a scene, the canon update reads the full file of every character who had a turn, not only of the cast the scene started with.
 - The canon update also reads the files the scene mentions by name, alias or tag, in full or by their summary as far as they fit. Before, it saw them only as one line in an index and could add things that were already there or contradicted them. Files it has not seen in full it only extends, never rewrites. ([#38](https://github.com/Linyeir/teahouse/issues/38))
 - When a scene calls a character, place or thing by another name, nickname or title, the canon update suggests it as an alias, so later scenes that use that name bring the file into the prompt. ([#38](https://github.com/Linyeir/teahouse/issues/38))
+### Fixed
+
+- A greeting that names its character as `{{char}}` showed the placeholder in the chat. New chats fill in the name when they start, which also keeps the greeting about its own character once others take turns.
 
 ## [0.3.4] - 2026-10-11
 

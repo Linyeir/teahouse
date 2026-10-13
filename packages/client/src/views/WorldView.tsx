@@ -6,7 +6,7 @@ import { useParams, useSearchParams } from 'react-router';
 import { api, download } from '../api.ts';
 import { ErrorText } from '../components/Field.tsx';
 import { CharacterImages, WorldBackgrounds } from '../components/ImageManager.tsx';
-import { CharacterRow } from '../components/StartChat.tsx';
+import { CharacterRow, GroupChatStart } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
 import { ImportCard } from './WorldsView.tsx';
@@ -139,6 +139,7 @@ function Overview({ worldId }: { worldId: string }) {
           <CharacterRow key={c.slug} worldId={worldId} character={c} />
         ))}
       </ul>
+      <GroupChatStart worldId={worldId} characters={characters.data ?? []} />
       <WorldBackgrounds worldId={worldId} />
       <ImportCard worlds={worlds.data ?? []} worldId={worldId} />
     </div>

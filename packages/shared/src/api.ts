@@ -86,9 +86,12 @@ export type Settings = z.infer<typeof settings>;
 
 export const chatInput = z.object({
   worldId: id,
+  /** The character whose greeting opens the chat. */
   characterSlug: z.string().min(1).max(200),
   /** Which of the character's greetings starts the chat. */
   greetingIndex: z.number().int().min(0).default(0),
+  /** Everyone present from the start, for a group chat; `characterSlug` is always among them. */
+  cast: z.array(z.string().min(1).max(200)).max(50).optional(),
   title: z.string().max(200).optional(),
 });
 export type ChatInput = z.infer<typeof chatInput>;
