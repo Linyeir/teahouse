@@ -225,9 +225,12 @@ describe('fitFiles', () => {
     const texts = new Map(files.map((f) => [f.path, long]));
     const budget = countTokens(`<file path="a.md">\n${long}\n</file>`) + 30;
     const out = fitFiles(files, texts, budget);
-    expect(out).toHaveLength(2);
-    expect(out[0]).toContain(long);
-    expect(out[1]).toBe('<file path="b.md" summary="true">\nB in short.\n</file>');
+    expect(out.map((f) => [f.path, f.full])).toEqual([
+      ['a.md', true],
+      ['b.md', false],
+    ]);
+    expect(out[0]?.text).toContain(long);
+    expect(out[1]?.text).toBe('<file path="b.md" summary="true">\nB in short.\n</file>');
     expect(fitFiles(files, texts, 0)).toEqual([]);
   });
 });

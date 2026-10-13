@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CanonProposal, ChatPath } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
+import type { ToolsFn } from '../src/canon/lookup.ts';
 import type { StreamFn } from '../src/generation.ts';
 import type { ChatMessage } from '../src/llm/client.ts';
 import type { CompleteFn } from '../src/memory.ts';
@@ -69,9 +70,11 @@ function defaultCanon() {
   };
 }
 
-async function setup(options: { contextWindow?: number; canonReply?: () => object } = {}) {
+async function setup(
+  options: { contextWindow?: number; canonReply?: () => object; tools?: ToolsFn } = {},
+) {
   const { calls, stream, complete } = fakes(options.canonReply);
-  const ctx = await createTestApp(stream, complete);
+  const ctx = await createTestApp(stream, complete, options.tools);
   await ctx.api('POST', '/api/profiles', {
     name: 'Fake',
     baseUrl: 'http://127.0.0.1:9/v1',
@@ -255,6 +258,47 @@ describe('scenes', () => {
     expect(fog).toBeGreaterThan(tavern);
     expect(user).toContain('Smoky. Mira owes the owner.');
     expect(user).not.toContain('<file path="places/lighthouse.md">');
+  });
+
+  it('lets the canon role look files up first, and carries on when tools fail', async () => {
+    let lookups = 0;
+    const tools: ToolsFn = async (_p, messages) => {
+      lookups++;
+      if (String(messages.at(-1)?.content).includes('Rolls in at dusk')) {
+        return { content: 'done', toolCalls: [] };
+      }
+      if (lookups > 2) throw new Error('400 tools are not supported');
+      const args = JSON.stringify({ path: 'lore/fog.md' });
+      return { content: '', toolCalls: [{ id: 'a', name: 'read_file', arguments: args }] };
+    };
+    const { api, chatId, send, path, proposal, worlds, world, calls } = await setup({ tools });
+    await worlds.write(
+      world.id,
+      'lore/fog.md',
+      '---\ntype: lore\nname: Harbor Fog\n---\n\nRolls in at dusk.\n',
+    );
+    await send('I wait outside.');
+    const close = async () => {
+      const sceneId = (await path()).scene?.id ?? '';
+      await api('POST', `/api/chats/${chatId}/scene/close`, { withCanon: true });
+      await waitFor(async () => (await proposal(sceneId))?.status === 'ready');
+      return sceneId;
+    };
+    await close();
+    // Not mentioned in the scene, but read with a tool: in the prompt in full.
+    expect(String(calls.canon[0]?.at(-1)?.content)).toContain(
+      '<file path="lore/fog.md">\n---\ntype: lore\nname: Harbor Fog\n---\n\nRolls in at dusk.\n</file>',
+    );
+    expect(lookups).toBe(2);
+
+    // The endpoint rejects tools from now on: the proposal comes without lookups.
+    const sceneId = (await path()).scene?.id ?? '';
+    await api('POST', `/api/scenes/${sceneId}/proposal/apply`);
+    await api('POST', `/api/chats/${chatId}/scenes`, { startMessage: 'Later.', cast: ['mira'] });
+    await send('Again.');
+    await close();
+    expect(calls.canon).toHaveLength(2);
+    expect(String(calls.canon[1]?.at(-1)?.content)).not.toContain('<file path="lore/fog.md">');
   });
 
   it('merges proposals with edits made in the meantime and surfaces conflicts', async () => {

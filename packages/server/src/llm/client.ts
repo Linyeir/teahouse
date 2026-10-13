@@ -140,6 +140,63 @@ export async function complete(
   throw new Error('unreachable');
 }
 
+/** A function the model may call, with JSON Schema parameters. */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  /** JSON text, as the model wrote it. */
+  arguments: string;
+}
+
+/** One answer of a model that was offered tools: text, tool calls, or both. */
+export interface ToolTurn {
+  content: string;
+  toolCalls: ToolCall[];
+}
+
+/**
+ * One non-streaming turn with tools on offer. Endpoints and models without tool support
+ * reject the request (a 4xx error) or simply answer without calling any.
+ */
+export async function completeWithTools(
+  profile: GenerationProfile,
+  messages: ChatMessage[],
+  tools: ToolDefinition[],
+  options: { signal?: AbortSignal; minTokens?: number } = {},
+): Promise<ToolTurn> {
+  const maxTokens =
+    profile.maxTokens !== null && options.minTokens !== undefined
+      ? Math.max(profile.maxTokens, options.minTokens)
+      : profile.maxTokens;
+  const response = await createClient(profile).chat.completions.create(
+    {
+      model: profile.model,
+      messages,
+      tools: tools.map((t) => ({ type: 'function' as const, function: t })),
+      tool_choice: 'auto',
+      ...(profile.temperature !== null && { temperature: profile.temperature }),
+      ...(profile.topP !== null && { top_p: profile.topP }),
+      ...(maxTokens !== null && { max_tokens: maxTokens }),
+    },
+    { signal: options.signal },
+  );
+  const message = response.choices[0]?.message;
+  return {
+    content: message?.content ?? '',
+    toolCalls: (message?.tool_calls ?? []).flatMap((call) =>
+      call.type === 'function'
+        ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }]
+        : [],
+    ),
+  };
+}
+
 /** Extracts the first JSON object from model output (tolerates code fences and prose). */
 export function extractJson(text: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);

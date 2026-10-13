@@ -12,8 +12,9 @@ import { contextWindow, countTokens } from '../context/tokens.ts';
 import { memoryOnPath } from '../context/turn.ts';
 import type { Db } from '../db/index.ts';
 import { canonProposals, chats, type ProposalFile, scenes } from '../db/schema.ts';
+import type { GenerationLog } from '../generation.ts';
 import type { Hub } from '../hub.ts';
-import { type ChatMessage, complete } from '../llm/client.ts';
+import { type ChatMessage, complete, completeWithTools } from '../llm/client.ts';
 import { completeJson } from '../llm/json.ts';
 import { profileFor } from '../roles.ts';
 import { getSettings } from '../settings.ts';
@@ -22,6 +23,7 @@ import { activePath, type getChatRow } from '../tree.ts';
 import { stringifyDocument } from '../worlds/frontmatter.ts';
 import { canonFilePath } from '../worlds/paths.ts';
 import { slug, type WorldService } from '../worlds/service.ts';
+import { lookUp, type ToolsFn } from './lookup.ts';
 import { mergeThreeWay } from './merge.ts';
 import { applyOps, canonUpdate } from './ops.ts';
 
@@ -62,14 +64,23 @@ export interface ProposalDeps {
   worlds: WorldService;
   hub: Hub;
   complete?: typeof complete;
+  /**
+   * Tool calls for looking things up before the proposal; null skips the lookups. Defaults
+   * to the real endpoint, unless `complete` is replaced (tests) and this is not.
+   */
+  tools?: ToolsFn | null;
+  log?: GenerationLog;
 }
 
 export class CanonProposals {
   readonly #running = new Map<string, Promise<void>>();
   readonly #complete: typeof complete;
 
+  readonly #tools: ToolsFn | null;
+
   constructor(private readonly deps: ProposalDeps) {
     this.#complete = deps.complete ?? complete;
+    this.#tools = deps.tools !== undefined ? deps.tools : deps.complete ? null : completeWithTools;
   }
 
   get(sceneId: string): CanonProposal | null {
@@ -251,18 +262,50 @@ export class CanonProposals {
     );
     const texts = new Map<string, string>();
     for (const f of touched) texts.set(f.path, (await worlds.read(chat.worldId, f.path)).trim());
-    core.push(...fitFiles(touched, texts, room));
+    const fitted = fitFiles(touched, texts, room);
 
-    const user = [
-      `<canon_index>\n${index.join('\n')}\n</canon_index>`,
-      `<core_files>\n${core.join('\n\n')}\n</core_files>`,
-      `<scene number="${scene.number}">\n${transcript}\n</scene>`,
-    ].join('\n\n');
+    const prompt = (extra: Map<string, string>): ChatMessage[] => {
+      const files = [
+        ...core,
+        // A file looked up in full replaces its summary.
+        ...fitted.filter((f) => !extra.has(f.path)).map((f) => f.text),
+        ...[...extra].map(([path, text]) => `<file path="${path}">\n${text}\n</file>`),
+      ];
+      const user = [
+        `<canon_index>\n${index.join('\n')}\n</canon_index>`,
+        `<core_files>\n${files.join('\n\n')}\n</core_files>`,
+        `<scene number="${scene.number}">\n${transcript}\n</scene>`,
+      ].join('\n\n');
+      return [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ];
+    };
 
-    const messages: ChatMessage[] = [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ];
+    // Where the endpoint supports tools, the canon role reads what it still needs first.
+    let looked = new Map<string, string>();
+    if (this.#tools) {
+      const lookup = await lookUp({
+        toolsFn: this.#tools,
+        profile,
+        messages: prompt(looked),
+        worlds,
+        worldId: chat.worldId,
+        known: new Set([...corePaths, ...fitted.filter((f) => f.full).map((f) => f.path)]),
+        budget: room - fitted.reduce((n, f) => n + countTokens(f.text), 0),
+      });
+      looked = lookup.files;
+      this.deps.log?.info(
+        {
+          sceneId,
+          calls: lookup.calls,
+          read: [...lookup.files.keys()],
+          ...(lookup.error && { error: lookup.error }),
+        },
+        'Canon lookups',
+      );
+    }
+    const messages = prompt(looked);
     const update = await completeJson(this.#complete, profile, messages, canonUpdate, {
       name: 'canon_update',
       minTokens: ANSWER_TOKENS,
@@ -395,8 +438,12 @@ function mentionedIn(text: string, file: CanonFile): 0 | 1 | null {
  * Renders files for `<core_files>` within `budget` tokens, most relevant first: each in full
  * while it fits, else by its summary, else not at all.
  */
-export function fitFiles(files: CanonFile[], texts: Map<string, string>, budget: number): string[] {
-  const out: string[] = [];
+export function fitFiles(
+  files: CanonFile[],
+  texts: Map<string, string>,
+  budget: number,
+): { path: string; full: boolean; text: string }[] {
+  const out: { path: string; full: boolean; text: string }[] = [];
   let left = budget;
   for (const file of files) {
     const full = `<file path="${file.path}">\n${texts.get(file.path) ?? ''}\n</file>`;
@@ -407,7 +454,7 @@ export function fitFiles(files: CanonFile[], texts: Map<string, string>, budget:
       if (text === null) continue;
       const tokens = countTokens(text);
       if (tokens > left) continue;
-      out.push(text);
+      out.push({ path: file.path, full: text === full, text });
       left -= tokens;
       break;
     }

@@ -17,6 +17,7 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 - At the end of a scene, the canon update reads the full file of every character who had a turn, not only of the cast the scene started with.
 - The canon update also reads the files the scene mentions by name, alias or tag, in full or by their summary as far as they fit. Before, it saw them only as one line in an index and could add things that were already there or contradicted them. Files it has not seen in full it only extends, never rewrites. ([#38](https://github.com/Linyeir/teahouse/issues/38))
 - When a scene calls a character, place or thing by another name, nickname or title, the canon update suggests it as an alias, so later scenes that use that name bring the file into the prompt. ([#38](https://github.com/Linyeir/teahouse/issues/38))
+- Where the endpoint supports tool calls, the canon update can look things up before it proposes changes: read a file it only knows from the index, or search the world for where something appeared before. Endpoints without tool support work as before. The server log records what it looked up. ([#39](https://github.com/Linyeir/teahouse/issues/39))
 
 ### Fixed
 

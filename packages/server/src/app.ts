@@ -6,6 +6,7 @@ import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { Pairing } from './auth/pairing.ts';
 import { resolveToken } from './auth/tokens.ts';
+import type { ToolsFn } from './canon/lookup.ts';
 import { CanonProposals, ProposalError } from './canon/proposals.ts';
 import { CardError } from './cards/parse.ts';
 import type { Db } from './db/index.ts';
@@ -46,6 +47,8 @@ export interface AppOptions {
   /** Replace the LLM calls, for tests. */
   stream?: StreamFn;
   complete?: typeof complete;
+  /** Tool calls of the canon lookups; null turns them off. */
+  tools?: ToolsFn | null;
   logger?: FastifyServerOptions['logger'];
   /** Extra origins allowed to call the API from a browser, besides the Tauri apps. */
   corsOrigins?: string[];
@@ -60,6 +63,7 @@ export async function buildApp({
   clientDir,
   stream,
   complete: completeFn,
+  tools,
   logger = false,
   corsOrigins = [],
 }: AppOptions) {
@@ -81,7 +85,14 @@ export async function buildApp({
     app.log.warn({ err }, 'Active Memory summary failed'),
   );
   const generator = new Generator(db, hub, worlds, memory, stream, app.log);
-  const proposals = new CanonProposals({ db, worlds, hub, complete: completeFn });
+  const proposals = new CanonProposals({
+    db,
+    worlds,
+    hub,
+    complete: completeFn,
+    tools,
+    log: app.log,
+  });
   const services: Services = {
     db,
     hub,
