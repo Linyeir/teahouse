@@ -12,6 +12,7 @@ export const toMessage = (row: MessageRow): Message => ({
   parentId: row.parentId,
   role: row.role,
   content: row.content,
+  speaker: row.speaker,
   status: row.status,
   error: row.error,
   createdAt: row.createdAt,

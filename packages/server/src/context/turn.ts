@@ -1,4 +1,10 @@
-import { type MemoryNode, type PathMessage, parseMarkup, stageAfter } from '@teahouse/shared';
+import {
+  defaultSpeaker,
+  type MemoryNode,
+  NARRATOR_SPEAKER,
+  type PathMessage,
+  sceneStage,
+} from '@teahouse/shared';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import { memoryNodes, scenes } from '../db/schema.ts';
@@ -28,6 +34,9 @@ export interface TurnContext {
   /** Tokens left for history: context − response reserve − template, canon, memory, start. */
   remaining: number;
   historyTokens: number;
+  /** Whose turn it is: a character slug or `NARRATOR_SPEAKER`. */
+  speaker: string;
+  /** Names of the speaker and everyone present, by slug. */
   characterNames: Map<string, string>;
   stage: StageInfo;
 }
@@ -70,8 +79,9 @@ export function memoryOnPath(db: Db, sceneId: string, path: { id: string }[]): M
 }
 
 /**
- * Assembles everything a narrator turn needs: canon within its budget, the latest memory
- * summary on the path, the start message and the history after the summary.
+ * Assembles everything a turn needs: canon within its budget, the latest memory summary on
+ * the path, the start message and the history after the summary. `speaker` is whose turn it
+ * is; omitted, `defaultSpeaker` picks.
  */
 export async function buildTurnContext(
   db: Db,
@@ -79,6 +89,7 @@ export async function buildTurnContext(
   chatId: string,
   parentId: string | null,
   profile: ProfileRow,
+  speaker?: string,
 ): Promise<TurnContext> {
   const chat = getChatRow(db, chatId);
   const scene = currentScene(db, chatId);
@@ -93,18 +104,16 @@ export async function buildTurnContext(
       ? 0
       : -1;
   const history = path.slice(afterIndex + 1);
-
-  const characterNames = new Map<string, string>();
-  for (const slug of scene.cast) {
-    const character = await worlds.character(chat.worldId, slug).catch(() => null);
-    characterNames.set(slug, character?.summary.name ?? slug);
-  }
+  const turn = speaker ?? defaultSpeaker(path, scene.cast);
 
   // Everyone who can appear, with their image labels, and the stage as the scene left it.
   const worldCharacters = await worlds.characters(chat.worldId);
-  const replay = stageAfter(
-    path.filter((m) => m.role === 'assistant').flatMap((m) => parseMarkup(m.content)),
-    { background: null, present: scene.cast.map((who) => ({ who, mood: null })), speaker: null },
+  const replay = sceneStage(path, scene.cast);
+  const present = replay.present.map((p) => p.who);
+  // The speaker first: their file is the last of the core files to be cut.
+  const core = [...new Set(turn === NARRATOR_SPEAKER ? present : [turn, ...present])];
+  const characterNames = new Map(
+    core.map((slug) => [slug, worldCharacters.find((c) => c.slug === slug)?.name ?? slug]),
   );
   const stage: StageInfo = {
     characters: worldCharacters.map((c) => ({
@@ -117,7 +126,7 @@ export async function buildTurnContext(
       description: b.description,
     })),
     background: replay.background,
-    present: replay.present.map((p) => p.who),
+    present,
   };
 
   const window = contextWindow(profile);
@@ -131,13 +140,13 @@ export async function buildTurnContext(
   const canon = await selectCanon(worlds, {
     worldId: chat.worldId,
     chatId,
-    cast: scene.cast,
+    cast: core,
     recentText,
     budget: Math.floor(window * CANON_BUDGET_SHARE),
   });
 
   const fixed = buildNarratorMessages({
-    ...narratorVars(db, characterNames, scene.cast),
+    ...narratorVars(db, characterNames, turn),
     stage,
     canon: canon.text,
     memory: memory?.content ?? '',
@@ -155,15 +164,19 @@ export async function buildTurnContext(
     canon,
     remaining,
     historyTokens: countMessageTokens(history),
+    speaker: turn,
     characterNames,
     stage,
   };
 }
 
-function narratorVars(db: Db, names: Map<string, string>, cast: string[]) {
+function narratorVars(db: Db, names: Map<string, string>, speaker: string) {
   const settings = getSettings(db);
+  const character =
+    speaker === NARRATOR_SPEAKER ? null : { slug: speaker, name: names.get(speaker) ?? speaker };
   return {
-    characterName: cast.map((slug) => names.get(slug) ?? slug).join(' and '),
+    speaker: character,
+    characterName: character?.name ?? [...names.values()].join(' and '),
     userName: settings.userName,
     language: settings.outputLanguage,
   };
@@ -176,7 +189,7 @@ export function narratorPrompt(db: Db, ctx: TurnContext): ChatMessage[] {
     history = history.slice(1);
   }
   return buildNarratorMessages({
-    ...narratorVars(db, ctx.characterNames, ctx.scene.cast),
+    ...narratorVars(db, ctx.characterNames, ctx.speaker),
     stage: ctx.stage,
     canon: ctx.canon.text,
     memory: ctx.memory?.content ?? '',

@@ -61,7 +61,7 @@ Sync comes later, but the schema has to support it now:
   - `active` – messages form a tree (forks, swipes, edits)
   - `closing` – a canon proposal is being generated and reviewed
   - `closed` – the chosen path is frozen, all other branches are hidden and kept read-only
-- **Message:** A node in the tree of the active scene. An AI message consists of several beats.
+- **Message:** A node in the tree of the active scene. An AI message consists of several beats and has a speaker: the character whose turn it was, or the narrator.
 - **Beat:** A section of a message: narration, a character's line with facial expression, or a background change.
 - **Active Memory node:** A summary attached to the message up to which it summarizes.
 - **Profile:** A named combination of endpoint, model and parameters that is assigned to roles.
@@ -104,7 +104,7 @@ Links use wikilinks (`[[mira]]`) so the folder also works in Obsidian.
 
 Each role has its own prompt template and an assignable profile. By default one profile is used for everything.
 
-1. **Narrator** – generates the whole turn: narration, dialogue of all characters, facial expressions, background changes
+1. **Narrator** – generates one turn: what the character whose turn it is does and says, with facial expressions and background changes; or, on the narrator's own turn, only narration
 2. **Scene start** – proposes start message and cast of a new scene
 3. **Active Memory summary**
 4. **Canon update**
@@ -149,9 +149,10 @@ There is no knowledge separation between characters.
 
 ## 6. Flow of a turn
 
-1. The user writes an input. `*Asterisks*` mark action, the rest is speech. A normalizer turns this into tags, then the input runs through the same parser as AI replies.
-2. **One narrator call** generates the whole turn and is streamed. The model decides which characters act and speak. Not every character has to appear in every turn.
-3. The output uses a tag markup that is parsed immediately while streaming:
+1. The user picks who takes the next turn: a character present in the scene, the narrator, or another character of the world, who then joins the scene. The default is whoever had the last turn, else the first of the cast.
+2. The user writes an input, or leaves it empty to let the picked character go on. `*Asterisks*` mark action, the rest is speech. A normalizer turns this into tags, then the input runs through the same parser as AI replies.
+3. **One call per turn** generates the reply of exactly that character and is streamed. The other characters act in their own turns. On the narrator's turn the call only narrates: no character speaks.
+4. The output uses a tag markup that is parsed immediately while streaming:
 
 ```
 <bg id="tavern-night"/>
@@ -167,7 +168,7 @@ There is no knowledge separation between characters.
 | `<bg id/>` | Background change, `id` from the world's background list |
 | `<leave who/>` | Character leaves the scene, their image disappears |
 
-A character enters the scene implicitly with their first `<say>`.
+A character enters the scene implicitly with their turn or their first `<say>`.
 
 ### Parser robustness
 
@@ -175,7 +176,7 @@ A character enters the scene implicitly with their first `<say>`.
 - Unclosed tags are closed at the end of the stream
 - An unknown `who` is shown as narration with a speaker name and flagged
 - An unknown `mood` or `bg` falls back to the default image or the current background
-- The narrator prompt forbids speaking for `{{user}}`. In addition, the parser stops as soon as `<say who="{{user}}">` appears.
+- The prompt forbids speaking for `{{user}}` and for other characters. In addition, the reply ends as soon as a `<say>` for anyone but the character whose turn it is appears (on the narrator's turn: any `<say>`).
 
 ### Swipes and edits
 

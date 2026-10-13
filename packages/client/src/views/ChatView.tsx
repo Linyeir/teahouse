@@ -1,11 +1,15 @@
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  ChatPath,
-  EditMessageResult,
-  MemoryNode,
-  PathMessage,
-  SendMessageResult,
-  Settings,
+import {
+  type CharacterSummary,
+  type ChatPath,
+  defaultSpeaker,
+  type EditMessageResult,
+  type MemoryNode,
+  NARRATOR_SPEAKER,
+  type PathMessage,
+  type SendMessageResult,
+  type Settings,
+  sceneStage,
 } from '@teahouse/shared';
 import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -90,7 +94,7 @@ export function ChatView() {
     select: (m) => m.state.variables as SendVariables,
   });
   const generate = useMutation({
-    mutationFn: () => api.post(`/api/chats/${chatId}/generate`),
+    mutationFn: (speaker?: string) => api.post(`/api/chats/${chatId}/generate`, { speaker }),
     onSettled: () => refresh(),
   });
   const regenerate = useMutation({
@@ -273,7 +277,7 @@ export function ChatView() {
           ))}
         {canGenerate && last && (
           <div className={styles.message}>
-            <button className={ui.button} type="button" onClick={() => generate.mutate()}>
+            <button className={ui.button} type="button" onClick={() => generate.mutate(undefined)}>
               {t('chats.retry')}
             </button>
           </div>
@@ -298,12 +302,23 @@ export function ChatView() {
         <Composer
           key={chatId}
           chatId={chatId}
+          messages={messages}
+          cast={scene.cast}
+          characters={characters.data ?? []}
           streaming={Boolean(streaming)}
+          online={online}
           // One message can wait offline (concept, section 9); more would pile up turns.
           blocked={pending.length > 0}
-          onSend={(content) =>
-            send.mutate({ chatId, id: uuidv7(), content, parentId: data.chat.activeLeafId })
+          onSend={(content, speaker) =>
+            send.mutate({
+              chatId,
+              id: uuidv7(),
+              content,
+              parentId: data.chat.activeLeafId,
+              speaker,
+            })
           }
+          onTurn={(speaker) => generate.mutate(speaker)}
           onStop={() => streaming && stop.mutate(streaming.id)}
         />
       )}
@@ -335,9 +350,14 @@ function MessageView({
   const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
   const streaming = message.status === 'streaming';
+  const speaker =
+    message.speaker === NARRATOR_SPEAKER
+      ? t('chats.narrator')
+      : message.speaker && (names.get(message.speaker) ?? message.speaker);
 
   return (
     <div className={`${styles.message} ${message.role === 'user' ? styles.user : ''}`}>
+      {speaker && <div className={styles.speaker}>{speaker}</div>}
       {draft === null ? (
         <div className={`${styles.body} ${streaming ? styles.cursor : ''}`}>
           {message.role === 'user' ? (
@@ -499,19 +519,33 @@ function QueuedMessage({ draft, online }: { draft: SendVariables; online: boolea
 
 function Composer({
   chatId,
+  messages,
+  cast,
+  characters,
   streaming,
+  online,
   blocked,
   onSend,
+  onTurn,
   onStop,
 }: {
   chatId: string;
+  messages: PathMessage[];
+  cast: string[];
+  characters: CharacterSummary[];
   streaming: boolean;
+  online: boolean;
   blocked: boolean;
-  onSend: (content: string) => void;
+  onSend: (content: string, speaker: string) => void;
+  /** Someone's turn without input from the user. */
+  onTurn: (speaker: string) => void;
   onStop: () => void;
 }) {
   const { t } = useTranslation();
   const [text, setTextState] = useState(() => readDraft(chatId));
+  // Null follows the default: whoever had the last turn.
+  const [picked, setPicked] = useState<string | null>(null);
+  const speaker = picked ?? defaultSpeaker(messages, cast);
   const setText = (next: string) => {
     setTextState(next);
     writeDraft(chatId, next);
@@ -528,9 +562,14 @@ function Composer({
   const submit = () => {
     const content = text.trim();
     if (!content || streaming || blocked) return;
-    onSend(content);
+    onSend(content, speaker);
     setText('');
+    setPicked(null);
   };
+
+  const present = sceneStage(messages, cast).present.map((p) => p.who);
+  const name = (slug: string) => characters.find((c) => c.slug === slug)?.name ?? slug;
+  const others = characters.filter((c) => !present.includes(c.slug));
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -541,6 +580,32 @@ function Composer({
 
   return (
     <div className={styles.composer}>
+      <label className={`${styles.composerInner} ${styles.turn}`}>
+        <span className={ui.hint}>{t('chats.nextTurn')}</span>
+        <select className={ui.input} value={speaker} onChange={(e) => setPicked(e.target.value)}>
+          <optgroup label={t('chats.present')}>
+            {present.map((slug) => (
+              <option key={slug} value={slug}>
+                {name(slug)}
+              </option>
+            ))}
+          </optgroup>
+          <option value={NARRATOR_SPEAKER}>{t('chats.narrator')}</option>
+          {others.length > 0 && (
+            <optgroup label={t('chats.others')}>
+              {others.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {/* A default that is neither present nor in the world, e.g. a deleted character. */}
+          {speaker !== NARRATOR_SPEAKER &&
+            !present.includes(speaker) &&
+            !others.some((c) => c.slug === speaker) && <option value={speaker}>{speaker}</option>}
+        </select>
+      </label>
       <div className={styles.composerInner}>
         <textarea
           className={ui.input}
@@ -553,14 +618,22 @@ function Composer({
           <button className={ui.button} type="button" onClick={onStop}>
             {t('chats.stop')}
           </button>
+        ) : text.trim() ? (
+          <button className={ui.primary} type="button" onClick={submit} disabled={blocked}>
+            {t('chats.send')}
+          </button>
         ) : (
+          // Nothing written: the picked character (or the narrator) just takes their turn.
           <button
             className={ui.primary}
             type="button"
-            onClick={submit}
-            disabled={!text.trim() || blocked}
+            onClick={() => {
+              onTurn(speaker);
+              setPicked(null);
+            }}
+            disabled={blocked || !online}
           >
-            {t('chats.send')}
+            {t('chats.takeTurn')}
           </button>
         )}
       </div>

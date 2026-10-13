@@ -115,6 +115,11 @@ export const message = z.object({
   parentId: id.nullable(),
   role: messageRole,
   content: z.string(),
+  /**
+   * Whose turn a reply is: a character slug or `NARRATOR_SPEAKER`. Null for the user's
+   * messages, start messages and replies from before turns had one speaker.
+   */
+  speaker: z.string().nullable(),
   status: messageStatus,
   error: z.string().nullable(),
   createdAt: z.string(),
@@ -203,6 +208,12 @@ export const proposalFileUpdate = z.object({
 });
 export type ProposalFileUpdate = z.infer<typeof proposalFileUpdate>;
 
+/** Who answers: a character slug or `NARRATOR_SPEAKER`. Omitted picks `defaultSpeaker`. */
+const speakerInput = z.string().min(1).max(200).optional();
+
+export const generateInput = z.object({ speaker: speakerInput });
+export type GenerateInput = z.infer<typeof generateInput>;
+
 export const sendMessageInput = z.object({
   /** Client-generated UUIDv7, so a retried request does not duplicate the message. */
   id: id.optional(),
@@ -213,6 +224,7 @@ export const sendMessageInput = z.object({
    * instead of being appended to someone else's turn. Defaults to the active leaf.
    */
   parentId: id.optional(),
+  speaker: speakerInput,
 });
 export type SendMessageInput = z.infer<typeof sendMessageInput>;
 

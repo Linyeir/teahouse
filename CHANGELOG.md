@@ -2,6 +2,17 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [0.4.0] - unreleased
+
+**Updating:** apps and server can be updated in any order, but picking who talks needs a 0.4.0 server; with an older one the narrator still plays the whole cast. The server migrates its database (replies get a speaker) and backs it up first. Replies written before keep no speaker; regenerating one plays whoever had the last turn.
+
+### Changed
+
+- Every LLM call now plays one character instead of the whole cast. Above the text field you pick who takes the next turn: a character in the scene, the narrator (who only describes the scene), or another character of the world, who then joins. The choice starts on whoever had the last turn. With the field empty, **Continue** lets that character go on without your input, so several characters can answer in a row. Regenerating a reply keeps its character. ([#40](https://github.com/Linyeir/teahouse/issues/40))
+- The log view shows above each reply whose turn it was.
+- If the model starts writing a line for another character, Teahouse cuts the reply there, as it already did for lines written for you.
+- At the end of a scene, the canon update reads the full file of every character who had a turn, not only of the cast the scene started with.
+
 ## [0.3.4] - 2026-10-11
 
 **Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on; the server itself does not change.
@@ -124,6 +135,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.4.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.0
 [0.3.4]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.2

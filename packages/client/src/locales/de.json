@@ -100,7 +100,12 @@
     "noProfile": "Lege zuerst ein Profil an.",
     "previousVersion": "Vorige Version",
     "nextVersion": "Nächste Version",
-    "emptyReply": "Die Antwort kam leer zurück. Neu erzeugen oder das Profil im Verlauf prüfen."
+    "emptyReply": "Die Antwort kam leer zurück. Neu erzeugen oder das Profil im Verlauf prüfen.",
+    "nextTurn": "Als Nächstes",
+    "present": "In der Szene",
+    "others": "Sonst in der Welt",
+    "narrator": "Erzähler",
+    "takeTurn": "Weiter"
   },
   "profiles": {
     "new": "Neues Profil",

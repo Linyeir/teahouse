@@ -87,6 +87,18 @@
   align-items: flex-end;
 }
 
+/* Whose turn is next, above the text field. */
+.turn {
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.turn select {
+  width: auto;
+  max-width: 100%;
+  padding: 4px 8px;
+}
+
 .composerInner textarea {
   min-height: 3em;
   max-height: 40vh;
