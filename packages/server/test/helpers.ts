@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { onTestFinished } from 'vitest';
 import { buildApp } from '../src/app.ts';
+import type { ToolsFn } from '../src/canon/lookup.ts';
 import { openDb } from '../src/db/index.ts';
 import type { StreamFn } from '../src/generation.ts';
 import type { CompleteFn } from '../src/memory.ts';
@@ -18,10 +19,10 @@ export async function tempWorlds(): Promise<WorldService> {
   return worlds;
 }
 
-export async function createTestApp(stream?: StreamFn, complete?: CompleteFn) {
+export async function createTestApp(stream?: StreamFn, complete?: CompleteFn, tools?: ToolsFn) {
   const db = openDb(':memory:');
   const worlds = await tempWorlds();
-  const app = await buildApp({ db, worlds, stream, complete });
+  const app = await buildApp({ db, worlds, stream, complete, tools });
   onTestFinished(() => app.close());
   await app.ready();
   const { token } = (

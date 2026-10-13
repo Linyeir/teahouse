@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   complete,
+  completeWithTools,
   describeLlmError,
   extractJson,
   listModels,
@@ -157,6 +158,57 @@ describe('structured output fallback', () => {
     expect(extractJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
     expect(extractJson('Sure! {"a":{"b":2}} Hope that helps.')).toEqual({ a: { b: 2 } });
     expect(() => extractJson('no json here')).toThrow();
+  });
+});
+
+describe('tool calls', () => {
+  it('offers the tools and returns the calls the model made', async () => {
+    const bodies: { tools?: unknown[]; tool_choice?: string; max_tokens?: number }[] = [];
+    const server = Fastify();
+    servers.push(server);
+    server.post('/v1/chat/completions', async (req) => {
+      bodies.push(req.body as (typeof bodies)[number]);
+      return {
+        id: 'x',
+        object: 'chat.completion',
+        created: 0,
+        model: 'm',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'tool_calls',
+            message: {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function',
+                  function: { name: 'read_file', arguments: '{"path":"lore/fog.md"}' },
+                },
+              ],
+            },
+          },
+        ],
+      };
+    });
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const tool = { name: 'read_file', description: 'Reads', parameters: { type: 'object' } };
+    const turn = await completeWithTools(
+      { ...profile(`${address}/v1`), maxTokens: 100 },
+      [{ role: 'user', content: 'Hi' }],
+      [tool],
+      { minTokens: 1000 },
+    );
+    expect(turn).toEqual({
+      content: '',
+      toolCalls: [{ id: 'call_1', name: 'read_file', arguments: '{"path":"lore/fog.md"}' }],
+    });
+    expect(bodies[0]).toMatchObject({
+      tools: [{ type: 'function', function: tool }],
+      tool_choice: 'auto',
+      max_tokens: 1000,
+    });
   });
 });
 

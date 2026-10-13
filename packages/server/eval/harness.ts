@@ -13,7 +13,7 @@ import { openDb } from '../src/db/index.ts';
 import { chats, messages, profiles } from '../src/db/schema.ts';
 import { Generator } from '../src/generation.ts';
 import { Hub } from '../src/hub.ts';
-import { complete } from '../src/llm/client.ts';
+import { complete, completeWithTools } from '../src/llm/client.ts';
 import { Memory } from '../src/memory.ts';
 import { Scenes } from '../src/scenes.ts';
 import { getSettings, saveSettings } from '../src/settings.ts';
@@ -178,7 +178,13 @@ export async function runScenario(
     const generator = new Generator(db, hub, worlds, memory, () => {
       throw new Error('The narrator is scripted in evals');
     });
-    const proposals = new CanonProposals({ db, worlds, hub, complete: completeFn });
+    const proposals = new CanonProposals({
+      db,
+      worlds,
+      hub,
+      complete: completeFn,
+      tools: completeWithTools,
+    });
     const scenes = new Scenes(db, worlds, hub, generator, proposals, completeFn);
 
     const timestamp = now();
