@@ -29,6 +29,15 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 - A greeting that names its character as `{{char}}` showed the placeholder in the chat. New chats fill in the name when they start, which also keeps the greeting about its own character once others take turns.
 - Chats showed `{{user}}` and `{{char}}` as written, e.g. in greetings of imported cards. The log and novel views now show your persona's name and the character's; the stored text keeps the placeholders, so editing shows them and a renamed persona appears everywhere.
 
+## [0.3.5] - 2026-10-24
+
+**Updating:** update the server now; the apps do not change. A security release: it fixes two holes that let someone take over a server or run code on it. Nothing else changes, and the database is not migrated. Exported world archives no longer contain the world's Git history, and imported worlds start with a fresh history.
+
+### Security
+
+- **Update now.** A request could reach the API without signing in by spelling the path differently, so anyone who could reach the server's port could use it: pair a device, read and change worlds, chats and profiles, and sign out your devices. The server now checks the sign-in for every API route it serves, whatever the spelling. If your server was reachable from outside your own devices, check **Settings → Signed-in devices** for devices you don't know and sign them out, and replace the API key of your LLM endpoint.
+- **Update now.** Importing a world archive could run code on the server: archives carried the world's Git repository, including its configuration and hooks, which ran at the first commit. Exports no longer contain the Git repository, and imports ignore one and start the world with a fresh history. Archives with links or paths outside the archive are refused instead of partly imported. Until you have updated, import only archives you exported yourself.
+
 ## [0.3.4] - 2026-10-11
 
 **Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on; the server itself does not change.
