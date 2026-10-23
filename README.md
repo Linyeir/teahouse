@@ -25,7 +25,7 @@ Images are uploaded per character file in the world view, each with a label (`ne
 
 ## Export and sharing
 
-**Export world** on the world overview downloads a `.teahouse.tar.gz` with the world folder (Git history and images included) and its chats. **Import world** on the worlds page restores it; a world that already exists on the server is imported as a copy with new IDs. Profiles and API keys are never part of an export.
+**Export world** on the world overview downloads a `.teahouse.tar.gz` with the world folder (images included) and its chats. **Import world** on the worlds page restores it with a fresh Git history; a world that already exists on the server is imported as a copy with new IDs. Profiles, API keys and the world's Git repository are never part of an export.
 
 ## Scenes and memory
 

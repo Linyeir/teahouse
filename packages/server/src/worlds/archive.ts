@@ -10,7 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, posix } from 'node:path';
+import { basename, join, posix } from 'node:path';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
@@ -23,9 +23,9 @@ import { parseDocument, stringifyDocument } from './frontmatter.ts';
 import { slug, type WorldService } from './service.ts';
 
 /**
- * World archives (concept, section 12): the world folder with its Git history and assets,
- * plus the world's chats. This is also the format for sharing worlds. Profiles and keys
- * are never included.
+ * World archives (concept, section 12): the world folder with its assets plus the world's
+ * chats. This is also the format for sharing worlds. Profiles, keys and the world's Git
+ * repository (config, hooks, history) are never included.
  */
 export const ARCHIVE_FORMAT = 'teahouse-world';
 export const ARCHIVE_VERSION = 1;
@@ -60,10 +60,14 @@ export async function exportWorld(db: Db, worlds: WorldService, worldId: string)
   const staging = join(dir, 'staging');
   await mkdir(staging);
 
-  // Copy under the world's Git queue so the snapshot is consistent.
-  await worlds
-    .repo(world.folder)
-    .run(() => cp(worlds.dir(world.folder), join(staging, 'world'), { recursive: true }));
+  // Copy under the world's Git queue so the snapshot is consistent. The repository itself stays
+  // home: its config and hooks are not for sharing, and its history is the owner's.
+  await worlds.repo(world.folder).run(() =>
+    cp(worlds.dir(world.folder), join(staging, 'world'), {
+      recursive: true,
+      filter: (src) => basename(src) !== '.git',
+    }),
+  );
 
   const chatRows = db
     .select()
@@ -116,20 +120,30 @@ export async function exportWorld(db: Db, worlds: WorldService, worldId: string)
 export async function importWorld(db: Db, worlds: WorldService, archive: Readable) {
   const dir = await mkdtemp(join(tmpdir(), 'teahouse-import-'));
   try {
+    let unsafe: string | null = null;
     await pipeline(
       archive,
       tar.x({
         cwd: dir,
         strict: true,
-        // Only plain files and folders; no links that could point outside the world.
         filter: (path, entry) => {
           const type = 'type' in entry ? entry.type : null;
-          return (
-            (type === 'File' || type === 'Directory') && !posix.normalize(path).startsWith('..')
-          );
+          const parts = posix.normalize(path).split('/');
+          // Only plain files and folders inside the archive: no links that could point
+          // outside the world, no paths that climb out of it.
+          if ((type !== 'File' && type !== 'Directory') || parts.includes('..')) {
+            unsafe ??= path;
+            return false;
+          }
+          // A shared archive never brings a Git repository along: its hooks and config would
+          // run on this server at the first commit. The world gets a fresh repository below.
+          return !parts.includes('.git');
         },
       }),
     );
+    if (unsafe !== null) {
+      throw new ArchiveError(`The archive contains a link or a path outside it: ${unsafe}`);
+    }
     const parsed = manifest.safeParse(
       JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8').catch(() => '{}')),
     );
@@ -138,6 +152,7 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
       throw new ArchiveError('The archive comes from a newer Teahouse version');
     }
     const worldDir = join(dir, 'world');
+    await rm(join(worldDir, '.git'), { recursive: true, force: true });
     if (!(await stat(join(worldDir, 'world.md')).catch(() => null))) {
       throw new ArchiveError('The archive contains no world.md');
     }

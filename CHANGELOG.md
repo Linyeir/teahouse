@@ -6,6 +6,11 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 **Updating:** apps and server can be updated in any order, but picking who talks needs a 0.4.0 server; with an older one the narrator still plays the whole cast. The server migrates its database (replies get a speaker) and backs it up first. Replies written before keep no speaker; regenerating one plays whoever had the last turn.
 
+### Security
+
+- **Update now.** A request could reach the API without signing in by spelling the path differently, so anyone who could reach the server's port could use it: pair a device, read and change worlds, chats and profiles, and sign out your devices. The server now checks the sign-in for every API route it serves, whatever the spelling. If your server was reachable from outside your own devices, check **Settings → Signed-in devices** for devices you don't know and sign them out, and replace the API key of your LLM endpoint.
+- **Update now.** Importing a world archive could run code on the server: archives carried the world's Git repository, including its configuration and hooks, which ran at the first commit. Exports no longer contain the Git repository, and imports ignore one and start the world with a fresh history. Archives with links or paths outside the archive are refused instead of partly imported. Until you have updated, import only archives you exported yourself.
+
 ### Changed
 
 - Every LLM call now plays one character instead of the whole cast. Above the text field you pick who takes the next turn: a character in the scene, the narrator (who only describes the scene), or another character of the world, who then joins. The choice starts on whoever had the last turn. With the field empty, **Continue** lets that character go on without your input, so several characters can answer in a row. Regenerating a reply keeps its character. ([#40](https://github.com/Linyeir/teahouse/issues/40))

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ChatPath, World } from '@teahouse/shared';
@@ -65,9 +65,17 @@ async function upload(
 }
 
 describe('world archives', () => {
-  it('moves a world with its history and chats to another server unchanged', async () => {
+  it('moves a world and its chats to another server, without its Git repository', async () => {
     const source = await worldWithChat();
     const archive = await download(source, source.world.id);
+    const entries: string[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const list = tar.t({ onReadEntry: (e) => entries.push(e.path) });
+      list.on('end', resolve).on('error', reject);
+      list.end(archive);
+    });
+    expect(entries).toContain('world/world.md');
+    expect(entries.filter((p) => p.split('/').includes('.git'))).toEqual([]);
 
     const target = await createTestApp(stream);
     const imported = await upload(target, archive);
@@ -77,7 +85,7 @@ describe('world archives', () => {
     const worlds = await target.api<World[]>('GET', '/api/worlds');
     expect(worlds.body.map((w) => w.name)).toEqual(['Rain Port']);
     const history = (await target.worlds.history(source.world.id)).map((c) => c.message);
-    expect(history.at(-1)).toBe('Create world Rain Port'); // Git history came along
+    expect(history).toEqual(['Import Rain Port']); // a fresh repository, no history
     const path = await target.api<ChatPath>('GET', `/api/chats/${source.chat.chat.id}`);
     expect(path.body.messages.map((m) => m.content)).toEqual([
       'Hi.',
@@ -127,12 +135,9 @@ describe('world archives', () => {
     const file = join(dir, 'evil.tar.gz');
     await tar.c({ gzip: true, cwd: dir, file }, ['manifest.json', 'chats.json', 'world']);
     const imported = await upload(ctx, await readFile(file));
-    expect(imported.status).toBe(200);
-    const leak = await readFile(
-      join(ctx.worlds.dir(imported.body.folder), 'leak.md'),
-      'utf8',
-    ).catch(() => null);
-    expect(leak).toBeNull(); // the link was skipped
+    expect(imported.status).toBe(400); // the link is refused, not skipped
+    expect((await ctx.worlds.list()).map((w) => w.name)).toEqual([]);
+    await rm(join(dir, 'world', 'leak.md'));
 
     await writeFile(
       join(dir, 'manifest.json'),
@@ -140,5 +145,46 @@ describe('world archives', () => {
     );
     await tar.c({ gzip: true, cwd: dir, file }, ['manifest.json', 'chats.json', 'world']);
     expect((await upload(ctx, await readFile(file))).status).toBe(400);
+  });
+
+  it('never brings a Git repository along, so its hooks and config cannot run', async () => {
+    const ctx = await createTestApp();
+    const dir = await mkdtemp(join(tmpdir(), 'teahouse-hooks-'));
+    onTestFinished(() => rm(dir, { recursive: true, force: true }));
+    const marker = join(dir, 'pwned');
+    const git = join(dir, 'world', '.git');
+    await mkdir(join(git, 'hooks'), { recursive: true });
+    await mkdir(join(git, 'objects'), { recursive: true });
+    await mkdir(join(git, 'refs', 'heads'), { recursive: true });
+    await writeFile(join(git, 'HEAD'), 'ref: refs/heads/main\n');
+    await writeFile(
+      join(git, 'config'),
+      `[core]\n\trepositoryformatversion = 0\n\tfsmonitor = "touch ${marker}-fsmonitor"\n\thooksPath = .git/hooks\n`,
+    );
+    for (const hook of ['pre-commit', 'post-commit', 'commit-msg']) {
+      await writeFile(join(git, 'hooks', hook), `#!/bin/sh\ntouch ${marker}-${hook}\n`);
+      await chmod(join(git, 'hooks', hook), 0o755);
+    }
+    await writeFile(
+      join(dir, 'manifest.json'),
+      JSON.stringify({ format: 'teahouse-world', version: 1, name: 'Hooked', exportedAt: '' }),
+    );
+    await writeFile(join(dir, 'chats.json'), '[]');
+    await writeFile(join(dir, 'world', 'world.md'), '---\nname: Hooked\n---\n');
+    const file = join(dir, 'hooked.tar.gz');
+    await tar.c({ gzip: true, cwd: dir, file }, ['manifest.json', 'chats.json', 'world']);
+
+    const imported = await upload(ctx, await readFile(file));
+    expect(imported.status).toBe(200);
+    const folder = ctx.worlds.dir(imported.body.folder);
+    await ctx.worlds.write(imported.body.worldId, 'lore/later.md', '---\ntype: lore\n---\n');
+
+    for (const name of ['fsmonitor', 'pre-commit', 'post-commit', 'commit-msg']) {
+      expect(await stat(`${marker}-${name}`).catch(() => null), name).toBeNull();
+    }
+    const config = await readFile(join(folder, '.git', 'config'), 'utf8');
+    expect(config).not.toContain('fsmonitor');
+    expect(config).not.toContain('hooksPath');
+    expect(await stat(join(folder, '.git', 'hooks', 'pre-commit')).catch(() => null)).toBeNull();
   });
 });
