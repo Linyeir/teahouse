@@ -2,6 +2,15 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [0.3.5] - unreleased
+
+**Updating:** update the server now; the apps do not change. A security release: it fixes two holes that let someone take over a server or run code on it. Nothing else changes, and the database is not migrated. Exported world archives no longer contain the world's Git history, and imported worlds start with a fresh history.
+
+### Security
+
+- **Update now.** A request could reach the API without signing in by spelling the path differently, so anyone who could reach the server's port could use it: pair a device, read and change worlds, chats and profiles, and sign out your devices. The server now checks the sign-in for every API route it serves, whatever the spelling. If your server was reachable from outside your own devices, check **Settings → Signed-in devices** for devices you don't know and sign them out, and replace the API key of your LLM endpoint.
+- **Update now.** Importing a world archive could run code on the server: archives carried the world's Git repository, including its configuration and hooks, which ran at the first commit. Exports no longer contain the Git repository, and imports ignore one and start the world with a fresh history. Archives with links or paths outside the archive are refused instead of partly imported. Until you have updated, import only archives you exported yourself.
+
 ## [0.3.4] - 2026-10-11
 
 **Updating:** apps and server can be updated in any order. A 0.3.4 app works with servers from 0.3.0 on; the server itself does not change.
@@ -124,6 +133,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.3.5]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.5
 [0.3.4]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.2
