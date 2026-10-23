@@ -2,7 +2,7 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [0.3.5] - unreleased
+## [0.3.5] - 2026-10-24
 
 **Updating:** update the server now; the apps do not change. A security release: it fixes two holes that let someone take over a server or run code on it. Nothing else changes, and the database is not migrated. Exported world archives no longer contain the world's Git history, and imported worlds start with a fresh history.
 
