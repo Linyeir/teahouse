@@ -31,3 +31,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .filter(Boolean),
   };
 }
+
+/** Whether a bind address only accepts connections from this machine. */
+export function isLoopback(host: string): boolean {
+  const h = host.toLowerCase().replace(/^\[(.*)\]$/, '$1');
+  return h === 'localhost' || h === '::1' || /^127(\.\d{1,3}){3}$/.test(h);
+}
+
+/**
+ * The startup warning for a server other machines can reach: Teahouse speaks plain HTTP, so
+ * without a TLS proxy in front the password and device tokens cross the network readable.
+ * Null on loopback, where only a proxy on the same machine (or nothing) can connect.
+ */
+export function plainHttpWarning(host: string): string | null {
+  if (isLoopback(host)) return null;
+  return (
+    'Teahouse serves plain HTTP on an address other machines can reach: the password and ' +
+    'device tokens cross the network unencrypted. Fine inside your own LAN or a VPN; ' +
+    'anything else needs HTTPS through a reverse proxy or Tailscale: https://github.com/Linyeir/teahouse/blob/main/docs/https.md'
+  );
+}

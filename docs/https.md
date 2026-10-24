@@ -100,3 +100,18 @@ worker nowhere else.
 
 On HTTP, the password and the device tokens cross the network unencrypted, so anyone on the
 same network can read them. Never expose Teahouse to the internet this way.
+
+### The startup warning
+
+When Teahouse listens on an address other machines can reach (the default `0.0.0.0`, which
+Docker needs), it logs a warning at startup that it serves plain HTTP. It cannot tell whether
+a proxy terminates TLS in front of it, so the warning shows either way. To act on it:
+
+- **Proxy on the same machine:** set `TEAHOUSE_HOST=127.0.0.1`, so only the proxy can reach
+  Teahouse and the warning goes away. With Docker, keep the default inside the container and
+  publish the port on loopback instead: `ports: ["127.0.0.1:8787:8787"]` in `compose.yaml`.
+- **Proxy on another machine, or Tailscale:** use one of the routes above, and make sure
+  the plain port is reachable from nothing but the proxy (a firewall rule, or a bind address
+  only the proxy can reach).
+- **Plain HTTP on purpose,** inside your LAN or a VPN: the warning is the reminder of what that
+  means; nothing else changes.
