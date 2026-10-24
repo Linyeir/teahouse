@@ -2,9 +2,37 @@
 
 # Teahouse
 
-Self-hostable AI roleplay in the style of a visual novel, with two-tier memory: Active Memory keeps long scenes in the context window, and a canon of Git-versioned Markdown files holds lasting world knowledge.
+**AI roleplay in the style of a visual novel, with a canon you own.** What happens in your scenes becomes Markdown files in a Git repository on your own server: you review every change as a diff, edit the files with any editor, and keep the whole history.
 
-**Status:** early development, v0.3. Teahouse has worlds as Markdown plus Git, Character Card import, scenes, Active Memory, canon updates reviewed as diffs, a visual novel view with character images and backgrounds, world export, and desktop and Android apps that work offline, against any OpenAI-compatible endpoint.
+**Status:** early development. The latest release is [0.3.5](https://github.com/Linyeir/teahouse/releases); 0.4.0, with group chats, is in progress on `main` (see the [changelog](CHANGELOG.md)). Teahouse runs against any OpenAI-compatible endpoint, as a server with a web client and desktop and Android apps that work offline.
+
+## Quickstart
+
+You need Docker and an LLM endpoint: LM Studio or llama.cpp on your machine, or an OpenRouter key.
+
+1. Start the server:
+
+   ```sh
+   git clone https://github.com/Linyeir/teahouse.git
+   cd teahouse
+   docker compose up -d
+   ```
+
+2. Open http://localhost:8787 and choose a password.
+3. Under **Profiles**, add a profile: pick a preset, enter the model (or **Load models**) and, for OpenRouter, the API key. From inside Docker, `localhost` is the container: for LM Studio or llama.cpp on the same machine, use `http://host.docker.internal:1234/v1` (see [Endpoints](#endpoints)).
+4. Under **Worlds**, **Import character card** (a PNG or JSON card, V1 to V3) into a new world, or create a **New world** and add a character file in `characters/`.
+5. Pick a greeting and **Start chat**, write your first line, and **Send**. The reply streams in.
+
+When the scene is over, **End scene** with canon: Teahouse proposes what to record in the world's files, and you accept, edit or reject each change. Before you open the server to other devices, read [Running the server](#running-the-server).
+
+## Coming from SillyTavern
+
+- **Character Cards** (PNG or JSON, V1 to V3) import as they are: the card becomes a Markdown file in `characters/`, each lorebook entry a file in `lore/`, the card image the character's default image, and the greetings stay greetings. Lorebook logic (secondary keys, `selective`, `constant`, depth, order, recursion) is not carried over: Teahouse picks canon files by their name, aliases and tags within a token budget instead.
+- **Chats are scenes.** You end a scene yourself, and its outcome goes into the canon after your review, instead of living only in a long chat log or a summary.
+- **One character per LLM call.** In a group, you pick who takes the next turn; the narrator only describes.
+- **Endpoints:** OpenAI-compatible chat completion only, no text completion, no ST presets.
+- **Not imported yet:** ST chat logs, presets, sprite folders and World Info outside a card ([#99](https://github.com/Linyeir/teahouse/issues/99), [#103](https://github.com/Linyeir/teahouse/issues/103)).
+- **Feature parity is not a goal.** Teahouse is an independent project with no shared code; [the concept](docs/concept.md) says what it does differently and why.
 
 ## Visual novel view
 
@@ -22,10 +50,6 @@ Every LLM call plays one character. Above the text field you pick who takes the 
 The narrator gets every character of the world with its image labels and the world's backgrounds with their descriptions. The view shows the background, the present characters in the mood of their last line (falling back to `neutral`, any image, then a placeholder) and one message at a time: the whole reply in one text box, under the name of the character whose turn it was. A long reply scrolls; click, space or Enter read on and then turn to the next message, the arrow keys step between messages. **Log** switches to the full text. If the model starts writing a line for you or for another character, Teahouse cuts the reply there.
 
 Images are uploaded per character file in the world view, each with a label (`neutral`, `amused`, … or your own), and backgrounds on the world overview with a short description for the narrator. They are stored in `assets/` and listed in the frontmatter. Colors and fonts of the view are theme tokens a world can override; see [docs/theming.md](docs/theming.md).
-
-## Export and sharing
-
-**Export world** on the world overview downloads a `.teahouse.tar.gz` with the world folder (images included) and its chats. **Import world** on the worlds page restores it with a fresh Git history; a world that already exists on the server is imported as a copy with new IDs. Profiles, API keys and the world's Git repository are never part of an export.
 
 ## Scenes and memory
 
@@ -54,19 +78,30 @@ Every save in Teahouse is a commit, and so is every edit made directly in the fo
 
 Character Cards (PNG or JSON, V1 to V3) import into a new or an existing world: one file in `characters/`, one file in `lore/` per lorebook entry, and the card image as the character's default image. See [the concept](docs/concept.md) for where this is going.
 
-## Run with Docker
+## Export and sharing
 
-```sh
-docker compose up -d
-```
+**Export world** on the world overview downloads a `.teahouse.tar.gz` with the world folder (images included) and its chats. **Import world** on the worlds page restores it with a fresh Git history; a world that already exists on the server is imported as a copy with new IDs. Profiles, API keys and the world's Git repository are never part of an export.
 
-This builds the image from the checkout. Each release is also published as a ready image for amd64 and arm64, `ghcr.io/linyeir/teahouse:latest` (or a version such as `:0.3`), which you can put in `compose.yaml` as `image:` instead of `build: .`.
+## Running the server
 
-Open http://localhost:8787, choose a password, then add a profile under **Profiles**. Data lives in the `teahouse-data` volume. Put Teahouse behind a reverse proxy with HTTPS or Tailscale before exposing it; [docs/https.md](docs/https.md) explains the options and what the devices need for each.
+The Quickstart builds the image from the checkout. Each release is also published as a ready image for amd64 and arm64, `ghcr.io/linyeir/teahouse:latest` (or a version such as `:0.3`), which you can put in `compose.yaml` as `image:` instead of `build: .`. Data lives in the `teahouse-data` volume.
+
+Teahouse speaks plain HTTP. Inside your LAN or a VPN that works; for anything reachable from the internet, put it behind a reverse proxy with HTTPS or Tailscale first. [docs/https.md](docs/https.md) explains the options and what the devices need for each. The server warns at startup when other machines can reach it over plain HTTP.
 
 **Updating:** pull the new image and restart (`docker compose pull && docker compose up -d` with `image:`). When the new version changes the database, the server first copies it to `backups/teahouse-<time>.db` in the data volume and logs where. The last five copies are kept. To go back to the previous version, stop the server, replace `teahouse.db` with the copy (and delete `teahouse.db-wal` and `teahouse.db-shm`), then start the previous image. Worlds are Git repositories and are not touched by updates.
 
 Apps and server can be updated separately. They check each other's version on connect: when an update changed what they exchange, the app says whether the app or the server has to be updated. **Settings → About** shows both versions.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TEAHOUSE_PORT` | `8787` | HTTP port |
+| `TEAHOUSE_HOST` | `0.0.0.0` | Bind address |
+| `TEAHOUSE_DATA_DIR` | `./data` | SQLite database and, by default, worlds |
+| `TEAHOUSE_WORLDS_DIR` | `<data>/worlds` | World folders |
+| `TEAHOUSE_CLIENT_DIR` | `packages/client/dist` | Built web client to serve |
+| `TEAHOUSE_CORS_ORIGINS` | – | Extra browser origins allowed to call the API, comma-separated (the Tauri apps are always allowed) |
 
 ## Devices and pairing
 
@@ -82,22 +117,7 @@ The desktop apps (Windows, macOS, Linux) and the Android app are the web client 
 
 On first start, an app asks for the server address. On Android 17 and later, the app also asks to access the local network (“Nearby devices”) before it connects to a server at home; without that, Android blocks every connection to the LAN. Paste a pairing link there (from **Settings → Pair a device** on a signed-in device) to connect and sign in in one go. The Android app can scan the QR code instead.
 
-**Getting the apps:** download them from the latest [release](https://github.com/Linyeir/teahouse/releases). For an unreleased state, run the **Apps** workflow on GitHub (Actions → Apps → Run workflow) and download the artifact for your system: `teahouse-linux-appimage` (any Linux distribution), `teahouse-linux-deb` (Debian, Ubuntu), `teahouse-linux-rpm` (Fedora, openSUSE), `teahouse-windows` (`.msi` and `.exe`), `teahouse-macos` (`.dmg`) or one of `teahouse-android-arm64` (current phones), `teahouse-android-arm` (older phones) and `teahouse-android-x86_64` (emulators, Chromebooks). The APK is a debug build signed with the Teahouse key, so it installs directly once your phone allows apps from unknown sources, and later versions install over it. Version 0.3.0 used a different key and app ID: uninstall it before installing 0.3.1 (let it sync first). The builds are not code-signed, so Windows and macOS warn on first start.
-
-**Building locally** needs Rust and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system:
-
-```sh
-pnpm app:dev      # desktop app against the Vite dev server
-pnpm app:build    # installers in packages/app/src-tauri/target/release/bundle/
-```
-
-For Android, also install the Android SDK and NDK, then run `pnpm --filter @teahouse/app tauri android init` once, followed by `packages/app/src-tauri/android/overlay.sh`, which adds the app's icons and its trust in CAs installed on the phone to the generated project, and build with `pnpm --filter @teahouse/app tauri android build --debug --apk`.
-
-**Testing on Android:** `pnpm --filter @teahouse/app e2e:android <path to a debug APK>` runs the end-to-end test in `packages/app/e2e/android.ts` on an attached emulator with Android 17 or later and a `google_apis` image (it needs `adb root`). It covers the local network permission and a server with a certificate from a private CA, and starts its own server on ports 8787 and 8443. The Apps workflow runs it on every build.
-
-**Releasing:** set the version with `pnpm version:set 0.3.2`, which writes it into every `package.json`, `tauri.conf.json`, `Cargo.toml` and `Cargo.lock` (`pnpm version:check` lists them, and CI fails when they differ), and starts a section for it in [CHANGELOG.md](CHANGELOG.md). Note there what changed for people who run Teahouse as you go, especially anything they have to do when updating, and replace `unreleased` with the date before releasing. Merge, then push `main` to the `release` branch: `git push origin main:release`. The Apps workflow builds everything and creates a draft release named after the version, for example `v0.3.2`, with all files attached and the version's section of the changelog as release notes (GitHub's generated notes if there is none). Further pushes with the same version update the draft. If that version is already published, the workflow fails, so bump the version first. For a hotfix to an older version, branch from its tag. The Android build needs the signing key in the repository secret `ANDROID_KEYSTORE_BASE64` (base64 of the keystore) and fails without it. Lint, typecheck, tests and the Android end-to-end test must pass too. Check the draft under Releases and publish it, which also creates the tag and starts the Docker workflow, which pushes the server image to `ghcr.io/linyeir/teahouse`.
-
-If a release changes the API, the WebSocket events or the sync format in a way older apps or servers cannot handle, also raise `API_VERSION` in `packages/shared/src/version.ts`. An app that finds a server with a different number does not connect to it and says which of the two to update. Additions that older counterparts can ignore do not need it.
+**Getting the apps:** download them from the latest [release](https://github.com/Linyeir/teahouse/releases). Builds of an unreleased state, and building the apps yourself, are described in [CONTRIBUTING.md](CONTRIBUTING.md#apps). The Android APK is a debug build signed with the Teahouse key, so it installs directly once your phone allows apps from unknown sources, and later versions install over it. Version 0.3.0 used a different key and app ID: uninstall it before installing 0.3.1 (let it sync first). The builds are not code-signed, so Windows and macOS warn on first start.
 
 A server on your LAN can be reached over plain HTTP. Use HTTPS (reverse proxy or Tailscale) for anything reachable from the internet. The apps trust the certificates the system trusts, including a CA of your own installed on the device (on Android too). If an app cannot connect, it says why and shows the certificate it got. See [docs/https.md](docs/https.md).
 
@@ -129,57 +149,9 @@ From inside Docker, `localhost` is the container. Use `http://host.docker.intern
 
 The context window is detected per profile (OpenRouter model metadata, llama.cpp `/props`, LM Studio model info) and can be overridden.
 
-## Development
+## Contributing
 
-Requires Node.js 22.18+ (24 recommended) and pnpm.
-
-```sh
-pnpm install
-pnpm dev          # server on :8787, client on :5173 with API proxy
-pnpm test         # all packages
-pnpm lint         # Biome
-pnpm typecheck
-pnpm app:dev      # desktop app, see Apps
-```
-
-`OPENROUTER_API_KEY` (or `TEAHOUSE_LIVE_TESTS=1` where a proxy injects the key) enables live adapter tests against OpenRouter (model: `TEAHOUSE_TEST_MODEL`, default `inclusionai/ling-3.1-flash`).
-
-Node's `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set. Set it when the server or the tests must reach endpoints through an HTTP proxy.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `TEAHOUSE_PORT` | `8787` | HTTP port |
-| `TEAHOUSE_HOST` | `0.0.0.0` | Bind address |
-| `TEAHOUSE_DATA_DIR` | `./data` | SQLite database and, by default, worlds |
-| `TEAHOUSE_WORLDS_DIR` | `<data>/worlds` | World folders |
-| `TEAHOUSE_CLIENT_DIR` | `packages/client/dist` | Built web client to serve |
-| `TEAHOUSE_CORS_ORIGINS` | – | Extra browser origins allowed to call the API, comma-separated (the Tauri apps are always allowed) |
-
-### Memory test run
-
-`packages/server/eval/` holds reference scenes in YAML: a world, characters, scripted user and narrator turns, and fact questions with expected keywords. The test run plays each scene through the real Active Memory and canon code, with a context window small enough to force summaries, then asks the questions twice: once against the memory summary alone, once against the canon the next scene would get. Narrator turns are scripted, so the score measures memory, not storytelling.
-
-```sh
-NODE_USE_ENV_PROXY=1 pnpm --filter @teahouse/server eval:memory -- \
-  --model inclusionai/ling-3.1-flash [--base-url http://localhost:1234/v1] [--scenario harbor-deal]
-```
-
-It prints a table and writes a Markdown and JSON report to `packages/server/eval/results/` (git-ignored). `--min-score 0.8` makes it exit non-zero below that average. The API key comes from `--api-key`, `TEAHOUSE_EVAL_API_KEY` or `OPENROUTER_API_KEY`.
-
-### Layout
-
-```
-packages/
-  shared/   API schemas (zod), WebSocket event types, template rendering
-  server/   Fastify API, SQLite via Drizzle, OpenAI-compatible adapter (openai SDK),
-            worlds (simple-git, chokidar, yaml), card import
-  client/   React web app (Vite, TanStack Query, i18next), local copy in IndexedDB
-  app/      Tauri 2 shell for desktop and Android around the client
-assets/
-  icons/    icon set and the script that generates it (see its README)
-```
-
-After changing `packages/server/src/db/schema.ts`, run `pnpm --filter @teahouse/server db:generate` to create a migration.
+Building, testing, the memory test run and releasing are described in [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## License
 

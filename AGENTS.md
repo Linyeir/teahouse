@@ -1,6 +1,8 @@
 # Working on Teahouse
 
 Guidelines for AI agents (Claude Code and others) working in this repository.
+How to build, test and release is in [CONTRIBUTING.md](CONTRIBUTING.md); where the project is going, in
+[docs/concept.md](docs/concept.md).
 
 ## Decisions that need the maintainer
 
