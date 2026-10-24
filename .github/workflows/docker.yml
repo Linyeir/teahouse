@@ -6,8 +6,14 @@ name: Docker
 on:
   release:
     types: [published]
-  # Runs the smoke test alone, against the image already published.
+  # By hand: the smoke test against the image already published, and optionally a build of
+  # both platforms without pushing, to check changes to the Dockerfile before a release.
   workflow_dispatch:
+    inputs:
+      build:
+        description: Also build the image for amd64 and arm64 (not pushed)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,7 +23,7 @@ permissions:
 
 jobs:
   image:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || inputs.build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -42,7 +48,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name == 'release' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

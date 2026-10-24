@@ -20,6 +20,10 @@ jobs:
     if: github.ref == 'refs/heads/release'
     uses: ./.github/workflows/ci.yml
 
+  rust:
+    if: github.ref == 'refs/heads/release'
+    uses: ./.github/workflows/rust.yml
+
   desktop:
     strategy:
       fail-fast: false
@@ -258,7 +262,7 @@ jobs:
   # the draft. A version that is already published fails, so it has to be bumped first.
   release:
     if: github.ref == 'refs/heads/release'
-    needs: [checks, desktop, android, android-e2e]
+    needs: [checks, rust, desktop, android, android-e2e]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

@@ -1,0 +1,50 @@
+# Clippy and tests of the app's Rust code (packages/app/src-tauri). About five minutes, so
+# pull requests and pushes to main only run it when that code or this file changes. The Apps
+# workflow always runs it before a release is drafted.
+name: Rust
+
+on:
+  pull_request:
+    paths: ['packages/app/src-tauri/**', '.github/workflows/rust.yml']
+  push:
+    branches: [main]
+    paths: ['packages/app/src-tauri/**', '.github/workflows/rust.yml']
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Pinned rather than ubuntu-latest, see apps.yml.
+
+jobs:
+  # The app's Rust code. The certificate probe's tests run against real TLS servers.
+  rust:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/app/src-tauri
+      - name: System libraries
+        # A stalled Ubuntu mirror once held this step for 24 minutes: give up on a silent
+        # connection after 30 s and retry, and fail the step rather than wait that long again.
+        timeout-minutes: 5
+        run: |
+          apt="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30"
+          $apt update
+          $apt install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+      # The app embeds the built client at compile time.
+      - run: pnpm install --frozen-lockfile --filter "@teahouse/client..."
+      - run: pnpm --filter @teahouse/client build
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: packages/app/src-tauri
+      - run: cargo test
+        working-directory: packages/app/src-tauri

@@ -11,9 +11,19 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 COPY packages/client/package.json packages/client/
 
-FROM base AS build
-RUN pnpm install --frozen-lockfile
-COPY . .
+# The web client is the same on every platform, so it is built once on the build machine's
+# own platform: for the arm64 image too, instead of under emulation, and without the server's
+# native modules, which it does not need.
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
+RUN corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/client/package.json packages/client/
+RUN pnpm install --frozen-lockfile --filter "@teahouse/client..."
+COPY tsconfig.base.json ./
+COPY packages/shared packages/shared
+COPY packages/client packages/client
 RUN pnpm build
 
 FROM base AS prod-deps
