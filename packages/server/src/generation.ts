@@ -1,4 +1,11 @@
-import { findForeignLine, type Message, NARRATOR_SPEAKER, USER_SPEAKER } from '@teahouse/shared';
+import {
+  findForeignLine,
+  type Message,
+  NARRATOR_SPEAKER,
+  normalizeSpeakers,
+  stripReasoning,
+  USER_SPEAKER,
+} from '@teahouse/shared';
 import { eq } from 'drizzle-orm';
 import { buildTurnContext, currentScene, narratorPrompt } from './context/turn.ts';
 import type { Db } from './db/index.ts';
@@ -93,6 +100,7 @@ export class Generator {
       ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile, ctx.speaker);
     }
     const prompt = narratorPrompt(this.db, ctx);
+    const resolve = await speakerResolver(this.worlds, chat.worldId);
     // Building the context was async: another request may have started a reply meanwhile.
     // Everything from here to registering the run is synchronous.
     this.#assertIdle(chatId);
@@ -125,9 +133,7 @@ export class Generator {
     const controller = new AbortController();
     this.#running.set(row.id, { chatId, controller });
     this.hub.broadcast({ type: 'generation.started', chatId, message });
-    // Lines the reply may contain: the speaker's own, under their slug or name.
-    const own = new Set(character ? [ctx.speaker, character.summary.name] : []);
-    void this.#run(message, profile, prompt, controller, profile.name, own);
+    void this.#run(message, profile, prompt, controller, profile.name, resolve);
     return message;
   }
 
@@ -159,7 +165,7 @@ export class Generator {
     prompt: ChatMessage[],
     controller: AbortController,
     profileName: string,
-    own: Set<string>,
+    resolve: (who: string) => string | null,
   ): Promise<void> {
     let content = '';
     let lastPersist = Date.now();
@@ -176,10 +182,12 @@ export class Generator {
     this.log.info({ ...where, promptMessages: prompt.length }, 'Generating reply');
 
     try {
-      const allowed = new Set([...own].map((who) => who.toLowerCase()));
-      allowed.delete(USER_SPEAKER);
-      allowed.delete(getSettings(this.db).userName.toLowerCase());
-      const foreign = (who: string) => !allowed.has(who.toLowerCase());
+      // Lines the reply may contain: the speaker's own, under their slug, name or an alias.
+      const userNames = new Set([USER_SPEAKER, getSettings(this.db).userName.toLowerCase()]);
+      const foreign = (who: string) =>
+        userNames.has(who.trim().toLowerCase()) ||
+        message.speaker === NARRATOR_SPEAKER ||
+        resolve(who) !== message.speaker;
       for await (const raw of this.stream(profile, prompt, controller.signal)) {
         let delta = raw;
         // The model started a line for someone else (the user's persona, another character):
@@ -226,6 +234,9 @@ export class Generator {
       error = null;
       content = content.trimEnd();
     }
+    // What is stored, and so fed back into later prompts: no reasoning, and every speaker
+    // under their slug, so `who="Mira"` does not put a second, imageless Mira on the stage.
+    content = normalizeSpeakers(stripReasoning(content), resolve).trim();
 
     const updated = this.#persist(message.id, { content, status, error });
     this.#running.delete(message.id);
@@ -252,4 +263,31 @@ export class Generator {
       .get();
     return row ? toMessage(row) : null;
   }
+}
+
+/** Maps a character's slug, name or alias, in any case, to the slug. */
+async function speakerResolver(
+  worlds: WorldService,
+  worldId: string,
+): Promise<(who: string) => string | null> {
+  const names = new Map<string, string>();
+  const files = await worlds.files(worldId);
+  for (const f of files) {
+    if (!(f.type === 'character' || (f.type === null && f.path.startsWith('characters/'))))
+      continue;
+    const slug = f.path.slice('characters/'.length, -'.md'.length);
+    if (slug.includes('/')) continue;
+    // Slugs first: a name or alias never takes over another character's slug.
+    for (const key of [f.name, ...f.aliases]) {
+      const k = key.trim().toLowerCase();
+      if (k && !names.has(k)) names.set(k, slug);
+    }
+  }
+  for (const f of files) {
+    if (f.path.startsWith('characters/')) {
+      const slug = f.path.slice('characters/'.length, -'.md'.length);
+      names.set(slug.toLowerCase(), slug);
+    }
+  }
+  return (who) => names.get(who.trim().toLowerCase()) ?? null;
 }

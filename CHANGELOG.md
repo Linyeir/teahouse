@@ -10,6 +10,9 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 ### Fixed
 
+- With llama.cpp (`llama-server`), a turn without your input, such as **Continue** or a character answering another, could come back empty or repeat the end of the last reply: the prompt ended on the previous reply, which the server continued instead of answering. Whose turn it is and where the scene stands now come last, as a message of their own. The part before stays the same from turn to turn, so local servers reuse more of their cache when the speaker changes. ([#66](https://github.com/Linyeir/teahouse/issues/66))
+- Reasoning models could show their reasoning in the text box when the server dropped the opening `<think>` tag. Teahouse now removes everything up to a lone `</think>`, and `<thinking>` blocks too, and stores replies without them. ([#66](https://github.com/Linyeir/teahouse/issues/66))
+- A reply that named a character `Mira` instead of `mira` put a second, imageless Mira on the stage. Replies now store every speaker by slug, matching names and aliases in any case, and the stage does the same for older replies. A mood written in other case finds its image too. ([#66](https://github.com/Linyeir/teahouse/issues/66))
 - The world editor lost unsaved edits when you opened another file, and when the file changed elsewhere while you typed. Edits now stay with their file until you save or discard them, and the file list marks files with unsaved changes. Leaving the world with unsaved edits asks first, and so does closing the tab. ([#55](https://github.com/Linyeir/teahouse/issues/55))
 - Saving a file that changed since you started editing it (a canon update, an edit in Obsidian) overwrote that change without a word. Teahouse now saves nothing and shows the file as it is against your version: discard your edit, or save yours anyway. ([#55](https://github.com/Linyeir/teahouse/issues/55))
 

@@ -45,7 +45,16 @@ export function vnPages(
   messages: PathMessage[],
   cast: string[],
   backgrounds: Set<string>,
+  /**
+   * A character's slug for a `who` in a reply. Replies stored before the server did this
+   * may name a character `Mira` instead of `mira`, which would put a second Mira on stage.
+   */
+  resolve: (who: string) => string | null = () => null,
 ): VnPage[] {
+  const bySlug = (beat: Beat): Beat =>
+    beat.type === 'say' || beat.type === 'leave' || beat.type === 'enter'
+      ? { ...beat, who: resolve(beat.who) ?? beat.who }
+      : beat;
   let stage: StageState = {
     background: null,
     present: cast.map((who) => ({ who, mood: null })),
@@ -56,7 +65,7 @@ export function vnPages(
     const all =
       message.role === 'user'
         ? parseUserInput(message.content)
-        : stageBeats(message, { final: message.status !== 'streaming' });
+        : stageBeats(message, { final: message.status !== 'streaming' }).map(bySlug);
     stage = stageAfter(
       all.filter((b) => b.type !== 'bg' || backgrounds.has(b.id)),
       stage,

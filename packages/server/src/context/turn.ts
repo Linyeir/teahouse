@@ -4,6 +4,7 @@ import {
   NARRATOR_SPEAKER,
   type PathMessage,
   sceneStage,
+  stageBeats,
 } from '@teahouse/shared';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
@@ -36,7 +37,7 @@ export interface TurnContext {
   historyTokens: number;
   /** Whose turn it is: a character slug or `NARRATOR_SPEAKER`. */
   speaker: string;
-  /** Names of the speaker and everyone present, by slug. */
+  /** Names of everyone in the scene so far and the speaker, by slug, in scene order. */
   characterNames: Map<string, string>;
   stage: StageInfo;
 }
@@ -110,8 +111,22 @@ export async function buildTurnContext(
   const worldCharacters = await worlds.characters(chat.worldId);
   const replay = sceneStage(path, scene.cast);
   const present = replay.present.map((p) => p.who);
-  // The speaker first: their file is the last of the core files to be cut.
-  const core = [...new Set(turn === NARRATOR_SPEAKER ? present : [turn, ...present])];
+  // Everyone the scene has had so far, in the order they came, so the canon (and with it the
+  // system prompt) stays the same when the speaker changes or someone leaves. A character
+  // who joins with this turn comes last.
+  const appeared = path.flatMap((m) =>
+    m.role === 'assistant'
+      ? stageBeats(m).flatMap((b) => (b.type === 'say' || b.type === 'enter' ? [b.who] : []))
+      : [],
+  );
+  const core = [
+    ...new Set([
+      ...scene.cast,
+      ...appeared,
+      ...present,
+      ...(turn === NARRATOR_SPEAKER ? [] : [turn]),
+    ]),
+  ].filter((slug) => worldCharacters.some((c) => c.slug === slug));
   const characterNames = new Map(
     core.map((slug) => [slug, worldCharacters.find((c) => c.slug === slug)?.name ?? slug]),
   );
@@ -141,6 +156,8 @@ export async function buildTurnContext(
     worldId: chat.worldId,
     chatId,
     cast: core,
+    // The speaker's file is the last to be cut to its summary.
+    keep: turn === NARRATOR_SPEAKER ? undefined : turn,
     recentText,
     budget: Math.floor(window * CANON_BUDGET_SHARE),
   });
@@ -174,9 +191,11 @@ function narratorVars(db: Db, names: Map<string, string>, speaker: string) {
   const settings = getSettings(db);
   const character =
     speaker === NARRATOR_SPEAKER ? null : { slug: speaker, name: names.get(speaker) ?? speaker };
+  const everyone = [...names.values()].join(' and ');
   return {
     speaker: character,
-    characterName: character?.name ?? [...names.values()].join(' and '),
+    characterName: character?.name ?? everyone,
+    sceneName: everyone,
     userName: settings.userName,
     language: settings.outputLanguage,
   };

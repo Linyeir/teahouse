@@ -11,11 +11,12 @@ import { formatStory, speakerName } from '../components/Beats.tsx';
 import { type VnPage, vnPages } from '../vn.ts';
 import styles from './VnStage.module.css';
 
-/** The image for a character in a mood: that label, else neutral, else any. */
+/** The image for a character in a mood: that label (in any case), else neutral, else the first. */
 function spriteFor(character: CharacterSummary | undefined, mood: string | null) {
   const images = character?.images ?? [];
+  const wanted = mood?.trim().toLowerCase();
   return (
-    images.find((i) => i.label === mood) ??
+    images.find((i) => i.label.toLowerCase() === wanted) ??
     images.find((i) => i.label === 'neutral') ??
     images[0] ??
     null
@@ -40,7 +41,18 @@ export function VnStage({
   userName: string;
 }) {
   const { t } = useTranslation();
-  const pages = vnPages(messages, cast, new Set(backgrounds.map((b) => b.id)));
+  const slugs = new Map(
+    characters.flatMap((c) => [
+      [c.name.toLowerCase(), c.slug],
+      [c.slug.toLowerCase(), c.slug],
+    ]),
+  );
+  const pages = vnPages(
+    messages,
+    cast,
+    new Set(backgrounds.map((b) => b.id)),
+    (who) => slugs.get(who.trim().toLowerCase()) ?? null,
+  );
 
   // null follows the newest message (also while it streams in).
   const [cursor, setCursor] = useState<number | null>(null);

@@ -120,7 +120,9 @@ describe('markup in the narrator turn', () => {
     expect(system).toContain('<say who="slug" mood="label">');
     expect(system).toContain('- mira: Mira (moods: amused)');
     expect(system).toContain('- tavern: A smoky tavern');
-    expect(system).toContain('Present: mira.');
+    // Where the scene stands goes last, with whose turn it is.
+    expect(system).not.toContain('Present:');
+    expect(String(prompts[0]?.at(-1)?.content)).toContain('Present: mira.');
   });
 
   it('cuts the reply where the model starts speaking for the user', async () => {

@@ -28,6 +28,8 @@ export interface CanonRequest {
   worldId: string;
   chatId: string;
   cast: string[];
+  /** Slug in `cast` whose file is cut to its summary last: the character whose turn it is. */
+  keep?: string;
   /** Recent story text (start message, memory, latest turns) to match tags and aliases. */
   recentText: string;
   budget: number;
@@ -136,6 +138,8 @@ export async function selectCanon(
   };
   shrink((e) => e.priority > 1 && e.mode === 'full', 'short');
   shrink((e) => e.priority > 1 && e.mode !== 'dropped', 'dropped');
+  const kept = req.keep ? `characters/${req.keep}.md` : null;
+  shrink((e) => e.priority === 1 && e.mode === 'full' && e.path !== kept, 'short');
   shrink((e) => e.priority === 1 && e.mode === 'full', 'short');
 
   return { text, tokens, entries: entries.map((e) => ({ path: e.path, mode: e.mode })) };

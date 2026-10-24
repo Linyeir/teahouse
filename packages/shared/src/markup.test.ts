@@ -3,6 +3,7 @@ import {
   defaultSpeaker,
   findForeignLine,
   NARRATOR_SPEAKER,
+  normalizeSpeakers,
   parseMarkup,
   parseUserInput,
   sceneStage,
@@ -46,6 +47,17 @@ describe('parseMarkup', () => {
     expect(parseMarkup('<think>plan the scene</think><narration>Dusk.</narration>')).toEqual([
       { type: 'narration', text: 'Dusk.', complete: true },
     ]);
+  });
+
+  it('drops reasoning whose opening tag the server cut off, and <thinking> blocks', () => {
+    expect(parseMarkup('Mira should greet them.\n</think><say who="mira">Hi</say>')).toEqual([
+      { type: 'say', who: 'mira', mood: null, text: 'Hi', complete: true },
+    ]);
+    expect(parseMarkup('<thinking>Who talks?</thinking>\n<say who="mira">Hi</say>')).toEqual([
+      { type: 'say', who: 'mira', mood: null, text: 'Hi', complete: true },
+    ]);
+    // While the reasoning still streams, none of it shows.
+    expect(parseMarkup('<thinking>Who talks', { final: false })).toEqual([]);
   });
 
   it('marks the open beat incomplete while streaming and hides a half-written tag', () => {
@@ -150,5 +162,26 @@ describe('sanitizeTheme', () => {
         position: 'fixed',
       }),
     ).toEqual({ 'vn-textbox-bg': '#102030cc', 'vn-font-size': '18' });
+  });
+});
+
+describe('normalizeSpeakers', () => {
+  const slugs: Record<string, string> = { mira: 'mira', 'mira vale': 'mira', red: 'mira' };
+  const resolve = (who: string) => slugs[who.toLowerCase()] ?? null;
+
+  it('stores names, other casing and aliases as the slug', () => {
+    expect(
+      normalizeSpeakers(
+        '<say who="Mira" mood="sad">A</say><say who=\'MIRA\'>B</say><say who=Red>C</say><leave who="Mira Vale"/>',
+        resolve,
+      ),
+    ).toBe(
+      '<say who="mira" mood="sad">A</say><say who="mira">B</say><say who="mira">C</say><leave who="mira"/>',
+    );
+  });
+
+  it('leaves unknown speakers, other tags and text alone', () => {
+    const text = '<narration>who="Mira"</narration><say who="ghost">Boo</say>';
+    expect(normalizeSpeakers(text, resolve)).toBe(text);
   });
 });

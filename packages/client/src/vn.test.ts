@@ -86,3 +86,25 @@ describe('vnPages', () => {
     expect(pages[0]?.stage.background).toBe('docks');
   });
 });
+
+describe('vnPages with speakers by name', () => {
+  it('shows one sprite per cast member when a reply names them differently', () => {
+    const slugs: Record<string, string> = { mira: 'mira', tomas: 'tomas' };
+    const [page] = vnPages(
+      [
+        msg(
+          'assistant',
+          '<say who="Mira" mood="amused">So.</say><narration>Tomas nods.</narration><say who="TOMAS">Aye.</say>',
+          'mira',
+        ),
+      ],
+      ['mira', 'tomas'],
+      new Set(),
+      (who) => slugs[who.toLowerCase()] ?? null,
+    );
+    expect(page?.stage.present).toEqual([
+      { who: 'mira', mood: 'amused' },
+      { who: 'tomas', mood: null },
+    ]);
+  });
+});
