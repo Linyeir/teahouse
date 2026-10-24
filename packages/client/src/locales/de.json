@@ -18,7 +18,8 @@
     "create": "Anlegen",
     "loading": "Lädt …",
     "confirmDelete": "„%{name}“ löschen?",
-    "dismiss": "Schließen"
+    "dismiss": "Schließen",
+    "retry": "Erneut versuchen"
   },
   "auth": {
     "setupTitle": "Willkommen bei Teahouse",
@@ -96,7 +97,7 @@
     "rename": "Umbenennen",
     "error": "Erzeugung fehlgeschlagen: %{message}",
     "stopped": "Gestoppt",
-    "noProfile": "Lege zuerst ein Profil an.",
+    "noProfile": "Lege zuerst ein Profil an. Deine Nachricht steht wieder im Textfeld.",
     "previousVersion": "Vorige Version",
     "nextVersion": "Nächste Version",
     "emptyReply": "Die Antwort kam leer zurück. Neu erzeugen oder das Profil im Verlauf prüfen.",
@@ -104,7 +105,9 @@
     "present": "In der Szene",
     "others": "Sonst in der Welt",
     "narrator": "Erzähler",
-    "takeTurn": "Weiter"
+    "takeTurn": "Weiter",
+    "openProfiles": "Profile öffnen",
+    "connectModel": "Verbinde ein Modell, um zu spielen: Lege ein Profil mit deinem LLM-Endpunkt an."
   },
   "profiles": {
     "new": "Neues Profil",

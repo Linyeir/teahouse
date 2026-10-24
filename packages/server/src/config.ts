@@ -32,6 +32,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   };
 }
 
+/**
+ * Whether the server runs in its Docker image (which sets `TEAHOUSE_IN_CONTAINER=1`). There,
+ * `localhost` is the container: a model server on the same machine is `host.docker.internal`.
+ */
+export const inContainer = (env: NodeJS.ProcessEnv = process.env) =>
+  env.TEAHOUSE_IN_CONTAINER === '1';
+
 /** Whether a bind address only accepts connections from this machine. */
 export function isLoopback(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[(.*)\]$/, '$1');

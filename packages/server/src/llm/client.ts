@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { inContainer } from '../config.ts';
 
 export interface Endpoint {
   baseUrl: string;
@@ -15,22 +16,33 @@ export interface GenerationProfile extends Endpoint {
 
 export type ChatMessage = ChatCompletionMessageParam;
 
-export function createClient({ baseUrl, apiKey }: Endpoint): OpenAI {
+export function createClient(
+  { baseUrl, apiKey }: Endpoint,
+  { timeout = 10 * 60 * 1000, maxRetries = 2 } = {},
+): OpenAI {
   return new OpenAI({
     baseURL: baseUrl,
     // Local servers usually need no key, but the SDK requires a value.
     apiKey: apiKey || 'none',
-    maxRetries: 2,
-    timeout: 10 * 60 * 1000,
+    maxRetries,
+    timeout,
     defaultHeaders: isOpenRouter(baseUrl)
       ? { 'HTTP-Referer': 'https://github.com/Linyeir/teahouse', 'X-Title': 'Teahouse' }
       : undefined,
   });
 }
 
-export async function listModels(endpoint: Endpoint): Promise<string[]> {
+/** Listing models is a quick question: no waiting minutes for a server that does not answer. */
+const LIST_MODELS_TIMEOUT_MS = 15_000;
+
+export async function listModels(
+  endpoint: Endpoint,
+  timeout = LIST_MODELS_TIMEOUT_MS,
+): Promise<string[]> {
   const ids: string[] = [];
-  for await (const model of createClient(endpoint).models.list()) ids.push(model.id);
+  for await (const model of createClient(endpoint, { timeout, maxRetries: 0 }).models.list()) {
+    ids.push(model.id);
+  }
   return ids.sort((a, b) => a.localeCompare(b));
 }
 
@@ -217,7 +229,19 @@ export function describeLlmError(err: unknown, baseUrl?: string): string {
     return 'The endpoint did not answer in time. Is the model still loading?';
   }
   if (err instanceof OpenAI.APIConnectionError) {
-    return `Could not reach ${baseUrl ?? 'the endpoint'}. Is the server running and the base URL right?`;
+    const where = baseUrl ?? 'the endpoint';
+    const host = hostOf(baseUrl);
+    if (inContainer() && (host === 'localhost' || host === '127.0.0.1' || host === '[::1]')) {
+      const port = baseUrl ? new URL(baseUrl).port : '';
+      return `Nothing answers at ${where}. Teahouse runs in a container, where localhost is the container itself: for a server on the same machine use http://host.docker.internal${port ? `:${port}` : ''}/v1.`;
+    }
+    if (causeCode(err) === 'ECONNREFUSED') {
+      return `Nothing answers at ${where}: is the server running, and on this port?`;
+    }
+    if (causeCode(err) === 'ENOTFOUND') {
+      return `There is no host ${host ?? 'of that name'}: check the base URL.`;
+    }
+    return `Could not reach ${where}. Is the server running and the base URL right?`;
   }
   if (err instanceof OpenAI.APIError) {
     const detail = err.message.replace(/^\d{3}\s*/, '');
@@ -236,6 +260,23 @@ export function describeLlmError(err: unknown, baseUrl?: string): string {
     }
   }
   return err instanceof Error ? err.message : String(err);
+}
+
+function hostOf(baseUrl: string | undefined): string | null {
+  try {
+    return baseUrl ? new URL(baseUrl).hostname : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The system error code somewhere in the chain of causes, e.g. `ECONNREFUSED`. */
+function causeCode(err: unknown): string | null {
+  for (let e = err as { cause?: unknown; code?: unknown } | undefined, i = 0; e && i < 5; i++) {
+    if (typeof e.code === 'string') return e.code;
+    e = e.cause as typeof e;
+  }
+  return null;
 }
 
 function isOpenRouter(baseUrl: string): boolean {

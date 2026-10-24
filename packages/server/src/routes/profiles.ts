@@ -1,10 +1,18 @@
-import { endpointProbeInput, id, type Profile, profileInput } from '@teahouse/shared';
+import {
+  ENDPOINT_PRESETS,
+  type EndpointPreset,
+  endpointProbeInput,
+  id,
+  type Profile,
+  profileInput,
+} from '@teahouse/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { inContainer } from '../config.ts';
 import type { Db } from '../db/index.ts';
 import { profiles } from '../db/schema.ts';
-import { listModels } from '../llm/client.ts';
+import { describeLlmError, listModels } from '../llm/client.ts';
 import { detectContextWindow } from '../llm/context-window.ts';
 import { getSettings, saveSettings } from '../settings.ts';
 import { newId, now } from '../time.ts';
@@ -127,11 +135,18 @@ export async function profileRoutes(app: FastifyInstance, { db }: Services) {
     try {
       return { models: await listModels({ baseUrl: body.baseUrl, apiKey }) };
     } catch (err) {
-      throw new HttpError(
-        502,
-        'endpoint_unreachable',
-        err instanceof Error ? err.message : 'Endpoint did not answer',
-      );
+      throw new HttpError(502, 'endpoint_unreachable', describeLlmError(err, body.baseUrl));
     }
   });
+
+  // In the Docker image, local model servers are reached through the host, not localhost.
+  r.get(
+    '/api/endpoints/presets',
+    async (): Promise<EndpointPreset[]> =>
+      ENDPOINT_PRESETS.map((p) =>
+        inContainer()
+          ? { ...p, baseUrl: p.baseUrl.replace('//localhost:', '//host.docker.internal:') }
+          : p,
+      ),
+  );
 }

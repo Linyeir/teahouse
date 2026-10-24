@@ -20,6 +20,7 @@ import { currentScene, memoryOnPath } from '../context/turn.ts';
 import type { Db } from '../db/index.ts';
 import { chats, messages, scenes } from '../db/schema.ts';
 import { GenerationError } from '../generation.ts';
+import { NoProfileError, profileFor } from '../roles.ts';
 import { toScene } from '../scenes.ts';
 import { newId, now } from '../time.ts';
 import { activePath, deepestLeaf, getChatRow, getMessageRow, toChat, toMessage } from '../tree.ts';
@@ -166,6 +167,13 @@ export async function chatRoutes(
       const scene = currentScene(db, chat.id);
       if (scene?.status !== 'active') {
         throw new HttpError(409, 'scene_closed', 'Start a new scene to continue');
+      }
+      // Nothing could answer: keep the message out of the chat rather than leave it unanswered.
+      try {
+        profileFor(db, 'narrator');
+      } catch (err) {
+        if (err instanceof NoProfileError) throw new HttpError(409, 'no_profile', err.message);
+        throw err;
       }
 
       const parentId = body.parentId ?? chat.activeLeafId;

@@ -43,7 +43,8 @@ USER node
 ENV NODE_ENV=production \
   TEAHOUSE_DATA_DIR=/data \
   TEAHOUSE_CLIENT_DIR=/app/packages/client/dist \
-  TEAHOUSE_PORT=8787
+  TEAHOUSE_PORT=8787 \
+  TEAHOUSE_IN_CONTAINER=1
 VOLUME /data
 EXPOSE 8787
 # Healthy once the server answers. /api/version needs no sign-in; the image has no curl.

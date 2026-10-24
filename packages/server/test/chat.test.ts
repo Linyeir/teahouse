@@ -1,12 +1,13 @@
 import type {
   ChatPath,
   EditMessageResult,
+  EndpointPreset,
   Profile,
   SendMessageResult,
   ServerEvent,
   SyncChanges,
 } from '@teahouse/shared';
-import { describe, expect, it, onTestFinished } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { StreamFn } from '../src/generation.ts';
 import { createTestApp, profileBody, startMockEndpoint } from './helpers.ts';
 
@@ -282,3 +283,46 @@ async function waitFor(check: () => boolean | Promise<boolean>) {
   }
   throw new Error('Timed out waiting for condition');
 }
+
+describe('without a profile', () => {
+  it('refuses a message instead of storing one nobody can answer', async () => {
+    const { api, worlds } = await createTestApp();
+    const world = await worlds.create('W');
+    await worlds.write(
+      world.id,
+      'characters/mira.md',
+      '---\ntype: character\nname: Mira\ngreetings:\n  - Hi.\n---\n',
+    );
+    const chat = await api<ChatPath>('POST', '/api/chats', {
+      worldId: world.id,
+      characterSlug: 'mira',
+    });
+    const sent = await api('POST', `/api/chats/${chat.body.chat.id}/messages`, {
+      content: 'Hello?',
+    });
+    expect(sent).toMatchObject({ status: 409, body: { error: 'no_profile' } });
+    const after = await api<ChatPath>('GET', `/api/chats/${chat.body.chat.id}`);
+    expect(after.body.messages.map((m) => m.content)).toEqual(['Hi.']);
+  });
+});
+
+describe('endpoint presets', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('reach local servers through the host inside the container', async () => {
+    const { api } = await createTestApp();
+    const outside = await api<EndpointPreset[]>('GET', '/api/endpoints/presets');
+    expect(outside.body.map((p) => p.baseUrl)).toEqual([
+      'http://localhost:1234/v1',
+      'http://localhost:8080/v1',
+      'https://openrouter.ai/api/v1',
+    ]);
+    vi.stubEnv('TEAHOUSE_IN_CONTAINER', '1');
+    const inside = await api<EndpointPreset[]>('GET', '/api/endpoints/presets');
+    expect(inside.body.map((p) => p.baseUrl)).toEqual([
+      'http://host.docker.internal:1234/v1',
+      'http://host.docker.internal:8080/v1',
+      'https://openrouter.ai/api/v1',
+    ]);
+  });
+});

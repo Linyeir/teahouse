@@ -172,3 +172,16 @@ textarea.input {
   margin: 0 0 var(--space);
   font-size: 1.1rem;
 }
+
+/* An error or notice with its actions on one line, wrapping on narrow screens. */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.banner a {
+  text-decoration: none;
+}

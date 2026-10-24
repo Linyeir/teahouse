@@ -6,6 +6,11 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 ### Changed
 
+- Without a profile, the chat says so above the text field, with a link to **Profiles**, instead of letting you write a message that nobody answers. A message sent anyway is not stored; its text goes back into the field. ([#65](https://github.com/Linyeir/teahouse/issues/65), [#58](https://github.com/Linyeir/teahouse/issues/58))
+- Every error in a chat offers a way on: a failed reply has **Retry** and **Open Profiles**, other failed actions **Retry**. ([#58](https://github.com/Linyeir/teahouse/issues/58))
+- **Load models** says why it failed: nothing answering at that address, a rejected API key, a wrong path, or no answer in time, which now comes after 15 seconds instead of minutes. Replies that fail to connect say the same. ([#65](https://github.com/Linyeir/teahouse/issues/65))
+- In the Docker image, the LM Studio and llama.cpp presets point at `host.docker.internal`, because `localhost` is the container itself there, and a `localhost` address that does not answer says so. The image sets `TEAHOUSE_IN_CONTAINER=1` for this. ([#65](https://github.com/Linyeir/teahouse/issues/65))
+
 - Running the server from source needs Node.js 24 or later, as `.nvmrc`, the Docker image and CI already use. Node 22 failed two of the client tests. ([#64](https://github.com/Linyeir/teahouse/issues/64))
 
 ### Fixed

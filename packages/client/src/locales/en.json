@@ -18,7 +18,8 @@
     "create": "Create",
     "loading": "Loading…",
     "confirmDelete": "Delete “%{name}”?",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "retry": "Retry"
   },
   "auth": {
     "setupTitle": "Welcome to Teahouse",
@@ -96,7 +97,7 @@
     "rename": "Rename",
     "error": "Generation failed: %{message}",
     "stopped": "Stopped",
-    "noProfile": "Add a profile before chatting.",
+    "noProfile": "Add a profile before chatting. Your message is back in the text field.",
     "previousVersion": "Previous version",
     "nextVersion": "Next version",
     "emptyReply": "The reply came back empty. Regenerate, or check the profile in the log view.",
@@ -104,7 +105,9 @@
     "present": "In the scene",
     "others": "Elsewhere in the world",
     "narrator": "Narrator",
-    "takeTurn": "Continue"
+    "takeTurn": "Continue",
+    "openProfiles": "Open Profiles",
+    "connectModel": "Connect a model to play: add a profile with your LLM endpoint."
   },
   "profiles": {
     "new": "New profile",

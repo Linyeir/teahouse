@@ -50,12 +50,12 @@ export function registerOfflineMutations(queryClient: QueryClient): void {
       if (result.forked) pushNotice(i18n.t('sync.forked'), 'warning');
     },
     onError: (err, { chatId, content }) => {
-      // Without a profile the message is stored and only the reply failed.
+      // Not stored (no profile, a closed scene, …): the text goes back into the field.
+      restoreDraft(chatId, content);
       if (err instanceof RequestError && err.code === 'no_profile') {
         pushNotice(i18n.t('chats.noProfile'), 'error');
         return;
       }
-      restoreDraft(chatId, content);
       pushNotice(i18n.t('sync.sendFailed', { message: reason(err) }), 'error');
     },
     onSettled: (_data, _err, { chatId }) => refresh(chatId),

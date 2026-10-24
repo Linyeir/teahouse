@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   complete,
   completeWithTools,
@@ -238,4 +238,64 @@ describe('describeLlmError', () => {
       'Could not reach http://127.0.0.1:9/v1',
     );
   }, 30_000);
+
+  describe('when loading models', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    /** What "Load models" shows for an endpoint. */
+    const loadModels = async (baseUrl: string, timeout?: number) => {
+      try {
+        await listModels({ baseUrl, apiKey: null }, timeout);
+      } catch (err) {
+        return describeLlmError(err, baseUrl);
+      }
+      return 'no error';
+    };
+
+    /** A port nothing listens on any more, so connecting is refused. */
+    const closedPort = async () => {
+      const server = Fastify();
+      await server.listen({ host: '127.0.0.1', port: 0 });
+      const { port } = server.server.address() as { port: number };
+      await server.close();
+      return port;
+    };
+
+    it('says nothing answers at a refused address', async () => {
+      const url = `http://127.0.0.1:${await closedPort()}/v1`;
+      expect(await loadModels(url)).toBe(
+        `Nothing answers at ${url}: is the server running, and on this port?`,
+      );
+    });
+
+    it('points to host.docker.internal for localhost inside the container', async () => {
+      vi.stubEnv('TEAHOUSE_IN_CONTAINER', '1');
+      const port = await closedPort();
+      expect(await loadModels(`http://localhost:${port}/v1`)).toContain(
+        `use http://host.docker.internal:${port}/v1`,
+      );
+    });
+
+    it('tells a rejected key, a wrong path and a timeout apart', async () => {
+      const server = Fastify();
+      servers.push(server);
+      server.get('/keyed/models', async (_req, reply) =>
+        reply.code(401).send({ error: { message: 'Invalid API key' } }),
+      );
+      // Answers nothing, like a server still loading a model.
+      server.get('/slow/models', () => new Promise(() => {}));
+      const address = await server.listen({ host: '127.0.0.1', port: 0 });
+      const results = [
+        await loadModels(`${address}/keyed`),
+        await loadModels(`${address}/wrong`),
+        await loadModels(`${address}/slow`, 300),
+      ];
+      expect(results[0]).toContain('check the API key');
+      expect(results[1]).toContain('Not found (404): check the base URL');
+      expect(results[2]).toContain('did not answer in time');
+      expect(new Set(results).size).toBe(3);
+      await server.close();
+      servers.splice(servers.indexOf(server), 1);
+    });
+  });
 });
