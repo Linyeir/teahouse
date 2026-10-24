@@ -37,6 +37,8 @@ export interface TurnContext {
   historyTokens: number;
   /** Whose turn it is: a character slug or `NARRATOR_SPEAKER`. */
   speaker: string;
+  /** How long selecting the canon took, for the log. */
+  canonMs: number;
   /** Names of everyone in the scene so far and the speaker, by slug, in scene order. */
   characterNames: Map<string, string>;
   stage: StageInfo;
@@ -152,6 +154,7 @@ export async function buildTurnContext(
   ]
     .filter(Boolean)
     .join('\n');
+  const canonStarted = performance.now();
   const canon = await selectCanon(worlds, {
     worldId: chat.worldId,
     chatId,
@@ -181,6 +184,7 @@ export async function buildTurnContext(
     canon,
     remaining,
     historyTokens: countMessageTokens(history),
+    canonMs: Math.round(performance.now() - canonStarted),
     speaker: turn,
     characterNames,
     stage,

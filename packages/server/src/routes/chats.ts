@@ -23,7 +23,15 @@ import { GenerationError } from '../generation.ts';
 import { NoProfileError, profileFor } from '../roles.ts';
 import { toScene } from '../scenes.ts';
 import { newId, now } from '../time.ts';
-import { activePath, deepestLeaf, getChatRow, getMessageRow, toChat, toMessage } from '../tree.ts';
+import {
+  activePath,
+  deepestLeaf,
+  getChatRow,
+  getMessageRow,
+  loadTree,
+  toChat,
+  toMessage,
+} from '../tree.ts';
 import { HttpError, notFound, type Services, typed } from './context.ts';
 
 const params = z.object({ id });
@@ -40,7 +48,10 @@ function chatPath(db: Db, chatId: string): ChatPath {
   const current = all.at(-1);
   // A closed current scene shows its frozen path; an active one the chat's active leaf.
   const leaf = current?.status === 'active' ? chat.activeLeafId : (current?.closedLeafId ?? null);
-  const messages = activePath(db, chatId, leaf);
+  // Every scene's path comes from the same tree: loading it per scene grew with the square
+  // of the chat's length.
+  const tree = loadTree(db, chatId);
+  const messages = activePath(db, chatId, leaf, tree);
   return {
     chat: toChat(chat),
     scene: current ? toScene(current) : null,
@@ -48,7 +59,7 @@ function chatPath(db: Db, chatId: string): ChatPath {
     memory: current ? memoryOnPath(db, current.id, messages) : [],
     closedScenes: all.slice(0, -1).map((s) => ({
       scene: toScene(s),
-      messages: activePath(db, chatId, s.closedLeafId),
+      messages: activePath(db, chatId, s.closedLeafId, tree),
     })),
   };
 }
@@ -125,7 +136,23 @@ export async function chatRoutes(
     return chatPath(db, chatId);
   });
 
-  r.get('/api/chats/:id', { schema: { params } }, async ({ params }) => chatPath(db, params.id));
+  // Serialized here to log its size: the chat payload grows with every scene, and this line
+  // shows when it gets too big in real play.
+  r.get('/api/chats/:id', { schema: { params } }, async (req, reply) => {
+    const started = performance.now();
+    const path = chatPath(db, req.params.id);
+    const body = JSON.stringify(path);
+    req.log.info(
+      {
+        chatId: req.params.id,
+        ms: Math.round(performance.now() - started),
+        bytes: Buffer.byteLength(body),
+        scenes: path.closedScenes.length + (path.scene ? 1 : 0),
+      },
+      'chat.fetch',
+    );
+    return reply.type('application/json').send(body);
+  });
 
   r.patch(
     '/api/chats/:id',

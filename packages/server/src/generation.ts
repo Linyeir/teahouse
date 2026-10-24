@@ -99,6 +99,14 @@ export class Generator {
     if (await this.memory.ensureFits(chatId, ctx)) {
       ctx = await buildTurnContext(this.db, this.worlds, chatId, parentId, profile, ctx.speaker);
     }
+    this.log.info(
+      {
+        chatId,
+        ms: ctx.canonMs,
+        files: ctx.canon.entries.filter((e) => e.mode !== 'dropped').length,
+      },
+      'canon.select',
+    );
     const prompt = narratorPrompt(this.db, ctx);
     const resolve = await speakerResolver(this.worlds, chat.worldId);
     // Building the context was async: another request may have started a reply meanwhile.
