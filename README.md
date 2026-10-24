@@ -4,7 +4,7 @@
 
 **AI roleplay in the style of a visual novel, with a canon you own.** What happens in your scenes becomes Markdown files in a Git repository on your own server: you review every change as a diff, edit the files with any editor, and keep the whole history.
 
-**Status:** early development. The latest release is [0.3.5](https://github.com/Linyeir/teahouse/releases); 0.4.0, with group chats, is in progress on `main` (see the [changelog](CHANGELOG.md)). Teahouse runs against any OpenAI-compatible endpoint, as a server with a web client and desktop and Android apps that work offline.
+**Status:** early development. The latest release is [0.4.0](https://github.com/Linyeir/teahouse/releases/tag/v0.4.0), with group chats; see the [changelog](CHANGELOG.md) for what changed. Teahouse runs against any OpenAI-compatible endpoint, as a server with a web client and desktop and Android apps that work offline.
 
 ## Quickstart
 
