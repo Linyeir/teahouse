@@ -165,8 +165,8 @@
   right: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  gap: 2px;
+  padding: 0 4px;
   border-radius: 999px;
   background: rgb(0 0 0 / 45%);
   color: #fff;
@@ -176,8 +176,20 @@
 .controls button {
   all: unset;
   cursor: pointer;
-  padding: 0 4px;
-  font-size: 1rem;
+  box-sizing: border-box;
+  /* A target a finger can hit. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 1.25rem;
+}
+
+.controls button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -4px;
 }
 
 .controls button:disabled {

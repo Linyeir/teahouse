@@ -1,6 +1,6 @@
 import { NARRATOR_SPEAKER, type PathMessage, USER_SPEAKER } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
-import { vnPages } from './vn.ts';
+import { stageKeyAction, vnPages } from './vn.ts';
 
 let n = 0;
 const msg = (
@@ -106,5 +106,24 @@ describe('vnPages with speakers by name', () => {
       { who: 'mira', mood: 'amused' },
       { who: 'tomas', mood: null },
     ]);
+  });
+});
+
+describe('stageKeyAction', () => {
+  it('pages with Space, Enter and the arrows on the stage or with nothing focused', () => {
+    for (const focus of ['stage', 'none'] as const) {
+      expect(stageKeyAction(' ', focus)).toBe('advance');
+      expect(stageKeyAction('Enter', focus)).toBe('advance');
+      expect(stageKeyAction('ArrowRight', focus)).toBe('next');
+      expect(stageKeyAction('ArrowLeft', focus)).toBe('back');
+    }
+  });
+
+  it('leaves keys to a focused control elsewhere and to shortcuts', () => {
+    for (const key of [' ', 'Enter', 'ArrowRight', 'ArrowLeft']) {
+      expect(stageKeyAction(key, 'other')).toBeNull();
+      expect(stageKeyAction(key, 'stage', true)).toBeNull();
+    }
+    expect(stageKeyAction('a', 'stage')).toBeNull();
   });
 });

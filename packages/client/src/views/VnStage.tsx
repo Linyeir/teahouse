@@ -4,11 +4,11 @@ import {
   USER_SPEAKER,
   type WorldBackground,
 } from '@teahouse/shared';
-import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { assetUrl } from '../api.ts';
 import { formatStory, speakerName } from '../components/Beats.tsx';
-import { type VnPage, vnPages } from '../vn.ts';
+import { stageKeyAction, type VnPage, vnPages } from '../vn.ts';
 import styles from './VnStage.module.css';
 
 /** The image for a character in a mood: that label (in any case), else neutral, else the first. */
@@ -77,24 +77,39 @@ export function VnStage({
     }
   };
 
+  const stageRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target?.closest('textarea, input, select, [contenteditable]')) return;
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        advance();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        go(1);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        go(-1);
-      }
+      // The stage's own controls and any other control keep their keys; the textbox and
+      // the stage itself page.
+      const focus =
+        !target || target === document.body
+          ? 'none'
+          : target === textbox.current ||
+              (stageRef.current?.contains(target) && !target.closest('button, a, input'))
+            ? 'stage'
+            : 'other';
+      const action = stageKeyAction(e.key, focus, e.ctrlKey || e.metaKey || e.altKey);
+      if (!action) return;
+      e.preventDefault();
+      if (action === 'advance') advance();
+      else go(action === 'next' ? 1 : -1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // On touch, the whole stage is the page: the left third goes back, the rest reads on.
+  const pointer = useRef<string>('mouse');
+  const onStageClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (pointer.current !== 'touch' || (e.target as HTMLElement).closest(`.${styles.controls}`)) {
+      return;
+    }
+    const box = e.currentTarget.getBoundingClientRect();
+    if (e.clientX < box.left + box.width / 3) go(-1);
+    else advance();
+  };
 
   const pageId = page?.message.id;
   const length = page?.message.content.length ?? 0;
@@ -120,7 +135,17 @@ export function VnStage({
   const focus = page?.speaker && page.speaker !== USER_SPEAKER ? page.speaker : null;
 
   return (
-    <div className={styles.stage} style={themeStyle}>
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keys are handled on the window, see above
+    // biome-ignore lint/a11y/noStaticElementInteractions: a tap zone for touch; the textbox and controls are the accessible way
+    <div
+      ref={stageRef}
+      className={styles.stage}
+      style={themeStyle}
+      onPointerDown={(e) => {
+        pointer.current = e.pointerType;
+      }}
+      onClick={onStageClick}
+    >
       {background && (
         <img className={styles.background} src={assetUrl(worldId, background.file)} alt="" />
       )}
@@ -152,7 +177,8 @@ export function VnStage({
           type="button"
           ref={textbox}
           className={styles.textbox}
-          onClick={advance}
+          // Touch taps are the stage's (see onStageClick); a click or a key reads on.
+          onClick={() => pointer.current !== 'touch' && advance()}
           aria-live="polite"
         >
           {page ? (

@@ -76,3 +76,23 @@ export function vnPages(
   }
   return pages;
 }
+
+/** What a key does in the novel view, or null to leave it to the browser. */
+export type StageKeyAction = 'advance' | 'next' | 'back';
+
+/**
+ * Keys page through the novel view only while nothing else has focus: the stage, its
+ * textbox or the page itself. A focused button, link or field elsewhere (Log, End scene,
+ * Continue, the composer) keeps Enter and Space for itself.
+ */
+export function stageKeyAction(
+  key: string,
+  focus: 'stage' | 'none' | 'other',
+  modifiers = false,
+): StageKeyAction | null {
+  if (focus === 'other' || modifiers) return null;
+  if (key === ' ' || key === 'Enter') return 'advance';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'ArrowLeft') return 'back';
+  return null;
+}
