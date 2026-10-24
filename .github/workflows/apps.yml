@@ -47,9 +47,13 @@ jobs:
           workspaces: packages/app/src-tauri
       - name: System libraries (Linux)
         if: runner.os == 'Linux'
+        # A stalled Ubuntu mirror once held this step for 24 minutes: give up on a silent
+        # connection after 30 s and retry, and fail the step rather than wait that long again.
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+          apt="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30"
+          $apt update
+          $apt install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
       # Only what the apps need: the server's native modules (better-sqlite3) would have to be
       # compiled, which fails on Windows runners and is wasted time everywhere else.
       - run: pnpm install --frozen-lockfile --filter "@teahouse/app..." --filter "@teahouse/client..."

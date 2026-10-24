@@ -48,9 +48,13 @@ jobs:
         with:
           workspaces: packages/app/src-tauri
       - name: System libraries
+        # A stalled Ubuntu mirror once held this step for 24 minutes: give up on a silent
+        # connection after 30 s and retry, and fail the step rather than wait that long again.
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+          apt="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30"
+          $apt update
+          $apt install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
       # The app embeds the built client at compile time.
       - run: pnpm install --frozen-lockfile --filter "@teahouse/client..."
       - run: pnpm --filter @teahouse/client build
