@@ -1,13 +1,21 @@
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
-import { canonPath, fileWrite, id, worldInput } from '@teahouse/shared';
+import {
+  canonPath,
+  type FileConflict,
+  type FileContent,
+  type FileWritten,
+  fileWrite,
+  id,
+  worldInput,
+} from '@teahouse/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { importCard } from '../cards/import.ts';
 import { ArchiveError, exportWorld, importWorld } from '../worlds/archive.ts';
 import { assetFilePath } from '../worlds/paths.ts';
-import { slug } from '../worlds/service.ts';
+import { contentSha, FileConflictError, slug } from '../worlds/service.ts';
 import { HttpError, type Services, typed } from './context.ts';
 
 const params = z.object({ id });
@@ -75,14 +83,31 @@ export async function worldRoutes(app: FastifyInstance, { db, worlds }: Services
     worlds.files(params.id),
   );
 
-  r.get('/api/worlds/:id/file', { schema: { params, querystring: pathQuery } }, async (req) => ({
-    path: req.query.path,
-    content: await worlds.read(req.params.id, req.query.path),
-  }));
+  r.get(
+    '/api/worlds/:id/file',
+    { schema: { params, querystring: pathQuery } },
+    async (req): Promise<FileContent> => {
+      const content = await worlds.read(req.params.id, req.query.path);
+      return { path: req.query.path, content, sha: contentSha(content) };
+    },
+  );
 
-  r.put('/api/worlds/:id/file', { schema: { params, body: fileWrite } }, async (req) => ({
-    commit: await worlds.write(req.params.id, req.body.path, req.body.content),
-  }));
+  r.put('/api/worlds/:id/file', { schema: { params, body: fileWrite } }, async (req, reply) => {
+    const { path, content, baseSha } = req.body;
+    try {
+      const commit = await worlds.write(req.params.id, path, content, { baseSha });
+      return { commit, sha: contentSha(content) } satisfies FileWritten;
+    } catch (err) {
+      if (!(err instanceof FileConflictError)) throw err;
+      const body: FileConflict = {
+        error: 'file_conflict',
+        message: err.message,
+        current: err.current,
+        currentSha: err.currentSha,
+      };
+      return reply.code(409).send(body);
+    }
+  });
 
   r.delete('/api/worlds/:id/file', { schema: { params, querystring: pathQuery } }, async (req) => ({
     commit: await worlds.remove(req.params.id, req.query.path),

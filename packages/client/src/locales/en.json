@@ -199,7 +199,18 @@
     "groupChat": "Group chat…",
     "groupChatWho": "Who is there from the start? Others can join later.",
     "opening": "Opens with",
-    "startGroupChat": "Start group chat"
+    "startGroupChat": "Start group chat",
+    "unsaved": "Unsaved changes",
+    "leaveTitle_one": "Leave with unsaved changes in 1 file?",
+    "leaveTitle_other": "Leave with unsaved changes in %{count} files?",
+    "leaveHint": "Your edits are lost if you leave. Stay to save them first.",
+    "stay": "Stay",
+    "leaveDiscard": "Leave and discard",
+    "conflictTitle": "This file changed since you started editing it",
+    "conflictDeleted": "This file was deleted since you started editing it",
+    "conflictHint": "Perhaps by a canon update or in another editor. The diff shows the file as it is now against your version. Nothing was saved.",
+    "conflictDiscard": "Discard my edit",
+    "conflictOverwrite": "Save my version anyway"
   },
   "scenes": {
     "title": "Scene %{n}",

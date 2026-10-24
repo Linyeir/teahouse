@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
@@ -15,6 +16,22 @@ import { canonFilePath, isIgnoredForCanon, PathError } from './paths.ts';
 import { type CommitInfo, WorldRepo } from './repo.ts';
 
 export class WorldNotFoundError extends Error {}
+
+/** A save against content the file no longer has. */
+export class FileConflictError extends Error {
+  constructor(
+    readonly current: string | null,
+    readonly currentSha: string | null,
+  ) {
+    super('The file changed since you started editing it');
+  }
+}
+
+/** Git blob hash of a file's content, the same `git hash-object` gives. */
+export function contentSha(content: string): string {
+  const body = Buffer.from(content, 'utf8');
+  return createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex');
+}
 
 export interface WorldBackground {
   id: string;
@@ -157,15 +174,33 @@ export class WorldService {
     }
   }
 
-  /** Writes one canon file and commits it. Returns the commit, or null if nothing changed. */
-  async write(worldId: string, path: string, content: string, message?: string) {
+  /**
+   * Writes one canon file and commits it. Returns the commit, or null if nothing changed.
+   * With `baseSha`, the file must still have that content (see `contentSha`), else nothing is
+   * written and a `FileConflictError` carries what it has now. The check runs in the repo's
+   * queue, so no commit can come between it and the write.
+   */
+  async write(
+    worldId: string,
+    path: string,
+    content: string,
+    options: { message?: string; baseSha?: string } = {},
+  ) {
     const folder = await this.folder(worldId);
     const full = canonFilePath(this.dir(folder), path);
     const repo = this.repo(folder);
     return repo.run(async () => {
+      if (options.baseSha !== undefined) {
+        const current = await readFile(full, 'utf8').catch((err: NodeJS.ErrnoException) => {
+          if (err.code === 'ENOENT') return null;
+          throw err;
+        });
+        const currentSha = current === null ? null : contentSha(current);
+        if (currentSha !== options.baseSha) throw new FileConflictError(current, currentSha);
+      }
       await mkdir(dirname(full), { recursive: true });
       await writeFile(full, content);
-      return repo.commitNow(message ?? `Edit ${path}`);
+      return repo.commitNow(options.message ?? `Edit ${path}`);
     });
   }
 

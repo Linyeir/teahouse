@@ -5,7 +5,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createStore, del, get, set } from 'idb-keyval';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router';
+import { createBrowserRouter, RouterProvider } from 'react-router';
 import { App } from './App.tsx';
 import { getServer, isApp } from './api.ts';
 import { registerOfflineMutations } from './mutations.ts';
@@ -49,6 +49,9 @@ const persister = createAsyncStoragePersister({
 /** Results that are not worth keeping offline, or would be wrong when restored. */
 const VOLATILE = new Set(['auth-status', 'pairing-addresses', 'proposal', 'trusted-certificate']);
 
+// A data router, so views can hold navigation back (unsaved edits); App keeps its <Routes>.
+const router = createBrowserRouter([{ path: '*', element: <App /> }]);
+
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
 
@@ -69,9 +72,7 @@ createRoot(root).render(
       // Messages queued before a reload continue once they are back in the cache.
       onSuccess={() => void queryClient.resumePausedMutations()}
     >
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </PersistQueryClientProvider>
   </StrictMode>,
 );

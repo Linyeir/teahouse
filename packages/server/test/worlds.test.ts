@@ -1,5 +1,7 @@
+import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { FileConflict, FileContent, FileWritten } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
 import { parseDocument, stringifyDocument } from '../src/worlds/frontmatter.ts';
 import { WorldWatcher } from '../src/worlds/watcher.ts';
@@ -110,6 +112,7 @@ describe('world routes', () => {
     expect((await api('GET', `${base}/file?path=places/harbor.md`)).body).toEqual({
       path: 'places/harbor.md',
       content: '# Harbor',
+      sha: expect.stringMatching(/^[0-9a-f]{40}$/),
     });
     const history = await api<{ sha: string }[]>('GET', `${base}/history?path=places/harbor.md`);
     const old = await api(
@@ -131,5 +134,69 @@ describe('world routes', () => {
       expect(res.statusCode, asset).toBeLessThan(500);
     }
     expect((await app.inject({ url: `${base}/assets/x.png` })).statusCode).toBe(401);
+  });
+});
+
+describe('saving against the base', () => {
+  it('refuses a save from an editor opened before a canon commit', async () => {
+    const { api, worlds } = await createTestApp();
+    const world = await worlds.create('Rain Port');
+    const path = 'characters/mira.md';
+    await worlds.write(world.id, path, 'Mira, a smuggler.\n');
+    const url = `/api/worlds/${world.id}/file`;
+
+    // The editor opens the file…
+    const opened = await api<FileContent>('GET', `${url}?path=${path}`);
+    const sha = execFileSync('git', ['hash-object', '--stdin'], { input: 'Mira, a smuggler.\n' });
+    expect(opened.body.sha).toBe(sha.toString().trim());
+
+    // …then the canon update of a scene changes it, the way CanonProposals.apply writes.
+    await worlds.transaction(world.id, 'Canon: scene 1', async (dir) => {
+      await writeFile(join(dir, path), 'Mira, a smuggler. Owes Ash.\n');
+    });
+
+    const saved = await api<FileConflict>('PUT', url, {
+      path,
+      content: 'Mira, a retired smuggler.\n',
+      baseSha: opened.body.sha,
+    });
+    expect(saved.status).toBe(409);
+    expect(saved.body).toMatchObject({
+      error: 'file_conflict',
+      current: 'Mira, a smuggler. Owes Ash.\n',
+    });
+    expect(await worlds.read(world.id, path)).toBe('Mira, a smuggler. Owes Ash.\n');
+    expect((await worlds.history(world.id, path))[0]?.message).toBe('Canon: scene 1');
+
+    // Saving against what is there now works, and answers with the new sha.
+    const retry = await api<FileWritten>('PUT', url, {
+      path,
+      content: 'Mira, a retired smuggler. Owes Ash.\n',
+      baseSha: saved.body.currentSha,
+    });
+    expect(retry.status).toBe(200);
+    const reread = await api<FileContent>('GET', `${url}?path=${path}`);
+    expect(retry.body.sha).toBe(reread.body.sha);
+  });
+
+  it('reports a file deleted in the meantime, and still saves without a base', async () => {
+    const { api, worlds } = await createTestApp();
+    const world = await worlds.create('W');
+    const url = `/api/worlds/${world.id}/file`;
+    await worlds.write(world.id, 'lore/fog.md', 'Fog.\n');
+    const { body } = await api<FileContent>('GET', `${url}?path=lore/fog.md`);
+    await worlds.remove(world.id, 'lore/fog.md');
+
+    const stale = await api<FileConflict>('PUT', url, {
+      path: 'lore/fog.md',
+      content: 'Thick fog.\n',
+      baseSha: body.sha,
+    });
+    expect(stale).toMatchObject({ status: 409, body: { current: null, currentSha: null } });
+
+    // Older clients send no base: the file is written as before.
+    const old = await api('PUT', url, { path: 'lore/fog.md', content: 'Thick fog.\n' });
+    expect(old.status).toBe(200);
+    expect(await worlds.read(world.id, 'lore/fog.md')).toBe('Thick fog.\n');
   });
 });

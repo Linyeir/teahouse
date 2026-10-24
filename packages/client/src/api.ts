@@ -79,6 +79,8 @@ export class RequestError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /** The whole error body, for errors that carry more than a message. */
+    readonly data: unknown = null,
   ) {
     super(message);
   }
@@ -119,6 +121,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
       response.status,
       err.error ?? 'unknown',
       err.message ?? response.statusText,
+      data,
     );
   }
   return data as T;

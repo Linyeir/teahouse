@@ -8,6 +8,11 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 - Running the server from source needs Node.js 24 or later, as `.nvmrc`, the Docker image and CI already use. Node 22 failed two of the client tests. ([#64](https://github.com/Linyeir/teahouse/issues/64))
 
+### Fixed
+
+- The world editor lost unsaved edits when you opened another file, and when the file changed elsewhere while you typed. Edits now stay with their file until you save or discard them, and the file list marks files with unsaved changes. Leaving the world with unsaved edits asks first, and so does closing the tab. ([#55](https://github.com/Linyeir/teahouse/issues/55))
+- Saving a file that changed since you started editing it (a canon update, an edit in Obsidian) overwrote that change without a word. Teahouse now saves nothing and shows the file as it is against your version: discard your edit, or save yours anyway. ([#55](https://github.com/Linyeir/teahouse/issues/55))
+
 ## [0.4.0] - 2026-10-24
 
 **Updating:** apps and server can be updated in any order, but picking who talks needs a 0.4.0 server; with an older one the narrator still plays the whole cast. The server migrates its database (replies get a speaker) and backs it up first. Replies written before keep no speaker; regenerating one plays whoever had the last turn.

@@ -36,11 +36,41 @@ export const canonFile = z.object({
 });
 export type CanonFile = z.infer<typeof canonFile>;
 
-export const fileContent = z.object({ path: z.string(), content: z.string() });
+/** Git blob hash of a file's content, as `git hash-object` prints it. */
+const contentSha = z.string().regex(/^[0-9a-f]{40}$/);
+
+export const fileContent = z.object({
+  path: z.string(),
+  content: z.string(),
+  /** Of the current file, for saving against it; old versions have none. */
+  sha: contentSha.optional(),
+});
 export type FileContent = z.infer<typeof fileContent>;
 
-export const fileWrite = z.object({ path: canonPath, content: z.string().max(1_000_000) });
+export const fileWrite = z.object({
+  path: canonPath,
+  content: z.string().max(1_000_000),
+  /**
+   * `sha` of the content the edit started from. When the file has changed since (a canon
+   * update, an edit in another editor), nothing is written and the answer is a 409 with a
+   * `FileConflict`. Without it, the file is overwritten.
+   */
+  baseSha: contentSha.optional(),
+});
 export type FileWrite = z.infer<typeof fileWrite>;
+
+export const fileWritten = z.object({ commit: z.string().nullable(), sha: contentSha });
+export type FileWritten = z.infer<typeof fileWritten>;
+
+/** Body of the 409 for a save against a base the file has moved away from. */
+export const fileConflict = z.object({
+  error: z.literal('file_conflict'),
+  message: z.string(),
+  /** The file as it is now; null when it was deleted. */
+  current: z.string().nullable(),
+  currentSha: contentSha.nullable(),
+});
+export type FileConflict = z.infer<typeof fileConflict>;
 
 export const commit = z.object({ sha: z.string(), date: z.string(), message: z.string() });
 export type Commit = z.infer<typeof commit>;

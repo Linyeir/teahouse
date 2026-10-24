@@ -199,7 +199,18 @@
     "groupChat": "Gruppenchat …",
     "groupChatWho": "Wer ist von Anfang an dabei? Andere können später dazukommen.",
     "opening": "Beginnt mit",
-    "startGroupChat": "Gruppenchat starten"
+    "startGroupChat": "Gruppenchat starten",
+    "unsaved": "Ungespeicherte Änderungen",
+    "leaveTitle_one": "Mit ungespeicherten Änderungen in 1 Datei verlassen?",
+    "leaveTitle_other": "Mit ungespeicherten Änderungen in %{count} Dateien verlassen?",
+    "leaveHint": "Deine Änderungen gehen verloren, wenn du die Seite verlässt. Bleib, um sie vorher zu speichern.",
+    "stay": "Bleiben",
+    "leaveDiscard": "Verlassen und verwerfen",
+    "conflictTitle": "Diese Datei hat sich geändert, seit du sie bearbeitest",
+    "conflictDeleted": "Diese Datei wurde gelöscht, seit du sie bearbeitest",
+    "conflictHint": "Vielleicht durch ein Canon-Update oder in einem anderen Editor. Der Diff zeigt die Datei, wie sie jetzt ist, gegen deine Fassung. Gespeichert wurde nichts.",
+    "conflictDiscard": "Meine Änderung verwerfen",
+    "conflictOverwrite": "Meine Fassung trotzdem speichern"
   },
   "scenes": {
     "title": "Szene %{n}",

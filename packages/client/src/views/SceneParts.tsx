@@ -60,7 +60,7 @@ export function EndScene({ chatId, onDone }: { chatId: string; onDone: () => voi
   );
 }
 
-function DiffView({ before, after }: { before: string; after: string }) {
+export function DiffView({ before, after }: { before: string; after: string }) {
   const parts = diffLines(before, after);
   return (
     <pre className={styles.diff}>
