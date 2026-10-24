@@ -73,7 +73,7 @@ jobs:
       - name: Start it
         run: docker compose up -d
         working-directory: ${{ env.QUICKSTART }}
-      # The image's HEALTHCHECK first runs 30 s after the start.
+      # Polls the status of the image's HEALTHCHECK (Docker probes often while it starts).
       - name: Wait until healthy
         working-directory: ${{ env.QUICKSTART }}
         run: |
