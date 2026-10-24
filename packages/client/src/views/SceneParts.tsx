@@ -189,8 +189,29 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
   });
 
   const data = proposal.data;
-  if (!data || data.status === 'generating') {
+  if (!proposal.isSuccess) {
     return <p className={`${styles.panel} ${ui.muted}`}>{t('scenes.generating')}</p>;
+  }
+  // Still generating, or never started: a call that hangs, or a server stopped in the middle,
+  // would otherwise leave the scene waiting for good.
+  if (!data || data.status === 'generating') {
+    return (
+      <div className={styles.panel}>
+        <span className={ui.muted}>{t('scenes.generating')}</span>
+        <span className={ui.hint}>{t('scenes.generatingHint')}</span>
+        <ErrorText error={regenerate.error} />
+        <div className={ui.actions}>
+          <button
+            className={ui.button}
+            type="button"
+            disabled={regenerate.isPending}
+            onClick={() => regenerate.mutate()}
+          >
+            {t('scenes.regenerate')}
+          </button>
+        </div>
+      </div>
+    );
   }
   const pending = data.files.filter((f) => f.decision === 'pending').length;
   const accepted = data.files.filter((f) => f.decision === 'accepted').length;

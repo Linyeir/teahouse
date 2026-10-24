@@ -218,6 +218,7 @@
     },
     "memoryUpToHere": "Active Memory: summary up to here",
     "generating": "Writing the canon proposal…",
+    "generatingHint": "Taking too long? Propose again starts over.",
     "reviewTitle": "Canon changes",
     "reviewHint": "Accept, edit or reject each file. Accepted files are committed together.",
     "newFile": "new",

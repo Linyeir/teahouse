@@ -218,6 +218,7 @@
     },
     "memoryUpToHere": "Active Memory: Zusammenfassung bis hier",
     "generating": "Canon-Vorschlag wird geschrieben …",
+    "generatingHint": "Dauert es zu lange? „Neu vorschlagen“ fängt von vorn an.",
     "reviewTitle": "Canon-Änderungen",
     "reviewHint": "Nimm jede Datei an, bearbeite oder verwirf sie. Angenommene Dateien werden gemeinsam committet.",
     "newFile": "neu",

@@ -26,6 +26,7 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 ### Fixed
 
+- After a crash or a hard stop of the server, a reply that was being written could stay "writing" and a scene could wait for its canon update for good, with no way out. The server now settles both when it starts: the reply keeps what it got as stopped, and the canon proposal shows that it failed and can be proposed again. While a proposal is being written, **Propose again** starts over, for an endpoint that never answers. Stopping the server no longer waits for a canon update that hangs. ([#50](https://github.com/Linyeir/teahouse/issues/50))
 - A greeting that names its character as `{{char}}` showed the placeholder in the chat. New chats fill in the name when they start, which also keeps the greeting about its own character once others take turns.
 - Chats showed `{{user}}` and `{{char}}` as written, e.g. in greetings of imported cards. The log and novel views now show your persona's name and the character's; the stored text keeps the placeholders, so editing shows them and a renamed persona appears everywhere.
 

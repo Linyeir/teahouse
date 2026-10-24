@@ -16,6 +16,7 @@ import type { GenerationLog } from '../generation.ts';
 import type { Hub } from '../hub.ts';
 import { type ChatMessage, complete, completeWithTools } from '../llm/client.ts';
 import { completeJson } from '../llm/json.ts';
+import { INTERRUPTED } from '../recover.ts';
 import { profileFor } from '../roles.ts';
 import { getSettings } from '../settings.ts';
 import { newId, now } from '../time.ts';
@@ -72,8 +73,13 @@ export interface ProposalDeps {
   log?: GenerationLog;
 }
 
+interface Run {
+  controller: AbortController;
+  done: Promise<void>;
+}
+
 export class CanonProposals {
-  readonly #running = new Map<string, Promise<void>>();
+  readonly #running = new Map<string, Run>();
   readonly #complete: typeof complete;
 
   readonly #tools: ToolsFn | null;
@@ -90,9 +96,12 @@ export class CanonProposals {
       : null;
   }
 
-  /** Starts generating a proposal for a closing scene in the background. */
+  /**
+   * Starts generating a proposal for a closing scene in the background. One still being
+   * generated (perhaps on an LLM call that never returns) is abandoned for the new one.
+   */
   start(sceneId: string): void {
-    if (this.#running.has(sceneId)) return;
+    this.#running.get(sceneId)?.controller.abort();
     const timestamp = now();
     const existing = this.#row(sceneId);
     if (existing) {
@@ -121,19 +130,35 @@ export class CanonProposals {
         .run();
     }
     this.#changed(sceneId);
-    const run = this.#generate(sceneId)
-      .catch((err) =>
+    const run: Run = { controller: new AbortController(), done: Promise.resolve() };
+    // An abandoned run must not overwrite the proposal of the one that replaced it.
+    const current = () => this.#running.get(sceneId) === run;
+    this.#running.set(sceneId, run);
+    run.done = this.#generate(sceneId, run.controller.signal)
+      .catch((err) => {
+        if (!current()) return;
         this.#update(sceneId, {
           status: 'failed',
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      )
-      .finally(() => this.#running.delete(sceneId));
-    this.#running.set(sceneId, run);
+          error: run.controller.signal.aborted
+            ? INTERRUPTED
+            : err instanceof Error
+              ? err.message
+              : String(err),
+        });
+      })
+      .finally(() => {
+        if (current()) this.#running.delete(sceneId);
+      });
   }
 
   async idle(): Promise<void> {
-    await Promise.allSettled(this.#running.values());
+    await Promise.allSettled([...this.#running.values()].map((run) => run.done));
+  }
+
+  /** Stops every generation, marks its proposal failed and waits until that is saved. */
+  async stopAll(): Promise<void> {
+    for (const run of this.#running.values()) run.controller.abort();
+    await this.idle();
   }
 
   /** Records the user's decision (and optional edit) for one file. */
@@ -217,7 +242,7 @@ export class CanonProposals {
     return { commit, conflicts: [] };
   }
 
-  async #generate(sceneId: string): Promise<void> {
+  async #generate(sceneId: string, signal: AbortSignal): Promise<void> {
     const { db, worlds } = this.deps;
     const { scene, chat } = this.#sceneAndChat(sceneId);
     const settings = getSettings(db);
@@ -293,6 +318,7 @@ export class CanonProposals {
         worldId: chat.worldId,
         known: new Set([...corePaths, ...fitted.filter((f) => f.full).map((f) => f.path)]),
         budget: room - fitted.reduce((n, f) => n + countTokens(f.text), 0),
+        signal,
       });
       looked = lookup.files;
       this.deps.log?.info(
@@ -305,10 +331,12 @@ export class CanonProposals {
         'Canon lookups',
       );
     }
+    signal.throwIfAborted();
     const messages = prompt(looked);
     const update = await completeJson(this.#complete, profile, messages, canonUpdate, {
       name: 'canon_update',
       minTokens: ANSWER_TOKENS,
+      signal,
     });
 
     const world = await worlds.get(chat.worldId);
@@ -353,6 +381,7 @@ export class CanonProposals {
       })),
     ];
     const baseCommit = (await worlds.history(chat.worldId))[0]?.sha ?? null;
+    signal.throwIfAborted();
     this.#update(sceneId, { status: 'ready', files: proposalFiles, baseCommit, error: null });
 
     if (!settings.canonReview) {

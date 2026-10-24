@@ -15,6 +15,7 @@ import { Hub } from './hub.ts';
 import { complete } from './llm/client.ts';
 import { ModelOutputError } from './llm/json.ts';
 import { Memory } from './memory.ts';
+import { recoverInterrupted } from './recover.ts';
 import { NoProfileError } from './roles.ts';
 import { authRoutes } from './routes/auth.ts';
 import { chatRoutes } from './routes/chats.ts';
@@ -103,6 +104,12 @@ export async function buildApp({
     if (isApiRoute(route.url) || route.config?.public || STATIC_ROUTES.has(route.url)) return;
     throw new Error(`Route ${route.url} is outside /api/ and not marked public`);
   });
+
+  // Nothing runs yet: whatever the database says is running was cut off by a crash or stop.
+  const recovered = recoverInterrupted(db);
+  if (recovered.messages || recovered.proposals) {
+    app.log.warn(recovered, 'Settled replies and canon proposals cut off by the last stop');
+  }
 
   const hub = new Hub();
   const memory = new Memory(db, worlds, completeFn ?? complete, (err) =>
@@ -209,8 +216,8 @@ export async function buildApp({
   }
 
   app.addHook('onClose', async () => {
-    await generator.stopAll();
-    await Promise.all([memory.idle(), proposals.idle()]);
+    await Promise.all([generator.stopAll(), proposals.stopAll()]);
+    await memory.idle();
   });
   return app;
 }

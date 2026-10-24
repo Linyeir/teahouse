@@ -18,6 +18,7 @@ import * as tar from 'tar';
 import { z } from 'zod';
 import type { Db } from '../db/index.ts';
 import { canonProposals, chats, memoryNodes, messages, scenes } from '../db/schema.ts';
+import { settledMessageStatus, settledProposalStatus } from '../recover.ts';
 import { newId, now } from '../time.ts';
 import { parseDocument, stringifyDocument } from './frontmatter.ts';
 import { slug, type WorldService } from './service.ts';
@@ -224,7 +225,7 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
               sceneId: id(m.sceneId),
               parentId: id(m.parentId),
               // A reply that was streaming when exported can never finish here.
-              status: m.status === 'streaming' ? 'stopped' : m.status,
+              status: settledMessageStatus(m.status),
               profileId: null,
             })
             .run();
@@ -246,7 +247,7 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
               id: id(p.id) as string,
               sceneId: id(p.sceneId) as string,
               // A proposal that was being generated is offered for regeneration.
-              status: p.status === 'generating' ? 'failed' : p.status,
+              status: settledProposalStatus(p.status),
             })
             .run();
         }
