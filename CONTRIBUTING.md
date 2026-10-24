@@ -7,7 +7,7 @@ How to build, test and release Teahouse. For what Teahouse is and how to run it,
 
 ## Development
 
-Requires Node.js 22.18+ (24 recommended) and pnpm.
+Requires Node.js 24 or later (`.nvmrc`) and pnpm.
 
 ```sh
 pnpm install

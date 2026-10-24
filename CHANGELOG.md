@@ -2,6 +2,12 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [0.4.1] - unreleased
+
+### Changed
+
+- Running the server from source needs Node.js 24 or later, as `.nvmrc`, the Docker image and CI already use. Node 22 failed two of the client tests. ([#64](https://github.com/Linyeir/teahouse/issues/64))
+
 ## [0.4.0] - 2026-10-24
 
 **Updating:** apps and server can be updated in any order, but picking who talks needs a 0.4.0 server; with an older one the narrator still plays the whole cast. The server migrates its database (replies get a speaker) and backs it up first. Replies written before keep no speaker; regenerating one plays whoever had the last turn.
@@ -167,6 +173,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.4.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.0
 [0.3.5]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.5
 [0.3.4]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.4

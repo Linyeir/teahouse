@@ -1,12 +1,12 @@
 {
   "name": "teahouse",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=22.18"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @teahouse/server --filter @teahouse/client dev",
