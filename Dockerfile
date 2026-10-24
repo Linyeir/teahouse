@@ -36,5 +36,8 @@ ENV NODE_ENV=production \
   TEAHOUSE_PORT=8787
 VOLUME /data
 EXPOSE 8787
+# Healthy once the server answers. /api/version needs no sign-in; the image has no curl.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["node", "-e", "fetch(`http://127.0.0.1:${process.env.TEAHOUSE_PORT}/api/version`).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 WORKDIR /app/packages/server
 CMD ["node", "--import", "tsx", "src/index.ts"]
