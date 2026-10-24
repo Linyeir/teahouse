@@ -10,16 +10,27 @@
 
 You need Docker and an LLM endpoint: LM Studio or llama.cpp on your machine, or an OpenRouter key.
 
-1. Start the server:
+1. Save this as `compose.yaml` in an empty folder, and run `docker compose up -d` there:
 
-   ```sh
-   git clone https://github.com/Linyeir/teahouse.git
-   cd teahouse
-   docker compose up -d
+   ```yaml
+   services:
+     teahouse:
+       image: ghcr.io/linyeir/teahouse:latest
+       ports:
+         - "8787:8787"
+       volumes:
+         - teahouse-data:/data
+       # Lets the container reach LM Studio or llama.cpp on this machine (needed on Linux).
+       extra_hosts:
+         - "host.docker.internal:host-gateway"
+       restart: unless-stopped
+
+   volumes:
+     teahouse-data:
    ```
 
 2. Open http://localhost:8787 and choose a password.
-3. Under **Profiles**, add a profile: pick a preset, enter the model (or **Load models**) and, for OpenRouter, the API key. From inside Docker, `localhost` is the container: for LM Studio or llama.cpp on the same machine, use `http://host.docker.internal:1234/v1` (see [Endpoints](#endpoints)).
+3. Under **Profiles**, add a profile: pick a preset, enter the model (or **Load models**) and, for OpenRouter, the API key. From inside Docker, `localhost` is the container: for LM Studio or llama.cpp on the same machine, use `http://host.docker.internal:1234/v1` or `:8080/v1` (see [Endpoints](#endpoints)).
 4. Under **Worlds**, **Import character card** (a PNG or JSON card, V1 to V3) into a new world, or create a **New world** and add a character file in `characters/`.
 5. Pick a greeting and **Start chat**, write your first line, and **Send**. The reply streams in.
 
@@ -84,11 +95,11 @@ Character Cards (PNG or JSON, V1 to V3) import into a new or an existing world: 
 
 ## Running the server
 
-The Quickstart builds the image from the checkout. Each release is also published as a ready image for amd64 and arm64, `ghcr.io/linyeir/teahouse:latest` (or a version such as `:0.3`), which you can put in `compose.yaml` as `image:` instead of `build: .`. Data lives in the `teahouse-data` volume.
+Each release is published as an image for amd64 and arm64: `ghcr.io/linyeir/teahouse:latest`, or a version such as `:0.4` to stay on one line of releases. The repository's [compose.yaml](compose.yaml) is the Quickstart's, with `build: .` to build from a checkout instead. Data lives in the `teahouse-data` volume.
 
 Teahouse speaks plain HTTP. Inside your LAN or a VPN that works; for anything reachable from the internet, put it behind a reverse proxy with HTTPS or Tailscale first. [docs/https.md](docs/https.md) explains the options and what the devices need for each. The server warns at startup when other machines can reach it over plain HTTP.
 
-**Updating:** pull the new image and restart (`docker compose pull && docker compose up -d` with `image:`). When the new version changes the database, the server first copies it to `backups/teahouse-<time>.db` in the data volume and logs where. The last five copies are kept. To go back to the previous version, stop the server, replace `teahouse.db` with the copy (and delete `teahouse.db-wal` and `teahouse.db-shm`), then start the previous image. Worlds are Git repositories and are not touched by updates.
+**Updating:** pull the new image and restart: `docker compose pull && docker compose up -d`. When the new version changes the database, the server first copies it to `backups/teahouse-<time>.db` in the data volume and logs where. The last five copies are kept. To go back to the previous version, stop the server, replace `teahouse.db` with the copy (and delete `teahouse.db-wal` and `teahouse.db-shm`), then start the previous image. Worlds are Git repositories and are not touched by updates.
 
 Apps and server can be updated separately. They check each other's version on connect: when an update changed what they exchange, the app says whether the app or the server has to be updated. **Settings → About** shows both versions.
 
@@ -145,7 +156,7 @@ Any OpenAI-compatible chat completion endpoint works. Presets exist for:
 | llama.cpp (`llama-server`) | `http://localhost:8080/v1` |
 | OpenRouter | `https://openrouter.ai/api/v1` |
 
-From inside Docker, `localhost` is the container. Use `http://host.docker.internal:1234/v1` (add `extra_hosts: ["host.docker.internal:host-gateway"]` on Linux) or the host's LAN address.
+From inside Docker, `localhost` is the container. Use `http://host.docker.internal:1234/v1` (the Quickstart's `compose.yaml` sets up `host.docker.internal` on Linux too) or the host's LAN address.
 
 The context window is detected per profile (OpenRouter model metadata, llama.cpp `/props`, LM Studio model info) and can be overridden.
 

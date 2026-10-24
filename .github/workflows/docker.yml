@@ -6,6 +6,8 @@ name: Docker
 on:
   release:
     types: [published]
+  # Runs the smoke test alone, against the image already published.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ permissions:
 
 jobs:
   image:
+    if: github.event_name == 'release'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -44,3 +47,55 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # The README's Quickstart as a stranger runs it: its compose block pasted into an empty
+  # folder, pulling `latest`. For a release, `latest` must then be that release (unless it is
+  # a pre-release version such as 0.5.0-rc.1, which does not move `latest`).
+  smoke:
+    needs: image
+    if: ${{ !cancelled() && needs.image.result != 'failure' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compose block from the README
+        run: |
+          dir="$RUNNER_TEMP/quickstart"
+          mkdir "$dir"
+          awk '/^## Quickstart/ { q = 1 } q && /^ *```yaml/ { y = 1; next } y && /^ *```/ { exit } y' \
+            README.md | sed 's/^   //' > "$dir/compose.yaml"
+          cat "$dir/compose.yaml"
+          grep -q 'image: ghcr.io/linyeir/teahouse:latest' "$dir/compose.yaml" \
+            || { echo "::error::No compose block with the published image in the README's Quickstart"; exit 1; }
+          echo "QUICKSTART=$dir" >> "$GITHUB_ENV"
+      - name: Start it
+        run: docker compose up -d
+        working-directory: ${{ env.QUICKSTART }}
+      # The image's HEALTHCHECK first runs 30 s after the start.
+      - name: Wait until healthy
+        working-directory: ${{ env.QUICKSTART }}
+        run: |
+          container=$(docker compose ps -q teahouse)
+          for i in $(seq 1 45); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' "$container")
+            [ "$health" = healthy ] && break
+            sleep 4
+          done
+          echo "Health: $health"
+          [ "$health" = healthy ] || { echo "::error::The container did not become healthy"; exit 1; }
+      - name: Version
+        run: |
+          served=$(curl -fsS http://localhost:8787/api/version | jq -r .version)
+          echo "Serving $served"
+          tag="${{ github.event.release.tag_name }}"
+          if [ -n "$tag" ] && [[ "${tag#v}" != *-* ]] && [ "$served" != "${tag#v}" ]; then
+            echo "::error::latest serves $served, not the release ${tag#v}"
+            exit 1
+          fi
+      - name: Server log
+        if: always()
+        run: docker compose logs
+        working-directory: ${{ env.QUICKSTART }}
+
