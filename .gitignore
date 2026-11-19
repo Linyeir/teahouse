@@ -8,3 +8,5 @@ coverage/
 # Signing keys never belong in the repository
 *.keystore
 *.jks
+AGENTS.md
+CLAUDE.md
