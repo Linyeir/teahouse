@@ -1,26 +1,26 @@
 # Coming from SillyTavern
 
-Teahouse is an independent project with no shared code, and it doesn't try to match SillyTavern feature for feature. If you know SillyTavern, this page says what carries over and what works differently. [The concept](concept.md) explains why.
+Teahouse is an independent project with no shared code, and matching SillyTavern feature for feature is not a goal. This page lists what carries over from SillyTavern and what works differently. [The concept](concept.md) explains the reasons.
 
 ## What carries over
 
-**Character cards** (PNG or JSON, V1 to V3) import as they are. The card becomes a Markdown file in `characters/`, each lorebook entry a file in `lore/`, the card image the character's default image, and the greetings stay greetings.
+Teahouse imports **character cards** (PNG or JSON, V1 to V3) as they are. The card becomes a Markdown file in `characters/`, each lorebook entry becomes a file in `lore/`, the card image becomes the character's default image, and the greetings stay greetings.
 
-Lorebook logic (secondary keys, `selective`, `constant`, depth, order, recursion) is not carried over. Teahouse brings files into the story by their name, aliases and tags instead, within the space the model has. A lorebook entry's keys become its tags and aliases.
+Lorebook logic (secondary keys, `selective`, `constant`, depth, order, recursion) is not carried over. Instead, Teahouse includes files in the story by their name, aliases and tags, as far as they fit into what the model can read. The keys of a lorebook entry become its tags and aliases.
 
-**Endpoints:** anything that offers OpenAI-compatible chat completion. Text completion and SillyTavern presets are not supported.
+Teahouse works with any endpoint that offers OpenAI-compatible chat completion. It doesn't support text completion or SillyTavern presets.
 
-**Not imported yet:** chat logs, presets, sprite folders and World Info outside a card ([#99](https://github.com/Linyeir/teahouse/issues/99), [#103](https://github.com/Linyeir/teahouse/issues/103)).
+Chat logs, presets, sprite folders and World Info outside a card can't be imported yet ([#99](https://github.com/Linyeir/teahouse/issues/99), [#103](https://github.com/Linyeir/teahouse/issues/103)).
 
 ## What works differently
 
 | In SillyTavern | In Teahouse |
 |---|---|
-| One long chat | A chat is a series of scenes, and you end each one yourself |
-| Chat summaries and World Info you maintain | After each scene, Teahouse proposes what the world should remember, and you review it file by file |
-| Lorebook entries | Markdown files in a folder with a Git history, editable in any editor |
-| Group chats | Any character of the world can join a scene; you pick who speaks next, and a narrator describes what happens around them |
-| Sprites and backgrounds through extensions | Built in: images by mood per character, backgrounds per world |
-| One app per device | One server, with apps and browsers that sync through it and work offline |
+| One long chat | A chat is a series of scenes, and you end each scene yourself |
+| Chat summaries and World Info that you maintain | After each scene, Teahouse proposes what the world should remember, and you review the proposal file by file |
+| Lorebook entries | Markdown files in a folder with a Git history, which you can edit in any editor |
+| Group chats | Any character of the world can join a scene, you pick who speaks next, and a narrator describes what happens around the characters |
+| Sprites and backgrounds through extensions | Built in: images by mood for each character, and backgrounds for each world |
+| One app per device | One server, and apps and browsers that sync through it and also work offline |
 
-[How Teahouse works](how-it-works.md) walks through all of this as you meet it while playing.
+[How Teahouse works](how-it-works.md) explains all of this in the order in which you meet it while playing.
