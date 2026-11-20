@@ -15,6 +15,9 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 - Running the server from source needs Node.js 24 or later, as `.nvmrc`, the Docker image and CI already use. Node 22 failed two of the client tests. ([#64](https://github.com/Linyeir/teahouse/issues/64))
 
+- In the novel view, a card's greeting reads like every later reply: `*actions*` as narration, speech under the opener's name. A finished or regenerated reply starts at its first line, the name badge no longer covers text, and ▼ shows there's more to read, ▶ that a next message follows. ([#56](https://github.com/Linyeir/teahouse/issues/56))
+- The stage shows a background from the first message: `defaultBackground:` in `world.md`, else the world's first background, until the narrator picks one. Sprites shrink to fit when several characters are present, and the page counter stays readable over a bright background. ([#62](https://github.com/Linyeir/teahouse/issues/62))
+
 ### Fixed
 
 - In the novel view, Enter and Space on a focused button (Log, End scene, Continue) turned the page instead of pressing the button, so you could not play with the keyboard alone. The keys now page only when the stage has focus or nothing does. The page buttons are 44 px targets with a visible focus ring, and on a touchscreen tapping the left third of the stage goes back, the rest reads on. ([#54](https://github.com/Linyeir/teahouse/issues/54))

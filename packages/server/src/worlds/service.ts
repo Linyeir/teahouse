@@ -121,7 +121,7 @@ export class WorldService {
     await repo.ensure();
     await repo.commitAll(`Create world ${name}`);
     this.#folders.set(id, folder);
-    return { id, name, folder, summary: '', theme: {} };
+    return { id, name, folder, summary: '', theme: {}, defaultBackground: null };
   }
 
   /** Folder of a world, rescanning once if the ID is unknown. */
@@ -431,6 +431,8 @@ export class WorldService {
       name: stringValue(doc.data.name, folder),
       summary: stringValue(doc.data.summary),
       theme: sanitizeTheme(doc.data.theme),
+      defaultBackground:
+        typeof doc.data.defaultBackground === 'string' ? doc.data.defaultBackground : null,
     };
   }
 }

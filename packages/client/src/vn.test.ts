@@ -1,6 +1,6 @@
 import { NARRATOR_SPEAKER, type PathMessage, USER_SPEAKER } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
-import { stageKeyAction, vnPages } from './vn.ts';
+import { greetingBeats, stageKeyAction, vnPages } from './vn.ts';
 
 let n = 0;
 const msg = (
@@ -87,6 +87,54 @@ describe('vnPages', () => {
   });
 });
 
+describe('greetingBeats', () => {
+  const shape = (text: string) =>
+    greetingBeats(text, 'mira').map((b) => (b.type === 'say' ? `say:${b.text}` : `n:${b.text}`));
+
+  it('splits action and quoted speech', () => {
+    expect(shape('*smiles* "Hello"')).toEqual(['n:smiles', 'say:Hello']);
+    expect(shape('Mira looks up. “You came.” She waves.')).toEqual([
+      'n:Mira looks up.',
+      'say:You came.',
+      'n:She waves.',
+    ]);
+  });
+
+  it('reads unmarked text as speech when there are no quotes', () => {
+    expect(shape('*waves* Hi there. *grins*')).toEqual(['n:waves', 'say:Hi there.', 'n:grins']);
+  });
+});
+
+describe('vnPages with a greeting', () => {
+  it('names the opener and splits the greeting, but leaves tagged greetings alone', () => {
+    const greeting = msg('assistant', '*smiles* "Hello"');
+    const [page] = vnPages([greeting], ['mira', 'tomas'], new Set(), {
+      greeting: { messageId: greeting.id, opener: 'mira' },
+    });
+    expect(page?.speaker).toBe('mira');
+    expect(page?.beats).toEqual([
+      { type: 'narration', text: 'smiles', complete: true },
+      { type: 'say', who: 'mira', mood: null, text: 'Hello', complete: true },
+    ]);
+
+    const tagged = msg('assistant', '<narration>Rain.</narration>');
+    const [other] = vnPages([tagged], ['mira'], new Set(), {
+      greeting: { messageId: tagged.id, opener: 'mira' },
+    });
+    expect(other?.beats.map((b) => b.type)).toEqual(['narration']);
+  });
+
+  it('starts on the given background until the narrator picks one', () => {
+    const pages = vnPages(
+      [msg('assistant', 'Hi.'), msg('assistant', '<bg id="docks"/>Rain.')],
+      ['mira'],
+      new Set(['docks', 'inn']),
+      { background: 'inn' },
+    );
+    expect(pages.map((p) => p.stage.background)).toEqual(['inn', 'docks']);
+  });
+});
+
 describe('vnPages with speakers by name', () => {
   it('shows one sprite per cast member when a reply names them differently', () => {
     const slugs: Record<string, string> = { mira: 'mira', tomas: 'tomas' };
@@ -100,7 +148,7 @@ describe('vnPages with speakers by name', () => {
       ],
       ['mira', 'tomas'],
       new Set(),
-      (who) => slugs[who.toLowerCase()] ?? null,
+      { resolve: (who) => slugs[who.toLowerCase()] ?? null },
     );
     expect(page?.stage.present).toEqual([
       { who: 'mira', mood: 'amused' },

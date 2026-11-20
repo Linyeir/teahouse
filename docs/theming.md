@@ -15,6 +15,9 @@ theme:
 ---
 ```
 
+`defaultBackground: <id>` in the same frontmatter picks the background a chat starts with,
+until the narrator chooses one. Without it, the world's first background is used.
+
 Overrides apply to the visual novel view of that world's chats. Values are plain CSS values.
 Anything with `url(`, `;`, braces or angle brackets is ignored, so a shared world cannot load
 external resources or inject other styles.
