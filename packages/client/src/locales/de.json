@@ -261,7 +261,9 @@
     "proposing": "Schlage vor …",
     "startMessage": "Eröffnung",
     "cast": "Anwesend",
-    "start": "Szene beginnen"
+    "start": "Szene beginnen",
+    "background": "Hintergrund",
+    "noBackground": "Keiner"
   },
   "vn": {
     "showLog": "Verlauf",

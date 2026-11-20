@@ -390,3 +390,39 @@
 .menuList button:focus-visible {
   background: var(--color-bg);
 }
+
+/* A scene's title card: "Scene N" between two rules, over the opening stage. */
+.titleCard {
+  all: unset;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: rgb(0 0 0 / 45%);
+}
+
+.titleCard span {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  width: min(80%, 28rem);
+  color: #fff;
+  font-family: var(--font-story);
+  font-size: 2rem;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 60%);
+}
+
+.titleCard span::before,
+.titleCard span::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid rgb(255 255 255 / 70%);
+}
+
+.titleCard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -4px;
+}

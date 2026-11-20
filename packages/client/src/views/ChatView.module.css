@@ -23,6 +23,15 @@
   white-space: nowrap;
 }
 
+.sceneNumber {
+  margin-left: 0.6em;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -160,4 +169,23 @@ select.chip {
 .queued .body {
   opacity: 0.7;
   outline: 1px dashed var(--color-border);
+}
+
+/* Message tools in the log: on the last message, on hover and while focused inside. */
+.message .tools {
+  opacity: 0;
+}
+
+.message.last .tools,
+.message.queued .tools,
+.message:hover .tools,
+.message:focus-within .tools {
+  opacity: 1;
+}
+
+/* Touch screens have no hover: tools stay visible there. */
+@media (hover: none) {
+  .message .tools {
+    opacity: 1;
+  }
 }

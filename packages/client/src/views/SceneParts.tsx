@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CanonProposal, ChatPath, MemoryNode, ProposalFileView } from '@teahouse/shared';
+import {
+  type CanonProposal,
+  type ChatPath,
+  type MemoryNode,
+  type ProposalFileView,
+  sceneStage,
+} from '@teahouse/shared';
 import { diffLines } from 'diff';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.ts';
+import { Dialog } from '../components/Dialog.tsx';
 import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
-import { useCharacters } from '../queries.ts';
+import { backgroundsQuery, useCharacters, useWorlds } from '../queries.ts';
 import styles from './Scene.module.css';
 
 export function MemoryMarker({ node }: { node: MemoryNode }) {
@@ -19,7 +26,7 @@ export function MemoryMarker({ node }: { node: MemoryNode }) {
   );
 }
 
-/** Asks how to end the scene: with a canon update or without. */
+/** Asks how to end the scene, in a sheet over the stage: with a canon update or without. */
 export function EndScene({ chatId, onDone }: { chatId: string; onDone: () => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -31,32 +38,37 @@ export function EndScene({ chatId, onDone }: { chatId: string; onDone: () => voi
     },
   });
   return (
-    <div className={`${ui.card} ${styles.panel}`}>
-      <strong>{t('scenes.endTitle')}</strong>
-      <span className={ui.hint}>{t('scenes.endHint')}</span>
+    <Dialog
+      sheet
+      title={t('scenes.endTitle')}
+      onCancel={onDone}
+      actions={
+        <>
+          <button className={ui.button} type="button" onClick={onDone}>
+            {t('common.cancel')}
+          </button>
+          <button
+            className={ui.button}
+            type="button"
+            disabled={close.isPending}
+            onClick={() => close.mutate(false)}
+          >
+            {t('scenes.endWithoutCanon')}
+          </button>
+          <button
+            className={ui.primary}
+            type="button"
+            disabled={close.isPending}
+            onClick={() => close.mutate(true)}
+          >
+            {t('scenes.endWithCanon')}
+          </button>
+        </>
+      }
+    >
+      <p className={ui.hint}>{t('scenes.endHint')}</p>
       <ErrorText error={close.error} />
-      <div className={ui.actions}>
-        <button className={ui.button} type="button" onClick={onDone}>
-          {t('common.cancel')}
-        </button>
-        <button
-          className={ui.button}
-          type="button"
-          disabled={close.isPending}
-          onClick={() => close.mutate(false)}
-        >
-          {t('scenes.endWithoutCanon')}
-        </button>
-        <button
-          className={ui.primary}
-          type="button"
-          disabled={close.isPending}
-          onClick={() => close.mutate(true)}
-        >
-          {t('scenes.endWithCanon')}
-        </button>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -256,6 +268,13 @@ export function NewScene({ path }: { path: ChatPath }) {
   const [brief, setBrief] = useState('');
   const [startMessage, setStartMessage] = useState('');
   const [cast, setCast] = useState<string[]>(path.scene?.cast ?? []);
+  const backgrounds = useQuery(backgroundsQuery(path.chat.worldId));
+  const world = useWorlds().data?.find((w) => w.id === path.chat.worldId);
+  // Where the last scene ended, else the world's default.
+  const lastBackground =
+    sceneStage(path.messages, path.scene?.cast ?? []).background ?? world?.defaultBackground ?? '';
+  const [background, setBackground] = useState<string | null>(null);
+  const chosenBackground = background ?? lastBackground;
 
   const propose = useMutation({
     mutationFn: () =>
@@ -270,13 +289,22 @@ export function NewScene({ path }: { path: ChatPath }) {
   });
   const start = useMutation({
     mutationFn: () =>
-      api.post<ChatPath>(`/api/chats/${path.chat.id}/scenes`, { startMessage, cast }),
+      api.post<ChatPath>(`/api/chats/${path.chat.id}/scenes`, {
+        // The opening sets the background, so the stage and the narrator both know it.
+        startMessage:
+          chosenBackground && !/<bg\b/i.test(startMessage)
+            ? `<bg id="${chosenBackground}"/>\n${startMessage}`
+            : startMessage,
+        cast,
+      }),
     onSuccess: (data) => queryClient.setQueryData(['chat', path.chat.id], data),
   });
 
   return (
     <div className={`${ui.card} ${styles.panel}`}>
-      <strong>{t('scenes.nextTitle', { n: (path.scene?.number ?? 0) + 1 })}</strong>
+      <h3 className={styles.sceneTitle}>
+        {t('scenes.nextTitle', { n: (path.scene?.number ?? 0) + 1 })}
+      </h3>
       <Field label={t('scenes.brief')} hint={t('scenes.briefHint')}>
         <textarea
           className={ui.input}
@@ -304,6 +332,22 @@ export function NewScene({ path }: { path: ChatPath }) {
           onChange={(e) => setStartMessage(e.target.value)}
         />
       </Field>
+      {(backgrounds.data?.length ?? 0) > 0 && (
+        <Field label={t('scenes.background')}>
+          <select
+            className={ui.input}
+            value={chosenBackground}
+            onChange={(e) => setBackground(e.target.value)}
+          >
+            <option value="">{t('scenes.noBackground')}</option>
+            {backgrounds.data?.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.description || b.id}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <fieldset className={styles.cast} style={{ border: 'none', padding: 0, margin: 0 }}>
         <legend className={ui.hint}>{t('scenes.cast')}</legend>
         {characters.data?.map((c) => (
