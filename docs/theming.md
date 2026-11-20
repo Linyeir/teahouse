@@ -18,6 +18,9 @@ theme:
 `defaultBackground: <id>` in the same frontmatter picks the background a chat starts with,
 until the narrator chooses one. Without it, the world's first background is used.
 
+A character file can set its own badge color with `color: "#8e3b46"`. Without it, each
+character gets one of six colors that stay readable in the light and the dark theme.
+
 Overrides apply to the visual novel view of that world's chats. Values are plain CSS values.
 Anything with `url(`, `;`, braces or angle brackets is ignored, so a shared world cannot load
 external resources or inject other styles.
@@ -38,11 +41,11 @@ external resources or inject other styles.
 | `vn-textbox-color` | light beige | Text in the text box |
 | `vn-textbox-border` | thin light line | Text box border (a full `border` value) |
 | `vn-textbox-radius` | `10px` | Corners of text box and name badge |
-| `vn-name-bg` | accent | Speaker name badge |
+| `vn-name-bg` | a color per character | Speaker name badge. Set here, it replaces the per-character colors |
 | `vn-name-color` | accent text | Speaker name text |
 | `vn-font` | `font-story` | Text box font |
 | `vn-font-size` | `1.1rem` | Text box font size |
 | `vn-sprite-height` | `78%` | Character image height relative to the stage |
-| `vn-sprite-dim` | `0.55` | Opacity of characters who are not speaking |
+| `vn-sprite-dim` | `0.55` | Brightness of characters who are not speaking |
 
 The `color-*` tokens have light and dark defaults that follow the system setting.

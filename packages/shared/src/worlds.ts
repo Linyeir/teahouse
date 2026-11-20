@@ -87,6 +87,8 @@ export const characterSummary = z.object({
   summary: z.string(),
   greetings: z.array(z.string()),
   images: z.array(characterImage),
+  /** `color:` in the frontmatter: the name badge in the novel view. */
+  color: z.string().nullable(),
 });
 export type CharacterSummary = z.infer<typeof characterSummary>;
 
@@ -139,6 +141,16 @@ export const THEME_TOKENS = [
   'vn-sprite-height',
   'vn-sprite-dim',
 ] as const;
+
+const COLOR =
+  /^(#[0-9a-f]{3,8}|[a-z]{3,30}|(?:rgba?|hsla?|oklch|oklab|lch|lab)\([0-9a-z\s.,%/+-]{1,60}\))$/i;
+
+/** A CSS color from a world file, or null: hex, a name, or a color function without `url(`. */
+export function sanitizeColor(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const css = input.trim();
+  return COLOR.test(css) && !/url|expression/i.test(css) ? css : null;
+}
 
 export function sanitizeTheme(input: unknown): Record<string, string> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};

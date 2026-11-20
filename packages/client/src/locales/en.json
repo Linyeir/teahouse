@@ -107,7 +107,10 @@
     "narrator": "Narrator",
     "takeTurn": "Continue",
     "openProfiles": "Open Profiles",
-    "connectModel": "Connect a model to play: add a profile with your LLM endpoint."
+    "connectModel": "Connect a model to play: add a profile with your LLM endpoint.",
+    "sendTo": "Send — %{name} answers",
+    "sendNarrator": "Send — the narrator answers",
+    "someoneElse": "+ someone else"
   },
   "profiles": {
     "new": "New profile",
@@ -265,7 +268,10 @@
     "showNovel": "Novel",
     "empty": "The scene has not started yet.",
     "back": "Previous message",
-    "next": "Next message"
+    "next": "Next message",
+    "pickSpeaker": "%{name} takes the next turn",
+    "needsServer": "Needs the server",
+    "more": "More"
   },
   "images": {
     "characterTitle": "Images of %{name}",
