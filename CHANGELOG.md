@@ -2,7 +2,9 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [0.4.1] - unreleased
+## [0.4.1] - 2026-11-20
+
+**Updating:** apps and server can be updated in any order. **Branch from here**, the default background and the characters' name colors need a 0.4.1 server; with an older one, branching follows the newest reply instead, and the stage keeps its plain start and badge colors.
 
 ### Changed
 
