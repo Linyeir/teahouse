@@ -383,6 +383,8 @@ describe('scenes', () => {
     const fog = ready.files.find((f) => f.path === 'lore/fog.md');
     expect(fog?.after).toContain('The cold current.\n\nA curse.');
     expect(fog?.after).toContain('summary: Old.');
+    // The review says what really happens: an addition, and no new summary.
+    expect(fog?.changes).toEqual([{ op: 'append_section', detail: 'Origin' }]);
     expect(ready.notes.map((n) => [n.path, n.op, n.outcome, n.detail])).toEqual([
       ['characters/mira.md', 'add_alias', 'flagged', 'The Fox'],
       ['lore/fog.md', 'replace_section', 'downgraded', 'Origin'],

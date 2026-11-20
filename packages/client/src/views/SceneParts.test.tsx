@@ -49,6 +49,35 @@ describe('canon proposal review', () => {
     expect(html).toContain('Propose again');
   });
 
+  it('opens with what the world will remember, and the changes in words', () => {
+    const html = render(
+      proposal({
+        status: 'ready',
+        files: [
+          {
+            path: 'events/deal.md',
+            before: null,
+            after: '---\ntype: event\nname: The tavern deal\nsummary: Ash agreed.\nchat: c1\n---\n',
+            decision: 'pending',
+            changes: [{ op: 'event', detail: 'The tavern deal' }],
+          },
+          {
+            path: 'characters/mira.md',
+            before: '---\nname: Mira\n---\n',
+            after: '---\nname: Mira\n---\n\n## Relationships\n\nOwes Ash.\n',
+            decision: 'pending',
+            changes: [{ op: 'append_section', detail: 'Relationships' }],
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('The tavern deal');
+    expect(html).toContain('Ash agreed.');
+    expect(html).toContain('2 changes: 1 new, 1 changed');
+    expect(html).toContain('Adds to „Relationships“');
+    expect(html).toContain('2 files still need a decision');
+  });
+
   it('lists the changes that were not applied as proposed, in words', () => {
     const html = render(
       proposal({

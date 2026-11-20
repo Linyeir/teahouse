@@ -197,11 +197,22 @@ export const sceneStartInput = z.object({
 });
 export type SceneStartInput = z.infer<typeof sceneStartInput>;
 
+/** One proposed change in a file, for the review to say in words. */
+export const proposalChange = z.object({
+  /** `event` for the scene's own event file, else the canon operation, e.g. `add_alias`. */
+  op: z.string(),
+  /** A section heading, an alias or a tag; null where there is none. */
+  detail: z.string().nullable(),
+});
+export type ProposalChange = z.infer<typeof proposalChange>;
+
 export const proposalFile = z.object({
   path: z.string(),
   before: z.string().nullable(),
   after: z.string(),
   decision: z.enum(['pending', 'accepted', 'rejected']),
+  /** What changes in the file; empty for proposals made before 0.4.2. */
+  changes: z.array(proposalChange).default([]),
 });
 export type ProposalFileView = z.infer<typeof proposalFile>;
 
