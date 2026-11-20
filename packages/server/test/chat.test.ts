@@ -134,6 +134,39 @@ describe('chat', () => {
     expect(path.messages.at(-1)?.content).toBe('reply 1');
   });
 
+  it('branches from an earlier message and keeps the old path as a sibling', async () => {
+    let n = 0;
+    const { api, chat } = await setup(async function* () {
+      yield `reply ${++n}`;
+    });
+    const id = chat.chat.id;
+    await api('POST', `/api/chats/${id}/messages`, { content: 'One' });
+    await waitForStatus(api, id, 'complete');
+    await api('POST', `/api/chats/${id}/messages`, { content: 'Two' });
+    await waitForStatus(api, id, 'complete');
+    const before = (await api<ChatPath>('GET', `/api/chats/${id}`)).body.messages;
+    const reply1 = before.find((m) => m.content === 'reply 1');
+    if (!reply1) throw new Error('no first reply');
+
+    // The path now ends at the first reply; the second exchange is kept, out of sight.
+    let path = (
+      await api<ChatPath>('POST', `/api/chats/${id}/leaf`, { messageId: reply1.id, exact: true })
+    ).body;
+    expect(path.messages.at(-1)?.id).toBe(reply1.id);
+
+    await api('POST', `/api/chats/${id}/messages`, { content: 'Other' });
+    await waitForStatus(api, id, 'complete');
+    path = (await api<ChatPath>('GET', `/api/chats/${id}`)).body;
+    const other = path.messages.find((m) => m.content === 'Other');
+    expect(other?.siblingIds).toHaveLength(2);
+    expect(path.messages.map((m) => m.content)).not.toContain('Two');
+
+    // The old path is still there, one switch away.
+    const old = other?.siblingIds.find((s) => s !== other.id) ?? '';
+    path = (await api<ChatPath>('POST', `/api/chats/${id}/leaf`, { messageId: old })).body;
+    expect(path.messages.map((m) => m.content)).toContain('Two');
+  });
+
   it('stops a running generation and keeps the partial text', async () => {
     let waiting = false;
     const { api, chat } = await setup(async function* (_p, _m, signal) {

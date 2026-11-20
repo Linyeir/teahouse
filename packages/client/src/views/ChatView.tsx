@@ -120,6 +120,18 @@ export function ChatView() {
       api.post<ChatPath>(`/api/chats/${chatId}/leaf`, { messageId }),
     onSuccess: refresh,
   });
+  // "Branch from here": the path ends at that message until the next one starts the branch.
+  const [branched, setBranched] = useState<{ chatId: string; at: string; from: string } | null>(
+    null,
+  );
+  const branch = useMutation({
+    mutationFn: (input: { at: string; from: string }) =>
+      api.post<ChatPath>(`/api/chats/${chatId}/leaf`, { messageId: input.at, exact: true }),
+    onSuccess: (data, input) => {
+      refresh(data);
+      setBranched({ chatId, ...input });
+    },
+  });
   const edit = useMutation<EditMessageResult, Error, EditVariables>({
     mutationKey: editKey(chatId),
   });
@@ -291,6 +303,8 @@ export function ChatView() {
                       editText: (id) => messages.find((m) => m.id === id)?.content ?? '',
                       onEdit: (m, content) =>
                         edit.mutate({ chatId, id: m.id, content, baseRevision: m.revision }),
+                      onBranch: (m) =>
+                        branch.mutate({ at: m.id, from: data.chat.activeLeafId ?? m.id }),
                     }
                   : undefined
               }
@@ -347,6 +361,15 @@ export function ChatView() {
                 canRegenerate={message.id !== scene?.startMessageId}
                 onSelect={(id) => selectLeaf.mutate(id)}
                 onRegenerate={() => regenerate.mutate(message.id)}
+                onBranch={
+                  message === last
+                    ? undefined
+                    : () =>
+                        branch.mutate({
+                          at: message.id,
+                          from: data.chat.activeLeafId ?? message.id,
+                        })
+                }
                 onEdit={(content) =>
                   edit.mutate({ chatId, id: message.id, content, baseRevision: message.revision })
                 }
@@ -359,6 +382,22 @@ export function ChatView() {
         {pending.map((draft) => (
           <QueuedMessage key={draft.id} draft={draft} online={online} />
         ))}
+        {branched?.chatId === chatId && last?.id === branched.at && active && (
+          <div className={`${styles.message} ${styles.branchNotice}`} role="status">
+            <span>{t('chats.branchNotice')}</span>
+            <button
+              className={ui.ghost}
+              type="button"
+              disabled={!online}
+              onClick={() => {
+                selectLeaf.mutate(branched.from);
+                setBranched(null);
+              }}
+            >
+              {t('chats.branchUndo')}
+            </button>
+          </div>
+        )}
         <div className={styles.message}>
           <ErrorBanner error={actionError} onRetry={retryAction} />
         </div>
@@ -409,6 +448,7 @@ function MessageView({
   onSelect = () => {},
   onRegenerate = () => {},
   onEdit = () => {},
+  onBranch,
 }: {
   message: PathMessage;
   /** The text with its placeholders filled in; editing shows the stored one. */
@@ -423,6 +463,7 @@ function MessageView({
   onSelect?: (id: string) => void;
   onRegenerate?: () => void;
   onEdit?: (content: string) => void;
+  onBranch?: () => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
@@ -492,6 +533,7 @@ function MessageView({
           onSelect={onSelect}
           onRegenerate={onRegenerate}
           onEdit={() => setDraft(message.content)}
+          onBranch={onBranch}
         />
       )}
     </div>
@@ -526,12 +568,14 @@ function MessageTools({
   onSelect,
   onRegenerate,
   onEdit,
+  onBranch,
 }: {
   message: PathMessage;
   canRegenerate: boolean;
   onSelect: (id: string) => void;
   onRegenerate: () => void;
   onEdit?: () => void;
+  onBranch?: () => void;
 }) {
   const { t } = useTranslation();
   // Switching versions and regenerating need the server; editing can wait.
@@ -568,6 +612,11 @@ function MessageTools({
       {onEdit && (
         <button className={ui.ghost} type="button" onClick={onEdit}>
           {t('common.edit')}
+        </button>
+      )}
+      {onBranch && (
+        <button className={ui.ghost} type="button" disabled={!online} onClick={onBranch}>
+          {t('chats.branch')}
         </button>
       )}
       {canRegenerate && message.role === 'assistant' && message.parentId !== null && (
