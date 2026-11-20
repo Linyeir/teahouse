@@ -31,16 +31,44 @@ export function speakerName(
   return name ? { name, known: true } : { name: who || '?', known: false };
 }
 
-/** The log view of a message: narration as prose, lines with the speaker's name. */
+/** Each character's last mood before each message, for `BeatsText`. */
+export function moodsBefore(
+  messages: { id: string; role: string; content: string; status: string }[],
+): Map<string, ReadonlyMap<string, string>> {
+  const result = new Map<string, ReadonlyMap<string, string>>();
+  let moods = new Map<string, string>();
+  for (const message of messages) {
+    result.set(message.id, moods);
+    const next = new Map(moods);
+    for (const beat of messageBeats(message)) {
+      if (beat.type === 'say' && beat.mood) next.set(beat.who, beat.mood);
+    }
+    moods = next;
+  }
+  return result;
+}
+
+/**
+ * The log view of a message: narration as prose, lines with the speaker's name. The name is
+ * left out on lines of the message's own speaker, whose name already stands above it, as in
+ * the novel view. A mood shows only when it changes: `moods` holds each character's last mood
+ * before this message (see `moodsBefore`).
+ */
 export function BeatsText({
   beats,
   names,
   userName,
+  speaker = null,
+  moods = new Map(),
 }: {
   beats: Beat[];
   names: Map<string, string>;
   userName: string;
+  /** Whose turn the message is: a character slug, or null. */
+  speaker?: string | null;
+  moods?: ReadonlyMap<string, string>;
 }) {
+  const last = new Map(moods);
   return (
     <>
       {beats.map((beat, i) => {
@@ -53,11 +81,19 @@ export function BeatsText({
           );
         }
         if (beat.type === 'say') {
-          const speaker = speakerName(beat.who, names, userName);
+          const who = speakerName(beat.who, names, userName);
+          const mood = beat.mood && beat.mood !== last.get(beat.who) ? beat.mood : null;
+          if (beat.mood) last.set(beat.who, beat.mood);
+          const named = beat.who !== speaker;
           return (
             <p key={key} className={styles.say}>
-              <span className={speaker.known ? styles.name : styles.unknown}>{speaker.name}</span>
-              {beat.mood && <span className={styles.mood}> ({beat.mood})</span>}:{' '}
+              {named && (
+                <>
+                  <span className={who.known ? styles.name : styles.unknown}>{who.name}</span>
+                  {': '}
+                </>
+              )}
+              {mood && <span className={styles.mood}>{mood}</span>}
               {formatStory(beat.text)}
             </p>
           );

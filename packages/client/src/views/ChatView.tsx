@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
 import { api } from '../api.ts';
-import { BeatsText, formatStory, messageBeats } from '../components/Beats.tsx';
+import { BeatsText, formatStory, messageBeats, moodsBefore } from '../components/Beats.tsx';
 import { ErrorBanner, GenerationError, NoProfileNotice } from '../components/ErrorBanner.tsx';
 import ui from '../components/ui.module.css';
 import { onDraftRestored, readDraft, restoreDraft, writeDraft } from '../drafts.ts';
@@ -173,7 +173,18 @@ export function ChatView() {
     chatCharacter: names.get(data.chat.characterSlug) ?? data.chat.characterSlug,
   };
   const pending = queued.filter((v) => !messages.some((m) => m.id === v.id));
+  // Scene 1 opens with the card greeting, whether it is still running or closed.
+  const firstScene = data.closedScenes[0]?.scene ?? scene;
+  const greeting =
+    firstScene?.number === 1 && firstScene.startMessageId
+      ? { messageId: firstScene.startMessageId, opener: data.chat.characterSlug }
+      : undefined;
   const memoryAt = new Map(data.memory.map((node) => [node.messageId, node]));
+  // The log shows a mood only where it changes, across all scenes.
+  const moods =
+    view === 'log'
+      ? moodsBefore([...data.closedScenes.flatMap((c) => c.messages), ...messages])
+      : new Map();
 
   return (
     <>
@@ -185,7 +196,12 @@ export function ChatView() {
         >
           ‹
         </Link>
-        <h2 className={styles.title}>{data.chat.title}</h2>
+        <h2 className={styles.title}>
+          {data.chat.title}
+          {scene && (
+            <span className={styles.sceneNumber}>{t('scenes.title', { n: scene.number })}</span>
+          )}
+        </h2>
         <button
           className={ui.ghost}
           type="button"
@@ -233,13 +249,31 @@ export function ChatView() {
           <>
             <VnStage
               worldId={worldId}
-              messages={messages.map((m) => ({ ...m, content: shownContent(m, placeholders) }))}
-              cast={scene?.cast ?? []}
-              greeting={
-                scene?.number === 1 && scene.startMessageId
-                  ? { messageId: scene.startMessageId, opener: data.chat.characterSlug }
-                  : undefined
-              }
+              scenes={[
+                ...data.closedScenes.map((closed) => ({
+                  number: closed.scene.number,
+                  cast: closed.scene.cast,
+                  messages: closed.messages.map((m) => ({
+                    ...m,
+                    content: shownContent(m, placeholders),
+                  })),
+                  readOnly: true,
+                })),
+                ...(scene
+                  ? [
+                      {
+                        number: scene.number,
+                        cast: scene.cast,
+                        messages: messages.map((m) => ({
+                          ...m,
+                          content: shownContent(m, placeholders),
+                        })),
+                        readOnly: !active,
+                      },
+                    ]
+                  : []),
+              ]}
+              greeting={greeting}
               characters={characters.data ?? []}
               backgrounds={backgrounds.data ?? []}
               defaultBackground={world?.defaultBackground ?? null}
@@ -287,6 +321,7 @@ export function ChatView() {
                   shown={shownContent(message, placeholders)}
                   names={names}
                   userName={userName}
+                  moods={moods.get(message.id)}
                   readOnly
                 />
               ))}
@@ -306,6 +341,7 @@ export function ChatView() {
                 shown={shownContent(message, placeholders)}
                 names={names}
                 userName={userName}
+                moods={moods.get(message.id)}
                 isLast={message === last}
                 readOnly={!active}
                 canRegenerate={message.id !== scene?.startMessageId}
@@ -366,6 +402,7 @@ function MessageView({
   shown,
   names,
   userName,
+  moods,
   isLast = false,
   readOnly = false,
   canRegenerate = true,
@@ -378,6 +415,8 @@ function MessageView({
   shown: string;
   names: Map<string, string>;
   userName: string;
+  /** Each character's last mood before this message. */
+  moods?: ReadonlyMap<string, string>;
   isLast?: boolean;
   readOnly?: boolean;
   canRegenerate?: boolean;
@@ -394,7 +433,11 @@ function MessageView({
       : message.speaker && (names.get(message.speaker) ?? message.speaker);
 
   return (
-    <div className={`${styles.message} ${message.role === 'user' ? styles.user : ''}`}>
+    <div
+      className={`${styles.message} ${message.role === 'user' ? styles.user : ''} ${
+        isLast ? styles.last : ''
+      }`}
+    >
       {speaker && <div className={styles.speaker}>{speaker}</div>}
       {draft === null ? (
         <div className={`${styles.body} ${streaming ? styles.cursor : ''}`}>
@@ -405,6 +448,8 @@ function MessageView({
               beats={messageBeats({ ...message, content: shown })}
               names={names}
               userName={userName}
+              speaker={message.speaker}
+              moods={moods}
             />
           )}
         </div>

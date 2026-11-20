@@ -10,12 +10,15 @@ export function Dialog({
   children,
   actions,
   onCancel,
+  sheet = false,
 }: {
   title: string;
   children?: ReactNode;
   /** Buttons, the primary one last. */
   actions: ReactNode;
   onCancel: () => void;
+  /** A sheet from the bottom edge on phones, a dialog elsewhere. */
+  sheet?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -27,7 +30,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={ui.dialog}
+      className={`${ui.dialog} ${sheet ? ui.sheet : ''}`}
       aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();

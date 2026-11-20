@@ -1,6 +1,7 @@
 import {
   type CharacterSummary,
   type PathMessage,
+  type StageState,
   USER_SPEAKER,
   type WorldBackground,
 } from '@teahouse/shared';
@@ -27,8 +28,7 @@ function spriteFor(character: CharacterSummary | undefined, mood: string | null)
 
 export function VnStage({
   worldId,
-  messages,
-  cast,
+  scenes,
   greeting,
   characters,
   backgrounds,
@@ -40,8 +40,8 @@ export function VnStage({
   onPickSpeaker,
 }: {
   worldId: string;
-  messages: PathMessage[];
-  cast: string[];
+  /** Every scene of the chat in order, the current one last. Closed scenes are read-only. */
+  scenes: StageScene[];
   greeting?: { messageId: string; opener: string };
   characters: CharacterSummary[];
   backgrounds: WorldBackground[];
@@ -65,18 +65,52 @@ export function VnStage({
   // Until the narrator picks one: the world's default background, else its first.
   const startBackground =
     backgrounds.find((b) => b.id === defaultBackground)?.id ?? backgrounds[0]?.id ?? null;
-  const pages = vnPages(messages, cast, new Set(backgrounds.map((b) => b.id)), {
-    greeting,
-    background: startBackground,
-    resolve: (who) => slugs.get(who.trim().toLowerCase()) ?? null,
+  const known = new Set(backgrounds.map((b) => b.id));
+  // Each scene opens with a title card, then a page per message.
+  const pages: StagePage[] = scenes.flatMap((scene) => {
+    const messagePages = vnPages(scene.messages, scene.cast, known, {
+      greeting,
+      background: startBackground,
+      resolve: (who) => slugs.get(who.trim().toLowerCase()) ?? null,
+    });
+    const opening: StageState = messagePages[0]?.stage ?? {
+      background: startBackground,
+      present: scene.cast.map((who) => ({ who, mood: null })),
+      speaker: null,
+    };
+    return [
+      { scene: scene.number, readOnly: scene.readOnly, page: null, stage: opening },
+      ...messagePages.map((page) => ({
+        scene: scene.number,
+        readOnly: scene.readOnly,
+        page,
+        stage: page.stage,
+      })),
+    ];
   });
+  const current = scenes.at(-1);
+  const messages = current?.messages ?? [];
+  const cast = current?.cast ?? [];
 
   // null follows the newest message (also while it streams in).
   const [cursor, setCursor] = useState<number | null>(null);
   const position = Math.min(cursor ?? pages.length - 1, pages.length - 1);
   const atEnd = position >= pages.length - 1;
-  const page = pages[position];
+  const entry = pages[position];
+  const page = entry?.page ?? undefined;
   const streaming = page?.message.status === 'streaming' && atEnd;
+
+  // A scene that just started opens on its title card.
+  const sceneNumber = current?.number ?? 0;
+  const seenScene = useRef(sceneNumber);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when a new scene begins
+  useEffect(() => {
+    if (sceneNumber > seenScene.current) {
+      const title = pages.findIndex((p) => p.scene === sceneNumber && p.page === null);
+      if (title >= 0) setCursor(title >= pages.length - 1 ? null : title);
+    }
+    seenScene.current = sceneNumber;
+  }, [sceneNumber]);
 
   const go = (delta: number) => {
     const next = Math.max(0, Math.min(pages.length - 1, position + delta));
@@ -168,7 +202,7 @@ export function VnStage({
   }, [pageId, length, streaming]);
   const cue = streaming ? null : overflow ? '▼' : atEnd ? null : '▶';
 
-  const stage = page?.stage;
+  const stage = entry?.stage;
   const background = backgrounds.find((b) => b.id === (stage?.background ?? startBackground));
   const names = new Map(characters.map((c) => [c.slug, c.name]));
   const themeStyle = Object.fromEntries(
@@ -240,69 +274,81 @@ export function VnStage({
             );
           })}
         </div>
-        <div className={styles.textboxFrame}>
-          {speaker && (
-            <span
-              className={`${styles.name} ${speaker.known ? '' : styles.unknown} ${
-                page?.speaker === USER_SPEAKER ? styles.userName : ''
-              }`}
-              style={badge}
-            >
-              {speaker.name}
-            </span>
-          )}
-          {editing ? (
-            <form
-              className={styles.editor}
-              onSubmit={(e) => {
-                e.preventDefault();
-                const message = messages.find((m) => m.id === editing.id);
-                if (message && tools) tools.onEdit(message, editing.text);
-                setEditing(null);
-              }}
-            >
-              <textarea
-                aria-label={t('common.edit')}
-                value={editing.text}
-                onChange={(e) => setEditing({ ...editing, text: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setEditing(null);
+        {entry && !entry.page ? (
+          // A scene's first page: its number over the opening stage.
+          <button
+            type="button"
+            ref={textboxButton}
+            className={styles.titleCard}
+            onClick={() => pointer.current !== 'touch' && go(1)}
+          >
+            <span>{t('scenes.title', { n: entry.scene })}</span>
+          </button>
+        ) : (
+          <div className={styles.textboxFrame}>
+            {speaker && (
+              <span
+                className={`${styles.name} ${speaker.known ? '' : styles.unknown} ${
+                  page?.speaker === USER_SPEAKER ? styles.userName : ''
+                }`}
+                style={badge}
+              >
+                {speaker.name}
+              </span>
+            )}
+            {editing ? (
+              <form
+                className={styles.editor}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const message = messages.find((m) => m.id === editing.id);
+                  if (message && tools) tools.onEdit(message, editing.text);
+                  setEditing(null);
                 }}
-                // biome-ignore lint/a11y/noAutofocus: the user just asked to edit this text
-                autoFocus
-              />
-              <div className={styles.editorActions}>
-                <button className={ui.button} type="button" onClick={() => setEditing(null)}>
-                  {t('common.cancel')}
-                </button>
-                <button className={ui.primary} type="submit">
-                  {t('common.save')}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              ref={textboxButton}
-              className={styles.textbox}
-              // Touch taps are the stage's (see onStageClick); a click or a key reads on.
-              onClick={() => pointer.current !== 'touch' && advance()}
-            >
-              <div ref={textbox} className={styles.scroll} onScroll={measure}>
-                {page ? (
-                  <PageText page={page} names={names} userName={userName} streaming={streaming} />
-                ) : (
-                  <span className={`${styles.text} ${styles.empty}`}>{t('vn.empty')}</span>
+              >
+                <textarea
+                  aria-label={t('common.edit')}
+                  value={editing.text}
+                  onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setEditing(null);
+                  }}
+                  // biome-ignore lint/a11y/noAutofocus: the user just asked to edit this text
+                  autoFocus
+                />
+                <div className={styles.editorActions}>
+                  <button className={ui.button} type="button" onClick={() => setEditing(null)}>
+                    {t('common.cancel')}
+                  </button>
+                  <button className={ui.primary} type="submit">
+                    {t('common.save')}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                type="button"
+                ref={textboxButton}
+                className={styles.textbox}
+                // Touch taps are the stage's (see onStageClick); a click or a key reads on.
+                onClick={() => pointer.current !== 'touch' && advance()}
+              >
+                <div ref={textbox} className={styles.scroll} onScroll={measure}>
+                  {page ? (
+                    <PageText page={page} names={names} userName={userName} streaming={streaming} />
+                  ) : (
+                    <span className={`${styles.text} ${styles.empty}`}>{t('vn.empty')}</span>
+                  )}
+                </div>
+                {cue && (
+                  <span className={styles.cue} aria-hidden="true">
+                    {cue}
+                  </span>
                 )}
-              </div>
-              {cue && (
-                <span className={styles.cue} aria-hidden="true">
-                  {cue}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
+              </button>
+            )}
+          </div>
+        )}
         <div className={styles.controls}>
           <button
             type="button"
@@ -323,7 +369,7 @@ export function VnStage({
           {announcement}
         </span>
       </div>
-      {tools && page && !streaming && !editing && (
+      {tools && page && !entry?.readOnly && !streaming && !editing && (
         <PageTools
           message={page.message}
           last={atEnd}
@@ -333,6 +379,22 @@ export function VnStage({
       )}
     </>
   );
+}
+
+/** A scene as the stage shows it. */
+export interface StageScene {
+  number: number;
+  cast: string[];
+  messages: PathMessage[];
+  readOnly: boolean;
+}
+
+/** A page of the stage: a scene's title card (`page` null) or one of its messages. */
+interface StagePage {
+  scene: number;
+  readOnly: boolean;
+  page: VnPage | null;
+  stage: StageState;
 }
 
 export interface StageTools {

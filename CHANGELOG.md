@@ -22,6 +22,9 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 - Each character's name badge has its own color: `color:` in the character file, else one of six that stay readable in light and dark. Your own name is an outline. Characters who are not speaking are darkened instead of see-through, and from four characters on they overlap, the speaker in front. ([#69](https://github.com/Linyeir/teahouse/issues/69))
 - You pick who takes the next turn with chips above the text field (everyone present, the narrator, **+ someone else**), or by tapping a character on the stage. The arrow keys move between the chips, and the send button says who answers. ([#82](https://github.com/Linyeir/teahouse/issues/82))
 
+- In the novel view, each scene starts with a "Scene N" title card, and the header shows the scene number. From the first page of a scene, ‹ goes back into the scenes before it, read-only. The panel for the next scene lets you pick its background, which shows from its first page and is part of the opening the narrator reads. **End scene** opens a sheet over the stage instead of squeezing it. ([#70](https://github.com/Linyeir/teahouse/issues/70))
+- The log view is quieter: a line by the character whose turn it is no longer repeats their name, a mood shows as a small chip only where it changes, and the message tools show on the last message and on hover or keyboard focus. ([#79](https://github.com/Linyeir/teahouse/issues/79))
+
 ### Fixed
 
 - In the novel view, Enter and Space on a focused button (Log, End scene, Continue) turned the page instead of pressing the button, so you could not play with the keyboard alone. The keys now page only when the stage has focus or nothing does. The page buttons are 44 px targets with a visible focus ring, and on a touchscreen tapping the left third of the stage goes back, the rest reads on. ([#54](https://github.com/Linyeir/teahouse/issues/54))

@@ -261,7 +261,9 @@
     "proposing": "Proposing…",
     "startMessage": "Opening",
     "cast": "Present",
-    "start": "Start scene"
+    "start": "Start scene",
+    "background": "Background",
+    "noBackground": "None"
   },
   "vn": {
     "showLog": "Log",

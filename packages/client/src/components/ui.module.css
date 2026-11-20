@@ -164,6 +164,17 @@ textarea.input {
   padding: calc(var(--space) * 1.5);
 }
 
+/* On phones a sheet sits at the bottom edge, full width. */
+@media (max-width: 720px) {
+  .sheet {
+    margin: auto 0 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: 0;
+  }
+}
+
 .dialog::backdrop {
   background: rgb(0 0 0 / 40%);
 }
