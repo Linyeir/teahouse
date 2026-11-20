@@ -1,4 +1,4 @@
-import type { ProposalNote } from '@teahouse/shared';
+import type { ProposalChange, ProposalNote } from '@teahouse/shared';
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // Columns every synced row carries, so v0.3 sync can be added without a migration of the model.
@@ -115,6 +115,8 @@ export interface ProposalFile {
   /** Proposed content (possibly edited by the user). */
   after: string;
   decision: 'pending' | 'accepted' | 'rejected';
+  /** What changes in the file, for the review (missing in proposals before 0.4.2). */
+  changes?: ProposalChange[];
 }
 
 export const canonProposals = sqliteTable('canon_proposals', {

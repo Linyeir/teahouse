@@ -254,9 +254,7 @@
     "reject": "Reject",
     "saveAndAccept": "Save and accept",
     "regenerate": "Propose again",
-    "apply": "Commit %{count} files and close the scene",
     "closeWithoutChanges": "Close without changes",
-    "decideAll": "Decide on every file first",
     "nextTitle": "Scene %{n}",
     "brief": "Brief",
     "briefHint": "A few words on what happens next. Teahouse proposes an opening and a cast.",
@@ -276,6 +274,28 @@
       "invalid_path": "left out, not a valid path",
       "wrong_folder": "left out, new files belong in characters/, places/, events/ or lore/",
       "invalid_yaml": "left out, the file's frontmatter is not valid YAML"
+    },
+    "reviewWaiting": "The canon changes of this scene are waiting for your decision.",
+    "openReview": "Review canon changes",
+    "viewScene": "View scene",
+    "rawDiff": "Raw diff",
+    "conflictHint": "This file changed while the proposal was waiting. Edit it and resolve the marked parts, then accept it.",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "counts_one": "1 change: %{created} new, %{changed} changed",
+    "counts_other": "%{count} changes: %{created} new, %{changed} changed",
+    "decideAll_one": "1 file still needs a decision",
+    "decideAll_other": "%{count} files still need a decision",
+    "apply_one": "Commit 1 file",
+    "apply_other": "Commit %{count} files",
+    "change": {
+      "event": "Remembers the scene as „%{detail}“",
+      "create": "New file",
+      "append_section": "Adds to „%{detail}“",
+      "replace_section": "Rewrites „%{detail}“",
+      "set_summary": "New summary",
+      "add_alias": "Also known as „%{detail}“",
+      "add_tag": "New tag „%{detail}“"
     }
   },
   "vn": {

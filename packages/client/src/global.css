@@ -8,6 +8,7 @@
   --color-accent: #7a4e2d;
   --color-accent-text: #ffffff;
   --color-danger: #a33b2b;
+  --color-success: #2f6b3a;
   --color-user-bubble: #e8dfd2;
   --color-diff-add: #dcefd9;
   --color-diff-remove: #f5dcd7;
@@ -42,6 +43,7 @@
     --color-accent: #d29a6a;
     --color-accent-text: #1b1916;
     --color-danger: #e0715f;
+    --color-success: #8fcf98;
     --color-user-bubble: #34302a;
     --color-diff-add: #23392a;
     --color-diff-remove: #45272a;

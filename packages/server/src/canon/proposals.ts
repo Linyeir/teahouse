@@ -105,7 +105,7 @@ export class CanonProposals {
           sceneId: row.sceneId,
           status: row.status,
           error: row.error,
-          files: row.files,
+          files: row.files.map((f) => ({ ...f, changes: f.changes ?? [] })),
           notes: row.notes,
         }
       : null;
@@ -415,13 +415,35 @@ export class CanonProposals {
     const applied = applyOps(current, operations, seen);
     const notes = [...aliasNotes, ...applied.notes].map(toNote);
 
+    // What each file gets, from the operations that went through (not the skipped ones).
+    const skippedOps = new Set(
+      applied.notes.filter((n) => n.outcome === 'skipped').map((n) => n.op),
+    );
+    const downgraded = new Set(
+      applied.notes.filter((n) => n.outcome === 'downgraded').map((n) => n.op),
+    );
+    const changesOf = (path: string) =>
+      operations
+        .filter((op) => !skippedOps.has(op) && normalizePath(op.path) === path)
+        // A downgraded replace was applied as an addition, so the review says so.
+        .map((op) => ({
+          op: downgraded.has(op) ? 'append_section' : op.op,
+          detail: opDetail(op),
+        }));
     const proposalFiles: ProposalFile[] = [
-      { path: eventPath, before: null, after: eventFile, decision: 'pending' },
+      {
+        path: eventPath,
+        before: null,
+        after: eventFile,
+        decision: 'pending',
+        changes: [{ op: 'event', detail: update.event.title }],
+      },
       ...[...applied.files].map(([path, after]) => ({
         path,
         before: current.get(path) ?? null,
         after,
         decision: 'pending' as const,
+        changes: changesOf(path),
       })),
     ];
     const baseCommit = (await worlds.history(chat.worldId))[0]?.sha ?? null;
@@ -499,23 +521,23 @@ export class CanonProposals {
   }
 }
 
+/** What an operation is about: a section heading, an alias or a tag. */
+function opDetail(op: CanonOp): string | null {
+  if (op.op === 'append_section' || op.op === 'replace_section') return op.heading;
+  if (op.op === 'add_alias') return op.alias;
+  if (op.op === 'add_tag') return op.tag;
+  return null;
+}
+
 /** A note for the review: which operation, on which file, what happened and why. */
 function toNote({ op, code, outcome, reason }: OpNote): ProposalNote {
-  const detail = (o: CanonOp) =>
-    o.op === 'append_section' || o.op === 'replace_section'
-      ? o.heading
-      : o.op === 'add_alias'
-        ? o.alias
-        : o.op === 'add_tag'
-          ? o.tag
-          : null;
   return {
     path: normalizePath(op.path) ?? op.path,
     op: op.op,
     code,
     outcome,
     reason,
-    detail: detail(op),
+    detail: opDetail(op),
   };
 }
 

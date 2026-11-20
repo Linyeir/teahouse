@@ -254,9 +254,7 @@
     "reject": "Verwerfen",
     "saveAndAccept": "Speichern und annehmen",
     "regenerate": "Neu vorschlagen",
-    "apply": "%{count} Dateien committen und Szene beenden",
     "closeWithoutChanges": "Ohne Änderungen beenden",
-    "decideAll": "Entscheide zuerst über jede Datei",
     "nextTitle": "Szene %{n}",
     "brief": "Vorgabe",
     "briefHint": "Ein paar Worte dazu, was als Nächstes passiert. Teahouse schlägt Eröffnung und Besetzung vor.",
@@ -276,6 +274,28 @@
       "invalid_path": "weggelassen, kein gültiger Pfad",
       "wrong_folder": "weggelassen, neue Dateien gehören nach characters/, places/, events/ oder lore/",
       "invalid_yaml": "weggelassen, der Frontmatter der Datei ist kein gültiges YAML"
+    },
+    "reviewWaiting": "Die Canon-Änderungen dieser Szene warten auf deine Entscheidung.",
+    "openReview": "Canon-Änderungen prüfen",
+    "viewScene": "Szene ansehen",
+    "rawDiff": "Rohes Diff",
+    "conflictHint": "Diese Datei hat sich geändert, während der Vorschlag wartete. Bearbeite sie, löse die markierten Stellen auf und übernimm sie dann.",
+    "acceptAll": "Alle übernehmen",
+    "rejectAll": "Alle ablehnen",
+    "counts_one": "1 Änderung: %{created} neu, %{changed} geändert",
+    "counts_other": "%{count} Änderungen: %{created} neu, %{changed} geändert",
+    "decideAll_one": "1 Datei braucht noch eine Entscheidung",
+    "decideAll_other": "%{count} Dateien brauchen noch eine Entscheidung",
+    "apply_one": "1 Datei übernehmen",
+    "apply_other": "%{count} Dateien übernehmen",
+    "change": {
+      "event": "Merkt sich die Szene als „%{detail}“",
+      "create": "Neue Datei",
+      "append_section": "Ergänzt „%{detail}“",
+      "replace_section": "Schreibt „%{detail}“ neu",
+      "set_summary": "Neue Zusammenfassung",
+      "add_alias": "Auch genannt „%{detail}“",
+      "add_tag": "Neues Tag „%{detail}“"
     }
   },
   "vn": {

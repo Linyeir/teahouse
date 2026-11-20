@@ -6,6 +6,10 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 **Updating:** the server adds a column to its database on start and backs it up first.
 
+### Changed
+
+- The canon review opens as a sheet over the chat. It starts with what the world will remember: the scene's title and summary, and a line such as "3 changes: 1 new, 2 changed". Each file says in words what changes ("Adds to „Relationships“", "Also known as „The Fox“"); the raw diff with its internal IDs only shows when you open it. **Accept all** and **Reject all** decide every file at once, a file with a conflict gets its own card and can only be accepted once resolved, and the commit button ("Commit 2 files") stays at the bottom and says how many files still need a decision. **View scene** closes the sheet to read the scene again. ([#71](https://github.com/Linyeir/teahouse/issues/71))
+
 ### Fixed
 
 - A canon update could rewrite a section or the summary of a file it had only seen in the index, and lose what it did not know was there. Now such a file is only added to: a replaced section becomes an addition, and its summary stays. The canon review lists every change that was left out or softened, and why, and marks new aliases the scene never uses; with review off, those are left out. ([#72](https://github.com/Linyeir/teahouse/issues/72))
