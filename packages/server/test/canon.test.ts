@@ -216,8 +216,8 @@ describe('selectCanon', () => {
       'world.md',
       'user.md',
       'characters/mira.md',
-      'events/c-scene-2.md',
       'events/c-scene-3.md',
+      'events/c-scene-2.md',
       'characters/tomas.md',
       'lore/moon.md',
       'events/c-scene-1.md',
@@ -249,6 +249,43 @@ describe('selectCanon', () => {
     expect(minimal.entries.slice(0, 3).every((e) => e.mode === 'short')).toBe(true);
     expect(minimal.text).toContain('A rainy port.');
     expect(countTokens(minimal.text)).toBeGreaterThan(10); // priority 1 stays even over budget
+  });
+
+  it('drops the oldest events first and keeps lore over a matched event', async () => {
+    const { worlds, id } = await world();
+    // An older event the story mentions by name competes with lore at priority 3.
+    await worlds.write(
+      id,
+      'events/c-scene-0.md',
+      file(
+        { type: 'event', name: 'The moon feast', chat: 'chat-0', order: 0, summary: 'A feast.' },
+        'Feast. '.repeat(40),
+      ),
+    );
+    const request = {
+      worldId: id,
+      chatId: 'chat-1',
+      cast: ['mira'],
+      recentText: 'Under the moon, the moon feast.',
+    };
+    const full = await selectCanon(worlds, { ...request, budget: 100_000 });
+    expect(full.entries.map((e) => e.path)).toEqual([
+      'world.md',
+      'user.md',
+      'characters/mira.md',
+      'events/c-scene-3.md',
+      'events/c-scene-2.md',
+      'lore/moon.md',
+      'events/c-scene-0.md',
+      'events/c-scene-1.md',
+    ]);
+    const lore = countTokens('The moon is red. '.repeat(20));
+    const tight = await selectCanon(worlds, { ...request, budget: full.tokens - lore });
+    const mode = (path: string) => tight.entries.find((e) => e.path === path)?.mode;
+    expect(mode('lore/moon.md')).toBe('full');
+    expect(mode('events/c-scene-0.md')).not.toBe('full');
+    expect(mode('events/c-scene-1.md')).not.toBe('full');
+    expect(mode('events/c-scene-3.md')).toBe('full');
   });
 });
 

@@ -262,8 +262,10 @@ describe('scenes', () => {
 
   it('lets the canon role look files up first, and carries on when tools fail', async () => {
     let lookups = 0;
+    const lookupPrompts: ChatMessage[][] = [];
     const tools: ToolsFn = async (_p, messages) => {
       lookups++;
+      lookupPrompts.push(messages);
       if (String(messages.at(-1)?.content).includes('Rolls in at dusk')) {
         return { content: 'done', toolCalls: [] };
       }
@@ -290,6 +292,9 @@ describe('scenes', () => {
       '<file path="lore/fog.md">\n---\ntype: lore\nname: Harbor Fog\n---\n\nRolls in at dusk.\n</file>',
     );
     expect(lookups).toBe(2);
+    // The answer starts with the same messages as the lookups, so a prompt cache is reused.
+    expect(calls.canon[0]?.slice(0, 2)).toEqual(lookupPrompts[0]?.slice(0, 2));
+    expect(calls.canon[0]).toHaveLength(3);
 
     // The endpoint rejects tools from now on: the proposal comes without lookups.
     const sceneId = (await path()).scene?.id ?? '';
