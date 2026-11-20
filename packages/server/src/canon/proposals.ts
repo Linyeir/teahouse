@@ -491,26 +491,20 @@ export class CanonProposals {
     for (const f of ordered) texts.set(f.path, (await worlds.read(worldId, f.path)).trim());
     const fitted = fitFiles(ordered, texts, room);
 
-    const prompt = (extra: Map<string, string>): ChatMessage[] => {
-      const shown = [
-        ...fitted.filter((f) => !extra.has(f.path)).map((f) => f.text),
-        ...[...extra].map(([path, text]) => `<file path="${path}">\n${text}\n</file>`),
-      ];
-      return [
-        { role: 'system', content: system },
-        {
-          role: 'user',
-          content: `<canon_index>\n${index.join('\n')}\n</canon_index>\n\n<files>\n${shown.join('\n\n')}\n</files>`,
-        },
-      ];
-    };
+    const base: ChatMessage[] = [
+      { role: 'system', content: system },
+      {
+        role: 'user',
+        content: `<canon_index>\n${index.join('\n')}\n</canon_index>\n\n<files>\n${fitted.map((f) => f.text).join('\n\n')}\n</files>`,
+      },
+    ];
 
     let looked = new Map<string, string>();
     if (this.#tools) {
       const lookup = await lookUp({
         toolsFn: this.#tools,
         profile,
-        messages: prompt(looked),
+        messages: base,
         worlds,
         worldId,
         known: new Set(fitted.filter((f) => f.full).map((f) => f.path)),
@@ -529,11 +523,17 @@ export class CanonProposals {
       );
     }
     signal.throwIfAborted();
-    const update = await completeJson(this.#complete, profile, prompt(looked), cleanupUpdate, {
-      name: 'canon_cleanup',
-      minTokens: ANSWER_TOKENS,
-      signal,
-    });
+    const update = await completeJson(
+      this.#complete,
+      profile,
+      withLookups(base, looked),
+      cleanupUpdate,
+      {
+        name: 'canon_cleanup',
+        minTokens: ANSWER_TOKENS,
+        signal,
+      },
+    );
 
     // Events are the record of play, world.md and user.md the owner's own: never touched.
     const operations = update.operations.filter((op) => {
@@ -651,23 +651,15 @@ export class CanonProposals {
     for (const f of touched) texts.set(f.path, (await worlds.read(chat.worldId, f.path)).trim());
     const fitted = fitFiles(touched, texts, room);
 
-    const prompt = (extra: Map<string, string>): ChatMessage[] => {
-      const files = [
-        ...core,
-        // A file looked up in full replaces its summary.
-        ...fitted.filter((f) => !extra.has(f.path)).map((f) => f.text),
-        ...[...extra].map(([path, text]) => `<file path="${path}">\n${text}\n</file>`),
-      ];
-      const user = [
-        `<canon_index>\n${index.join('\n')}\n</canon_index>`,
-        `<core_files>\n${files.join('\n\n')}\n</core_files>`,
-        `<scene number="${scene.number}">\n${transcript}\n</scene>`,
-      ].join('\n\n');
-      return [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ];
-    };
+    const user = [
+      `<canon_index>\n${index.join('\n')}\n</canon_index>`,
+      `<core_files>\n${[...core, ...fitted.map((f) => f.text)].join('\n\n')}\n</core_files>`,
+      `<scene number="${scene.number}">\n${transcript}\n</scene>`,
+    ].join('\n\n');
+    const base: ChatMessage[] = [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ];
 
     // Where the endpoint supports tools, the canon role reads what it still needs first.
     let looked = new Map<string, string>();
@@ -675,7 +667,7 @@ export class CanonProposals {
       const lookup = await lookUp({
         toolsFn: this.#tools,
         profile,
-        messages: prompt(looked),
+        messages: base,
         worlds,
         worldId: chat.worldId,
         known: new Set([...corePaths, ...fitted.filter((f) => f.full).map((f) => f.path)]),
@@ -694,7 +686,7 @@ export class CanonProposals {
       );
     }
     signal.throwIfAborted();
-    const messages = prompt(looked);
+    const messages = withLookups(base, looked);
     const update = await completeJson(this.#complete, profile, messages, canonUpdate, {
       name: 'canon_update',
       minTokens: ANSWER_TOKENS,
@@ -844,6 +836,22 @@ export class CanonProposals {
       });
     }
   }
+}
+
+/**
+ * The prompt for the answer: the same messages the lookups started from, so a server that
+ * caches prompts reuses them, then the files the canon role read, in a message of their own.
+ */
+function withLookups(base: ChatMessage[], looked: Map<string, string>): ChatMessage[] {
+  if (looked.size === 0) return base;
+  const files = [...looked].map(([path, text]) => `<file path="${path}">\n${text}\n</file>`);
+  return [
+    ...base,
+    {
+      role: 'user',
+      content: `<looked_up>\n${files.join('\n\n')}\n</looked_up>\n\nYou read these files in full with your tools. They replace any summary of them above, and you may change them like any file you have in full.`,
+    },
+  ];
 }
 
 /** One line per file for `<canon_index>`: path, type, name, aliases and summary. */

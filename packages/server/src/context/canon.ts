@@ -12,6 +12,9 @@ interface Entry {
   path: string;
   name: string;
   priority: 1 | 2 | 3 | 4;
+  /** Events come after other files of the same priority, newest first. */
+  event: boolean;
+  order: number;
   full: string;
   short: string;
   mode: 'full' | 'short' | 'dropped';
@@ -54,8 +57,10 @@ export function mentions(text: string, keywords: string[]): boolean {
  * 2. the last two events/ files of this chat
  * 3. files whose tags, aliases or name appear in the recent story text
  * 4. older events/ files
- * When over budget, entries are downgraded to their summary from the bottom up, then dropped.
- * Priority 1 is downgraded last and never dropped.
+ * Within a priority, other files come before events, and events go newest first.
+ * When over budget, entries are downgraded to their summary from the bottom up, then dropped:
+ * the oldest events go first, places and lore are kept longer. Priority 1 is downgraded last
+ * and never dropped.
  */
 export async function selectCanon(
   worlds: WorldService,
@@ -101,6 +106,8 @@ export async function selectCanon(
       path: file.path,
       name: file.name,
       priority,
+      event: isEvent(file),
+      order: eventOrder(doc?.data),
       full: body,
       short: summary || firstLines(body),
       mode: 'full',
@@ -111,6 +118,8 @@ export async function selectCanon(
       a.priority - b.priority ||
       // Within priority 1: world, user, then characters in cast order.
       rank(a.path, req.cast) - rank(b.path, req.cast) ||
+      Number(a.event) - Number(b.event) ||
+      b.order - a.order ||
       a.path.localeCompare(b.path),
   );
 
