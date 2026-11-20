@@ -405,6 +405,8 @@ export interface StageTools {
   /** The stored text of a message (placeholders unfilled), to edit. */
   editText: (id: string) => string;
   onEdit: (message: PathMessage, content: string) => void;
+  /** Ends the path at this message, so the next one starts a new branch. */
+  onBranch: (message: PathMessage) => void;
 }
 
 /**
@@ -496,6 +498,22 @@ function PageTools({
             >
               {t('common.edit')}
             </button>
+            {!last && (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={!tools.online}
+                onClick={() => {
+                  setMenu(false);
+                  tools.onBranch(message);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setMenu(false);
+                }}
+              >
+                {t('chats.branch')}
+              </button>
+            )}
           </div>
         )}
       </div>

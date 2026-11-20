@@ -272,7 +272,14 @@ export const syncChanges = z.object({
 });
 export type SyncChanges = z.infer<typeof syncChanges>;
 
-export const selectLeafInput = z.object({ messageId: id });
+export const selectLeafInput = z.object({
+  messageId: id,
+  /**
+   * End the path at this message instead of following its newest replies down. The next
+   * message then starts a new branch there ("Branch from here").
+   */
+  exact: z.boolean().optional(),
+});
 export type SelectLeafInput = z.infer<typeof selectLeafInput>;
 
 export const generationStarted = z.object({ messageId: id });

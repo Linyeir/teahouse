@@ -261,7 +261,10 @@ export async function chatRoutes(
     if (!chat || target?.chatId !== chat.id) throw notFound('Message');
     assertEditable(db, target);
     db.update(chats)
-      .set({ activeLeafId: deepestLeaf(db, chat.id, req.body.messageId), updatedAt: now() })
+      .set({
+        activeLeafId: req.body.exact ? target.id : deepestLeaf(db, chat.id, req.body.messageId),
+        updatedAt: now(),
+      })
       .where(eq(chats.id, chat.id))
       .run();
     changed(chat.id);

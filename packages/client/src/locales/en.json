@@ -110,7 +110,10 @@
     "connectModel": "Connect a model to play: add a profile with your LLM endpoint.",
     "sendTo": "Send — %{name} answers",
     "sendNarrator": "Send — the narrator answers",
-    "someoneElse": "+ someone else"
+    "someoneElse": "+ someone else",
+    "branch": "Branch from here",
+    "branchNotice": "The story now ends here. Your next message starts a new branch; the old one stays one ‹ › switch away.",
+    "branchUndo": "Back to where I was"
   },
   "profiles": {
     "new": "New profile",

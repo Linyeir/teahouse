@@ -189,3 +189,13 @@ select.chip {
     opacity: 1;
   }
 }
+
+/* After "Branch from here": what happens next, and the way back. */
+.branchNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
