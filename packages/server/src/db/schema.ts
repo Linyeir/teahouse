@@ -1,3 +1,4 @@
+import type { ProposalNote } from '@teahouse/shared';
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // Columns every synced row carries, so v0.3 sync can be added without a migration of the model.
@@ -125,6 +126,8 @@ export const canonProposals = sqliteTable('canon_proposals', {
   /** World commit the proposal was generated against, for the three-way merge. */
   baseCommit: text('base_commit'),
   files: text('files', { mode: 'json' }).$type<ProposalFile[]>().notNull(),
+  /** Operations that were skipped, downgraded or flagged while building the proposal. */
+  notes: text('notes', { mode: 'json' }).$type<ProposalNote[]>().notNull().default([]),
   error: text('error'),
   ...syncColumns,
 });

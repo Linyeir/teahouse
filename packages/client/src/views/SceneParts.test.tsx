@@ -15,6 +15,7 @@ const proposal = (patch: Partial<CanonProposal>): CanonProposal => ({
   status: 'generating',
   error: null,
   files: [],
+  notes: [],
   ...patch,
 });
 
@@ -46,5 +47,26 @@ describe('canon proposal review', () => {
     const html = render(proposal({ status: 'failed', error: 'The server stopped' }));
     expect(html).toContain('The server stopped');
     expect(html).toContain('Propose again');
+  });
+
+  it('lists the changes that were not applied as proposed, in words', () => {
+    const html = render(
+      proposal({
+        status: 'ready',
+        notes: [
+          {
+            path: 'lore/fog.md',
+            op: 'replace_section',
+            code: 'unseen_replace',
+            outcome: 'downgraded',
+            reason: 'the file was not read in full',
+            detail: 'Origin',
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('Not applied as proposed');
+    expect(html).toContain('lore/fog.md');
+    expect(html).toContain('instead of replacing it');
   });
 });

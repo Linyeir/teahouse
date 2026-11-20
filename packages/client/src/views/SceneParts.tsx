@@ -4,6 +4,7 @@ import {
   type ChatPath,
   type MemoryNode,
   type ProposalFileView,
+  type ProposalNote,
   sceneStage,
 } from '@teahouse/shared';
 import { diffLines } from 'diff';
@@ -109,7 +110,8 @@ function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFi
       setDraft(null);
     },
   });
-  const conflict = file.after.includes('<<<<<<< current');
+  const conflict = hasConflictMarkers(file.after);
+  const draftConflict = draft !== null && hasConflictMarkers(draft);
   const badge =
     file.decision === 'accepted'
       ? styles.accepted
@@ -168,6 +170,8 @@ function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFi
             <button
               className={ui.primary}
               type="button"
+              disabled={draftConflict}
+              title={draftConflict ? t('scenes.resolveFirst') : undefined}
               onClick={() => decide.mutate({ decision: 'accepted', after: draft })}
             >
               {t('scenes.saveAndAccept')}
@@ -176,6 +180,30 @@ function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFi
         )}
       </div>
       <ErrorText error={decide.error} />
+    </div>
+  );
+}
+
+/** Lines git writes around a conflict; such text is never accepted (the server checks too). */
+const hasConflictMarkers = (text: string) => /^(<{7}|>{7})(\s|$)|^={7}\s*$/m.test(text);
+
+/** Changes the canon role proposed that were left out, softened, or are worth a second look. */
+function ProposalNotes({ notes }: { notes: ProposalNote[] }) {
+  const { t } = useTranslation();
+  if (notes.length === 0) return null;
+  return (
+    <div className={styles.notes}>
+      <strong>{t('scenes.notesTitle')}</strong>
+      <ul>
+        {notes.map((note, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: notes have no identity of their own
+          <li key={i}>
+            <span className={styles.filePath}>{note.path}</span>
+            {note.detail && <> · „{note.detail}“</>}:{' '}
+            {t(`scenes.note.${note.code}`, { defaultValue: note.reason })}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -233,6 +261,7 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
       <strong>{t('scenes.reviewTitle')}</strong>
       <span className={ui.hint}>{t('scenes.reviewHint')}</span>
       {data.status === 'failed' && <p className={ui.error}>{data.error}</p>}
+      <ProposalNotes notes={data.notes} />
       {data.files.map((file) => (
         <ProposalFileCard key={file.path} sceneId={sceneId} file={file} />
       ))}

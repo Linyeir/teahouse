@@ -5,6 +5,7 @@ import {
   type CanonProposal,
   markupToText,
   NARRATOR_SPEAKER,
+  type ProposalNote,
 } from '@teahouse/shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { mentions } from '../context/canon.ts';
@@ -26,7 +27,14 @@ import { canonFilePath } from '../worlds/paths.ts';
 import { slug, type WorldService } from '../worlds/service.ts';
 import { lookUp, type ToolsFn } from './lookup.ts';
 import { mergeThreeWay } from './merge.ts';
-import { applyOps, canonUpdate } from './ops.ts';
+import {
+  applyOps,
+  type CanonOp,
+  canonUpdate,
+  hasConflictMarkers,
+  normalizePath,
+  type OpNote,
+} from './ops.ts';
 
 const CANON_PROMPT = `You maintain the canon of a roleplay world: Markdown files that hold lasting world knowledge.
 A scene has just ended. Record what happened and update the canon so later scenes stay consistent.
@@ -92,7 +100,14 @@ export class CanonProposals {
   get(sceneId: string): CanonProposal | null {
     const row = this.#row(sceneId);
     return row
-      ? { id: row.id, sceneId: row.sceneId, status: row.status, error: row.error, files: row.files }
+      ? {
+          id: row.id,
+          sceneId: row.sceneId,
+          status: row.status,
+          error: row.error,
+          files: row.files,
+          notes: row.notes,
+        }
       : null;
   }
 
@@ -111,6 +126,7 @@ export class CanonProposals {
           status: 'generating',
           error: null,
           files: [],
+          notes: [],
           updatedAt: timestamp,
           revision: existing.revision + 1,
         })
@@ -172,6 +188,9 @@ export class CanonProposals {
     if (row?.status !== 'ready') throw new ProposalError('No proposal to review');
     const file = row.files.find((f) => f.path === path);
     if (!file) throw new ProposalError(`${path} is not part of the proposal`);
+    if (decision === 'accepted' && hasConflictMarkers(after ?? file.after)) {
+      throw new ProposalError(`${path} still has conflict markers; resolve them first`);
+    }
     file.decision = decision;
     if (after !== undefined) file.after = after;
     this.#update(sceneId, { files: row.files });
@@ -191,6 +210,12 @@ export class CanonProposals {
     const writes = new Map<string, string>();
     const conflicts: string[] = [];
     for (const file of accepted) {
+      // Text with conflict markers never goes into the canon, however it got accepted.
+      if (hasConflictMarkers(file.after)) {
+        conflicts.push(file.path);
+        file.decision = 'pending';
+        continue;
+      }
       const current = await this.deps.worlds.readIfExists(chat.worldId, file.path);
       if (current === file.before || current === file.after) {
         writes.set(file.path, file.after);
@@ -363,13 +388,32 @@ export class CanonProposals {
 
     const current = new Map<string, string>();
     for (const op of update.operations) {
-      const text = await worlds.readIfExists(chat.worldId, op.path).catch(() => null);
-      if (text !== null) current.set(op.path, text);
+      const path = normalizePath(op.path);
+      if (!path || current.has(path)) continue;
+      const text = await worlds.readIfExists(chat.worldId, path).catch(() => null);
+      if (text !== null) current.set(path, text);
     }
-    const applied = applyOps(
-      current,
-      update.operations.filter((op) => !op.path.startsWith('events/')),
-    );
+    // The files the model had in full; any other it may only extend (see applyOps).
+    const seen = new Set([
+      ...corePaths,
+      ...fitted.filter((f) => f.full).map((f) => f.path),
+      ...looked.keys(),
+    ]);
+    // An alias the scene never uses is likely made up: flagged for review, else left out.
+    const aliasNotes: OpNote[] = [];
+    const operations = update.operations.filter((op) => {
+      if (op.path.startsWith('events/')) return false;
+      if (op.op !== 'add_alias' || mentions(transcript, [op.alias])) return true;
+      aliasNotes.push({
+        op,
+        code: 'alias_not_in_scene',
+        outcome: settings.canonReview ? 'flagged' : 'skipped',
+        reason: 'the scene never uses this name',
+      });
+      return settings.canonReview;
+    });
+    const applied = applyOps(current, operations, seen);
+    const notes = [...aliasNotes, ...applied.notes].map(toNote);
 
     const proposalFiles: ProposalFile[] = [
       { path: eventPath, before: null, after: eventFile, decision: 'pending' },
@@ -382,7 +426,13 @@ export class CanonProposals {
     ];
     const baseCommit = (await worlds.history(chat.worldId))[0]?.sha ?? null;
     signal.throwIfAborted();
-    this.#update(sceneId, { status: 'ready', files: proposalFiles, baseCommit, error: null });
+    this.#update(sceneId, {
+      status: 'ready',
+      files: proposalFiles,
+      notes,
+      baseCommit,
+      error: null,
+    });
 
     if (!settings.canonReview) {
       for (const file of proposalFiles) file.decision = 'accepted';
@@ -447,6 +497,26 @@ export class CanonProposals {
     const scene = this.deps.db.select().from(scenes).where(eq(scenes.id, sceneId)).get();
     if (scene) this.deps.hub.broadcast({ type: 'proposal.changed', chatId: scene.chatId, sceneId });
   }
+}
+
+/** A note for the review: which operation, on which file, what happened and why. */
+function toNote({ op, code, outcome, reason }: OpNote): ProposalNote {
+  const detail = (o: CanonOp) =>
+    o.op === 'append_section' || o.op === 'replace_section'
+      ? o.heading
+      : o.op === 'add_alias'
+        ? o.alias
+        : o.op === 'add_tag'
+          ? o.tag
+          : null;
+  return {
+    path: normalizePath(op.path) ?? op.path,
+    op: op.op,
+    code,
+    outcome,
+    reason,
+    detail: detail(op),
+  };
 }
 
 /** Conflict markers for a file that appeared or vanished since the proposal. */

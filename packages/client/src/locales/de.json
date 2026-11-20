@@ -266,7 +266,17 @@
     "cast": "Anwesend",
     "start": "Szene beginnen",
     "background": "Hintergrund",
-    "noBackground": "Keiner"
+    "noBackground": "Keiner",
+    "notesTitle": "Nicht wie vorgeschlagen übernommen",
+    "note": {
+      "unseen_replace": "an den Abschnitt angehängt statt ihn zu ersetzen, weil die Datei nicht vollständig gelesen wurde",
+      "unseen_summary": "Zusammenfassung behalten, weil die Datei nicht vollständig gelesen wurde",
+      "alias_not_in_scene": "dieser Name kommt in der Szene nie vor; vor dem Übernehmen prüfen",
+      "missing_file": "weggelassen, die Datei gibt es nicht",
+      "invalid_path": "weggelassen, kein gültiger Pfad",
+      "wrong_folder": "weggelassen, neue Dateien gehören nach characters/, places/, events/ oder lore/",
+      "invalid_yaml": "weggelassen, der Frontmatter der Datei ist kein gültiges YAML"
+    }
   },
   "vn": {
     "showLog": "Verlauf",

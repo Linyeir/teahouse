@@ -1,0 +1,1 @@
+ALTER TABLE `canon_proposals` ADD `notes` text DEFAULT '[]' NOT NULL;

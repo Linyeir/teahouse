@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mergeThreeWay } from '../src/canon/merge.ts';
-import { applyOps, upsertSection } from '../src/canon/ops.ts';
+import { applyOps, hasConflictMarkers, upsertSection } from '../src/canon/ops.ts';
 import { fitFiles } from '../src/canon/proposals.ts';
 import { mentions, selectCanon } from '../src/context/canon.ts';
 import { countTokens } from '../src/context/tokens.ts';
@@ -71,7 +71,55 @@ describe('applyOps', () => {
     const harbor = parseDocument(result.files.get('places/harbor.md') ?? '');
     expect(harbor.data).toMatchObject({ type: 'place', name: 'Harbor', tags: ['port'] });
     expect(harbor.body).toBe('# Harbor\n\nDocks.\n');
-    expect(result.skipped.map((s) => s.reason)).toEqual(['file does not exist', 'invalid path']);
+    expect(result.notes.map((n) => [n.outcome, n.reason])).toEqual([
+      ['skipped', 'file does not exist'],
+      ['skipped', 'invalid path'],
+    ]);
+  });
+
+  it('only extends files the model did not read in full', () => {
+    const current = new Map([
+      [
+        'lore/fog.md',
+        file({ type: 'lore', name: 'Fog', summary: 'Old.' }, '# Fog\n\n## Origin\n\nThe sea.'),
+      ],
+    ]);
+    const result = applyOps(
+      current,
+      [
+        { op: 'replace_section', path: 'lore/fog.md', heading: 'Origin', text: 'A curse.' },
+        { op: 'set_summary', path: 'lore/fog.md', text: 'New.' },
+      ],
+      new Set(['world.md']),
+    );
+    const fog = parseDocument(result.files.get('lore/fog.md') ?? '');
+    // The old text stays; the new one is added below it.
+    expect(fog.body).toContain('The sea.\n\nA curse.');
+    expect(fog.data.summary).toBe('Old.');
+    expect(result.notes.map((n) => [n.op.op, n.outcome])).toEqual([
+      ['replace_section', 'downgraded'],
+      ['set_summary', 'skipped'],
+    ]);
+
+    // Read in full, the same operations go through as proposed.
+    const seen = applyOps(
+      current,
+      [{ op: 'replace_section', path: 'lore/fog.md', heading: 'Origin', text: 'A curse.' }],
+      new Set(['lore/fog.md']),
+    );
+    expect(seen.files.get('lore/fog.md')).not.toContain('The sea.');
+    expect(seen.notes).toEqual([]);
+  });
+});
+
+describe('hasConflictMarkers', () => {
+  it('finds the lines git writes around a conflict, and nothing else', () => {
+    expect(hasConflictMarkers('a\n<<<<<<< current\nb\n=======\nc\n>>>>>>> proposal\n')).toBe(true);
+    expect(hasConflictMarkers('a\n=======\nb')).toBe(true);
+    expect(hasConflictMarkers('Setext heading\n=======\n'.replace('=======', '========'))).toBe(
+      false,
+    );
+    expect(hasConflictMarkers('She said <<<<<<< nothing.')).toBe(false);
   });
 });
 
