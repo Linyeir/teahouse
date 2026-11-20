@@ -22,7 +22,7 @@
 
 .sprites {
   position: absolute;
-  inset: 0 0 0 0;
+  inset: 0 2%;
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -30,16 +30,22 @@
   pointer-events: none;
 }
 
+/* Sprites share the width: a larger cast shrinks each one instead of leaving the stage. */
 .sprite {
   height: var(--vn-sprite-height);
+  flex: 0 1 auto;
+  min-width: 0;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
 }
 
 .sprite img {
   height: 100%;
   width: auto;
+  max-width: 100%;
   object-fit: contain;
+  object-position: bottom;
 }
 
 .dim {
@@ -48,6 +54,7 @@
 
 .placeholder {
   height: 70%;
+  max-width: 100%;
   aspect-ratio: 1 / 2;
   border-radius: 40% 40% 8px 8px;
   background: rgb(255 255 255 / 14%);
@@ -72,14 +79,14 @@
 
 .textbox {
   all: unset;
+  position: relative;
   box-sizing: border-box;
   display: flex;
-  align-items: flex-start;
   text-align: left;
   width: 100%;
   height: 100%;
-  overflow-y: auto;
-  padding: 1.6em 1.2em 1em;
+  /* The top padding stays clear for the name badge; text scrolls below it, never under it. */
+  padding: max(1.6em, 1.4rem) 1.2em 1em;
   background: var(--vn-textbox-bg);
   color: var(--vn-textbox-color);
   border: var(--vn-textbox-border);
@@ -91,6 +98,36 @@
   white-space: pre-wrap;
 }
 
+/* The text scrolls inside the padding, so it never slides under the name badge. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ▼ more text below, ▶ a next page. */
+.cue {
+  position: absolute;
+  right: 0.7em;
+  bottom: 0.35em;
+  font-family: var(--font-body);
+  font-size: 0.75em;
+  opacity: 0.8;
+  animation: cue-bob 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes cue-bob {
+  to {
+    transform: translateY(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cue {
+    animation: none;
+  }
+}
+
 .textbox:focus-visible {
   outline: 2px solid var(--color-accent);
 }
@@ -98,14 +135,20 @@
 .name {
   position: absolute;
   z-index: 1;
-  top: -0.9em;
+  top: 0;
   left: 1em;
+  transform: translateY(-50%);
+  max-width: calc(100% - 2em);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
   padding: 0.15em 0.8em;
   border-radius: var(--vn-textbox-radius);
   background: var(--vn-name-bg);
   color: var(--vn-name-color);
   font-family: var(--font-body);
-  font-size: 0.85em;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -161,27 +204,39 @@
 
 .controls {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  padding: 0 2px;
   border-radius: 999px;
-  background: rgb(0 0 0 / 45%);
+  /* Dark enough for 4.5:1 white text even over a pure white background. */
+  background: rgb(0 0 0 / 60%);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 .controls button {
   all: unset;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
   cursor: pointer;
-  padding: 0 4px;
-  font-size: 1rem;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.controls button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 .controls button:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: default;
 }
 

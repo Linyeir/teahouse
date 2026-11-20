@@ -14,6 +14,8 @@ export const world = z.object({
   summary: z.string(),
   /** Theme token overrides from `theme:` in world.md, e.g. `vn-textbox-bg: "#102030cc"`. */
   theme: z.record(z.string(), z.string()),
+  /** `defaultBackground:` in world.md: the background a chat starts with until the narrator picks one. */
+  defaultBackground: z.string().nullable(),
 });
 export type World = z.infer<typeof world>;
 

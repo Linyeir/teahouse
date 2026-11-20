@@ -73,6 +73,7 @@ export function ChatView() {
   const worldId = path.data?.chat.worldId;
   const characters = useCharacters(worldId);
   const worlds = useWorlds();
+  const world = worlds.data?.find((w) => w.id === worldId);
   const backgrounds = useQuery(backgroundsQuery(worldId));
   const settings = useQuery({
     queryKey: ['settings'],
@@ -219,9 +220,15 @@ export function ChatView() {
               worldId={worldId}
               messages={messages.map((m) => ({ ...m, content: shownContent(m, placeholders) }))}
               cast={scene?.cast ?? []}
+              greeting={
+                scene?.number === 1 && scene.startMessageId
+                  ? { messageId: scene.startMessageId, opener: data.chat.characterSlug }
+                  : undefined
+              }
               characters={characters.data ?? []}
               backgrounds={backgrounds.data ?? []}
-              theme={worlds.data?.find((w) => w.id === worldId)?.theme ?? {}}
+              defaultBackground={world?.defaultBackground ?? null}
+              theme={world?.theme ?? {}}
               userName={userName}
             />
             {lastAssistant && !streaming && <ReplyNotice message={lastAssistant} />}

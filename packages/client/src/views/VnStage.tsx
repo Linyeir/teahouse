@@ -26,21 +26,31 @@ export function VnStage({
   worldId,
   messages,
   cast,
+  greeting,
   characters,
   backgrounds,
+  defaultBackground,
   theme,
   userName,
 }: {
   worldId: string;
   messages: PathMessage[];
   cast: string[];
+  greeting?: { messageId: string; opener: string };
   characters: CharacterSummary[];
   backgrounds: WorldBackground[];
+  defaultBackground: string | null;
   theme: Record<string, string>;
   userName: string;
 }) {
   const { t } = useTranslation();
-  const pages = vnPages(messages, cast, new Set(backgrounds.map((b) => b.id)));
+  // Until the narrator picks one: the world's default background, else its first.
+  const startBackground =
+    backgrounds.find((b) => b.id === defaultBackground)?.id ?? backgrounds[0]?.id ?? null;
+  const pages = vnPages(messages, cast, new Set(backgrounds.map((b) => b.id)), {
+    greeting,
+    background: startBackground,
+  });
 
   // null follows the newest message (also while it streams in).
   const [cursor, setCursor] = useState<number | null>(null);
@@ -55,10 +65,15 @@ export function VnStage({
   };
 
   // A long reply scrolls in its textbox: reading on scrolls first, then turns the page.
-  const textbox = useRef<HTMLButtonElement>(null);
+  const textbox = useRef<HTMLDivElement>(null);
+  const textboxButton = useRef<HTMLButtonElement>(null);
+  const hasMore = () => {
+    const el = textbox.current;
+    return !!el && el.scrollTop + el.clientHeight < el.scrollHeight - 4;
+  };
   const advance = () => {
     const el = textbox.current;
-    if (el && el.scrollTop + el.clientHeight < el.scrollHeight - 4) {
+    if (el && hasMore()) {
       el.scrollBy({ top: el.clientHeight * 0.8, behavior: 'smooth' });
     } else {
       go(1);
@@ -70,6 +85,8 @@ export function VnStage({
       const target = e.target as HTMLElement | null;
       if (target?.closest('textarea, input, select, [contenteditable]')) return;
       if (e.key === ' ' || e.key === 'Enter') {
+        // Other buttons keep their own Space and Enter.
+        if (target?.closest('button, a') && target !== textboxButton.current) return;
         e.preventDefault();
         advance();
       } else if (e.key === 'ArrowRight') {
@@ -86,18 +103,32 @@ export function VnStage({
 
   const pageId = page?.message.id;
   const length = page?.message.content.length ?? 0;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new page starts at its top
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new or finished page starts at its top
   useEffect(() => {
-    if (textbox.current) textbox.current.scrollTop = 0;
-  }, [pageId]);
+    if (textbox.current && !streaming) textbox.current.scrollTop = 0;
+  }, [pageId, streaming]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: follow a reply as it streams in
   useEffect(() => {
     const el = textbox.current;
     if (el && streaming) el.scrollTop = el.scrollHeight;
   }, [length, streaming]);
 
+  // Whether text is hidden below the fold: shown as ▼, else ▶ when a next page exists.
+  const [overflow, setOverflow] = useState(false);
+  const measure = () => setOverflow(hasMore());
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure when the text changes
+  useEffect(() => {
+    measure();
+    const el = textbox.current;
+    if (!el) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageId, length, streaming]);
+  const cue = streaming ? null : overflow ? '▼' : atEnd ? null : '▶';
+
   const stage = page?.stage;
-  const background = backgrounds.find((b) => b.id === stage?.background);
+  const background = backgrounds.find((b) => b.id === (stage?.background ?? startBackground));
   const names = new Map(characters.map((c) => [c.slug, c.name]));
   const themeStyle = Object.fromEntries(
     Object.entries(theme).map(([k, v]) => [`--${k}`, v]),
@@ -138,15 +169,22 @@ export function VnStage({
         )}
         <button
           type="button"
-          ref={textbox}
+          ref={textboxButton}
           className={styles.textbox}
           onClick={advance}
           aria-live="polite"
         >
-          {page ? (
-            <PageText page={page} names={names} userName={userName} streaming={streaming} />
-          ) : (
-            <span className={`${styles.text} ${styles.empty}`}>{t('vn.empty')}</span>
+          <div ref={textbox} className={styles.scroll} onScroll={measure}>
+            {page ? (
+              <PageText page={page} names={names} userName={userName} streaming={streaming} />
+            ) : (
+              <span className={`${styles.text} ${styles.empty}`}>{t('vn.empty')}</span>
+            )}
+          </div>
+          {cue && (
+            <span className={styles.cue} aria-hidden="true">
+              {cue}
+            </span>
           )}
         </button>
       </div>

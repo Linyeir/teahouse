@@ -1,6 +1,6 @@
 import { NARRATOR_SPEAKER, type PathMessage, USER_SPEAKER } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
-import { vnPages } from './vn.ts';
+import { greetingBeats, vnPages } from './vn.ts';
 
 let n = 0;
 const msg = (
@@ -84,5 +84,53 @@ describe('vnPages', () => {
     expect(pages).toHaveLength(1);
     expect(pages[0]?.message.status).toBe('streaming');
     expect(pages[0]?.stage.background).toBe('docks');
+  });
+});
+
+describe('greetingBeats', () => {
+  const shape = (text: string) =>
+    greetingBeats(text, 'mira').map((b) => (b.type === 'say' ? `say:${b.text}` : `n:${b.text}`));
+
+  it('splits action and quoted speech', () => {
+    expect(shape('*smiles* "Hello"')).toEqual(['n:smiles', 'say:Hello']);
+    expect(shape('Mira looks up. “You came.” She waves.')).toEqual([
+      'n:Mira looks up.',
+      'say:You came.',
+      'n:She waves.',
+    ]);
+  });
+
+  it('reads unmarked text as speech when there are no quotes', () => {
+    expect(shape('*waves* Hi there. *grins*')).toEqual(['n:waves', 'say:Hi there.', 'n:grins']);
+  });
+});
+
+describe('vnPages with a greeting', () => {
+  it('names the opener and splits the greeting, but leaves tagged greetings alone', () => {
+    const greeting = msg('assistant', '*smiles* "Hello"');
+    const [page] = vnPages([greeting], ['mira', 'tomas'], new Set(), {
+      greeting: { messageId: greeting.id, opener: 'mira' },
+    });
+    expect(page?.speaker).toBe('mira');
+    expect(page?.beats).toEqual([
+      { type: 'narration', text: 'smiles', complete: true },
+      { type: 'say', who: 'mira', mood: null, text: 'Hello', complete: true },
+    ]);
+
+    const tagged = msg('assistant', '<narration>Rain.</narration>');
+    const [other] = vnPages([tagged], ['mira'], new Set(), {
+      greeting: { messageId: tagged.id, opener: 'mira' },
+    });
+    expect(other?.beats.map((b) => b.type)).toEqual(['narration']);
+  });
+
+  it('starts on the given background until the narrator picks one', () => {
+    const pages = vnPages(
+      [msg('assistant', 'Hi.'), msg('assistant', '<bg id="docks"/>Rain.')],
+      ['mira'],
+      new Set(['docks', 'inn']),
+      { background: 'inn' },
+    );
+    expect(pages.map((p) => p.stage.background)).toEqual(['inn', 'docks']);
   });
 });
