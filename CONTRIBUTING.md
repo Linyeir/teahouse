@@ -22,7 +22,7 @@ pnpm app:dev      # desktop app, see Apps
 
 Node's `fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set. Set it when the server or the tests must reach endpoints through an HTTP proxy.
 
-The server's environment variables are listed in the README under [Configuration](README.md#configuration).
+The server's environment variables are listed under [Configuration](docs/server.md#configuration).
 
 Changes that people who run Teahouse notice get an entry in [CHANGELOG.md](CHANGELOG.md) under the unreleased version, with a link to the issue.
 
