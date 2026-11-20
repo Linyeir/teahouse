@@ -203,13 +203,19 @@ export const proposalChange = z.object({
   op: z.string(),
   /** A section heading, an alias or a tag; null where there is none. */
   detail: z.string().nullable(),
+  /**
+   * For a fix of a contradiction: the other file and what it says. The review shows it next
+   * to the change, so you can judge which side is right.
+   */
+  contradicts: z.object({ path: z.string(), quote: z.string() }).nullable().optional(),
 });
 export type ProposalChange = z.infer<typeof proposalChange>;
 
 export const proposalFile = z.object({
   path: z.string(),
   before: z.string().nullable(),
-  after: z.string(),
+  /** Null: the file is deleted, its content merged into another one (see `changes`). */
+  after: z.string().nullable(),
   decision: z.enum(['pending', 'accepted', 'rejected']),
   /** What changes in the file; empty for proposals made before 0.4.2. */
   changes: z.array(proposalChange).default([]),
@@ -230,9 +236,16 @@ export const proposalNote = z.object({
 });
 export type ProposalNote = z.infer<typeof proposalNote>;
 
+/** `scene`: written when a scene ends. `cleanup`: a run over the whole world's canon. */
+export const proposalKind = z.enum(['scene', 'cleanup']);
+export type ProposalKind = z.infer<typeof proposalKind>;
+
 export const canonProposal = z.object({
   id,
-  sceneId: id,
+  worldId: z.string(),
+  kind: proposalKind,
+  /** The closing scene of a `scene` proposal; null for a cleanup. */
+  sceneId: id.nullable(),
   status: z.enum(['generating', 'ready', 'failed', 'applied']),
   error: z.string().nullable(),
   files: z.array(proposalFile),

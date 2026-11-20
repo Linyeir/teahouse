@@ -245,6 +245,9 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
             .values({
               ...p,
               id: id(p.id) as string,
+              // Archives from before 0.4.2 have no world on their proposals.
+              worldId,
+              kind: 'scene',
               sceneId: id(p.sceneId) as string,
               // A proposal that was being generated is offered for regeneration.
               status: settledProposalStatus(p.status),

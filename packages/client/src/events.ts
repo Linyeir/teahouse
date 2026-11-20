@@ -72,6 +72,10 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
           void queryClient.invalidateQueries({ queryKey: ['devices'] });
           return;
         }
+        if (event.type === 'cleanup.changed') {
+          void queryClient.invalidateQueries({ queryKey: ['cleanup', event.worldId] });
+          return;
+        }
         const key = ['chat', event.chatId];
         if (event.type === 'proposal.changed') {
           void queryClient.invalidateQueries({ queryKey: ['proposal', event.sceneId] });

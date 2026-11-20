@@ -112,24 +112,33 @@ export interface ProposalFile {
   path: string;
   /** Content at the proposal's base commit; null for new files. */
   before: string | null;
-  /** Proposed content (possibly edited by the user). */
-  after: string;
+  /** Proposed content (possibly edited by the user); null deletes the file (a merge). */
+  after: string | null;
   decision: 'pending' | 'accepted' | 'rejected';
   /** What changes in the file, for the review (missing in proposals before 0.4.2). */
   changes?: ProposalChange[];
 }
 
-export const canonProposals = sqliteTable('canon_proposals', {
-  id: text('id').primaryKey(),
-  sceneId: text('scene_id')
-    .notNull()
-    .references(() => scenes.id),
-  status: text('status', { enum: ['generating', 'ready', 'failed', 'applied'] }).notNull(),
-  /** World commit the proposal was generated against, for the three-way merge. */
-  baseCommit: text('base_commit'),
-  files: text('files', { mode: 'json' }).$type<ProposalFile[]>().notNull(),
-  /** Operations that were skipped, downgraded or flagged while building the proposal. */
-  notes: text('notes', { mode: 'json' }).$type<ProposalNote[]>().notNull().default([]),
-  error: text('error'),
-  ...syncColumns,
-});
+export const canonProposals = sqliteTable(
+  'canon_proposals',
+  {
+    id: text('id').primaryKey(),
+    /** The world whose canon the proposal changes. */
+    worldId: text('world_id').notNull(),
+    /** `scene`: written when a scene ends, applying it closes the scene. `cleanup`: a run over the whole world. */
+    kind: text('kind', { enum: ['scene', 'cleanup'] })
+      .notNull()
+      .default('scene'),
+    /** The closing scene of a `scene` proposal; null for a cleanup. */
+    sceneId: text('scene_id').references(() => scenes.id),
+    status: text('status', { enum: ['generating', 'ready', 'failed', 'applied'] }).notNull(),
+    /** World commit the proposal was generated against, for the three-way merge. */
+    baseCommit: text('base_commit'),
+    files: text('files', { mode: 'json' }).$type<ProposalFile[]>().notNull(),
+    /** Operations that were skipped, downgraded or flagged while building the proposal. */
+    notes: text('notes', { mode: 'json' }).$type<ProposalNote[]>().notNull().default([]),
+    error: text('error'),
+    ...syncColumns,
+  },
+  (t) => [index('proposals_scene_idx').on(t.sceneId), index('proposals_world_idx').on(t.worldId)],
+);

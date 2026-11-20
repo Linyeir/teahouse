@@ -28,7 +28,25 @@ export const canonOp = z.discriminatedUnion('op', [
   z.object({ op: z.literal('add_alias'), path, alias: z.string().min(1) }),
   z.object({ op: z.literal('add_tag'), path, tag: z.string().min(1) }),
 ]);
-export type CanonOp = z.infer<typeof canonOp>;
+
+/**
+ * Operations only a cleanup run may propose. `merge` folds the file `from` into `path` and
+ * deletes it; code does the merging, so nothing of either file is lost. `fix_contradiction`
+ * replaces a section like `replace_section` and names what the other file says, for review.
+ */
+export const cleanupOp = z.discriminatedUnion('op', [
+  ...canonOp.options,
+  z.object({ op: z.literal('merge'), path, from: path }),
+  z.object({
+    op: z.literal('fix_contradiction'),
+    path,
+    heading: z.string().min(1),
+    text: z.string(),
+    other: path,
+    other_quote: z.string().min(1),
+  }),
+]);
+export type CanonOp = z.infer<typeof cleanupOp>;
 
 export const canonUpdate = z.object({
   event: z.object({
@@ -40,6 +58,8 @@ export const canonUpdate = z.object({
   operations: z.array(canonOp).default([]),
 });
 export type CanonUpdate = z.infer<typeof canonUpdate>;
+
+export const cleanupUpdate = z.object({ operations: z.array(cleanupOp).default([]) });
 
 export const canonUpdateJsonSchema = z.toJSONSchema(canonUpdate, {
   target: 'draft-7',
@@ -61,7 +81,9 @@ export type NoteCode =
   | 'invalid_yaml'
   | 'unseen_summary'
   | 'unseen_replace'
-  | 'alias_not_in_scene';
+  | 'alias_not_in_scene'
+  | 'merge_not_allowed'
+  | 'also_in_scene_proposal';
 
 export interface OpNote {
   op: CanonOp;
@@ -73,8 +95,8 @@ export interface OpNote {
 }
 
 export interface ApplyResult {
-  /** Path → new content, only for files that changed. */
-  files: Map<string, string>;
+  /** Path → new content, only for files that changed; null for a file merged into another. */
+  files: Map<string, string | null>;
   /** Operations that were skipped or changed, with the reason. */
   notes: OpNote[];
 }
@@ -92,11 +114,12 @@ export function applyOps(
   ops: CanonOp[],
   seen?: Set<string>,
 ): ApplyResult {
-  const files = new Map<string, string>();
+  const files = new Map<string, string | null>();
   const notes: OpNote[] = [];
   const skip = (op: CanonOp, code: NoteCode, reason: string) =>
     notes.push({ op, code, outcome: 'skipped', reason });
-  const get = (p: string) => files.get(p) ?? current.get(p);
+  // A file merged away (null) is gone for every later operation.
+  const get = (p: string) => (files.has(p) ? (files.get(p) ?? undefined) : current.get(p));
   const unseen = (p: string) => seen !== undefined && current.has(p) && !seen.has(p);
 
   for (const op of ops) {
@@ -148,11 +171,33 @@ export function applyOps(
       skip(op, 'invalid_yaml', 'frontmatter is not valid YAML');
       continue;
     }
+    if (op.op === 'merge') {
+      const from = normalizePath(op.from);
+      const other = from ? get(from) : undefined;
+      if (!from || other === undefined) {
+        skip(op, 'missing_file', 'the file to merge does not exist');
+        continue;
+      }
+      const why = mergeRefusal(target, from);
+      if (why) {
+        skip(op, 'merge_not_allowed', why);
+        continue;
+      }
+      const source = parseDocument(other);
+      if (source.error) {
+        skip(op, 'invalid_yaml', 'frontmatter of the file to merge is not valid YAML');
+        continue;
+      }
+      files.set(target, stringifyDocument(mergeDocuments(doc, source)));
+      files.set(from, null);
+      continue;
+    }
     if (op.op === 'set_summary' && unseen(target)) {
       skip(op, 'unseen_summary', 'the file was not read in full, so its summary stays');
       continue;
     }
-    const downgrade = op.op === 'replace_section' && unseen(target);
+    const replaces = op.op === 'replace_section' || op.op === 'fix_contradiction';
+    const downgrade = replaces && unseen(target);
     if (downgrade) {
       notes.push({
         op,
@@ -164,6 +209,7 @@ export function applyOps(
     switch (op.op) {
       case 'append_section':
       case 'replace_section':
+      case 'fix_contradiction':
         doc.body = upsertSection(
           doc.body,
           op.heading,
@@ -188,6 +234,61 @@ export function applyOps(
     if (current.get(p) === content) files.delete(p);
   }
   return { files, notes };
+}
+
+/** Why `from` cannot be merged into `target`, or null if it can. */
+function mergeRefusal(target: string, from: string): string | null {
+  if (target === from) return 'a file cannot be merged into itself';
+  const folder = (p: string) => (p.includes('/') ? p.split('/')[0] : '');
+  if (!folder(target) || !folder(from)) return 'world.md and user.md are never merged';
+  if (folder(target) === 'events' || folder(from) === 'events') return 'events are never merged';
+  if (folder(target) !== folder(from)) return 'only files in the same folder are merged';
+  return null;
+}
+
+type Doc = ReturnType<typeof parseDocument>;
+
+/**
+ * `source` folded into `target`: its name and aliases become aliases, tags, greetings and
+ * images are added, and its body follows under a section of its own. Nothing is dropped.
+ */
+export function mergeDocuments(target: Doc, source: Doc): Doc {
+  const data = { ...target.data };
+  const name = String(target.data.name ?? '');
+  const sourceName = String(source.data.name ?? '');
+  const aliases = [sourceName, ...stringList(source.data.aliases)].filter(
+    (a) => a && a.toLowerCase() !== name.toLowerCase(),
+  );
+  data.aliases = aliases.reduce(addUnique, stringList(target.data.aliases));
+  data.tags = stringList(source.data.tags).reduce(addUnique, stringList(target.data.tags));
+  for (const key of ['greetings', 'images'] as const) {
+    const list = [...listOf(target.data[key]), ...listOf(source.data[key])];
+    if (list.length) data[key] = uniqueEntries(list);
+  }
+  const text = source.body
+    .trim()
+    .replace(/^#\s+.*\n+/, '')
+    .trim();
+  const body = text
+    ? upsertSection(target.body, `${sourceName || 'Merged'}`, text, 'append')
+    : target.body;
+  return { ...target, data, body };
+}
+
+const listOf = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+/** Entries without repeats; images with an ID already taken keep the first one. */
+function uniqueEntries(list: unknown[]): unknown[] {
+  const seen = new Set<string>();
+  return list.filter((entry) => {
+    const key =
+      entry && typeof entry === 'object' && 'id' in entry
+        ? `id:${String((entry as { id: unknown }).id)}`
+        : JSON.stringify(entry);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function normalizePath(p: string): string | null {

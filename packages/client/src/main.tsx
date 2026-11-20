@@ -50,7 +50,13 @@ const persister = holdWhileStreaming(
 );
 
 /** Results that are not worth keeping offline, or would be wrong when restored. */
-const VOLATILE = new Set(['auth-status', 'pairing-addresses', 'proposal', 'trusted-certificate']);
+const VOLATILE = new Set([
+  'auth-status',
+  'pairing-addresses',
+  'proposal',
+  'cleanup',
+  'trusted-certificate',
+]);
 
 // A data router, so views can hold navigation back (unsaved edits); App keeps its <Routes>.
 const router = createBrowserRouter([{ path: '*', element: <App /> }]);

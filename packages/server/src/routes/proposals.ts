@@ -7,7 +7,7 @@ import { HttpError, notFound, type Services, typed } from './context.ts';
 
 const params = z.object({ id });
 
-export async function proposalRoutes(app: FastifyInstance, { db, proposals }: Services) {
+export async function proposalRoutes(app: FastifyInstance, { db, proposals, worlds }: Services) {
   const r = typed(app);
 
   const closingScene = (sceneId: string) => {
@@ -40,6 +40,37 @@ export async function proposalRoutes(app: FastifyInstance, { db, proposals }: Se
       throw new HttpError(409, 'conflict', 'The scene is not waiting for canon');
     }
     const result = await proposals.apply(params.id);
+    if (result.conflicts.length > 0) {
+      throw new HttpError(
+        409,
+        'merge_conflict',
+        `Changed since the proposal: ${result.conflicts.join(', ')}. Resolve the conflicts and accept again.`,
+      );
+    }
+    return result;
+  });
+
+  // The cleanup run over a whole world: always reviewed, never tied to a scene.
+  r.get('/api/worlds/:id/cleanup', { schema: { params } }, async ({ params }) => {
+    await worlds.get(params.id);
+    return proposals.cleanup(params.id);
+  });
+
+  r.post('/api/worlds/:id/cleanup', { schema: { params } }, async ({ params }) => {
+    await worlds.get(params.id);
+    proposals.startCleanup(params.id);
+    return proposals.cleanup(params.id);
+  });
+
+  r.put(
+    '/api/worlds/:id/cleanup/file',
+    { schema: { params, body: proposalFileUpdate } },
+    async ({ params, body }) =>
+      proposals.decideCleanup(params.id, body.path, body.decision, body.after),
+  );
+
+  r.post('/api/worlds/:id/cleanup/apply', { schema: { params } }, async ({ params }) => {
+    const result = await proposals.applyCleanup(params.id);
     if (result.conflicts.length > 0) {
       throw new HttpError(
         409,

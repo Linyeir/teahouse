@@ -83,6 +83,7 @@ describe('recovery after a crash', () => {
     db.insert(canonProposals)
       .values({
         id: 'proposal-cut-off',
+        worldId: 'world',
         sceneId: scene.id,
         status: 'generating',
         files: [],

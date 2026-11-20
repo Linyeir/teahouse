@@ -102,3 +102,44 @@ describe('database backups', () => {
     expect(kept.at(-1)).toBe(`teahouse-2026-10-0${KEEP_BACKUPS + 2}T12-00-00Z.db`);
   });
 });
+
+describe('world-owned canon proposals (0005)', () => {
+  it('gives every existing proposal the world of its chat, as a scene proposal', async () => {
+    const dir = await tempDir('teahouse-db-');
+    const file = join(dir, 'teahouse.db');
+    openDb(file, { migrationsFolder: await migrations(5) }).$client.close();
+    const sqlite = new Database(file);
+    const t = '2026-11-01T00:00:00.000Z';
+    sqlite
+      .prepare(
+        'INSERT INTO chats (id, title, world_id, character_slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('chat-1', 'Harbor', 'world-1', 'mira', t, t);
+    sqlite
+      .prepare(
+        "INSERT INTO scenes (id, chat_id, number, status, cast, created_at, updated_at) VALUES (?, ?, 1, 'closing', '[]', ?, ?)",
+      )
+      .run('scene-1', 'chat-1', t, t);
+    sqlite
+      .prepare(
+        "INSERT INTO canon_proposals (id, scene_id, status, files, created_at, updated_at) VALUES (?, ?, 'ready', '[]', ?, ?)",
+      )
+      .run('proposal-1', 'scene-1', t, t);
+    sqlite.close();
+
+    const db = openDb(file);
+    onTestFinished(() => {
+      db.$client.close();
+    });
+    const row = db.$client
+      .prepare('SELECT world_id, kind, scene_id, status FROM canon_proposals')
+      .get();
+    expect(row).toEqual({
+      world_id: 'world-1',
+      kind: 'scene',
+      scene_id: 'scene-1',
+      status: 'ready',
+    });
+    expect((await readdir(join(dir, 'backups'))).length).toBe(1);
+  });
+});

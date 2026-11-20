@@ -11,6 +11,7 @@ import { CharacterRow, GroupChatStart } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
 import { clearDraft, clearDrafts, setDraft, useDirtyPaths, useDraft } from '../worldDrafts.ts';
+import { CanonCleanup } from './CanonCleanup.tsx';
 import { DiffView } from './SceneParts.tsx';
 import { ImportCard } from './WorldsView.tsx';
 import styles from './WorldView.module.css';
@@ -186,6 +187,7 @@ function Overview({ worldId }: { worldId: string }) {
         ))}
       </ul>
       <GroupChatStart worldId={worldId} characters={characters.data ?? []} />
+      <CanonCleanup worldId={worldId} />
       <WorldBackgrounds worldId={worldId} />
       <ImportCard worlds={worlds.data ?? []} worldId={worldId} />
     </div>

@@ -4,7 +4,11 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 ## [0.4.2] - unreleased
 
-**Updating:** the server adds a column to its database on start and backs it up first.
+**Updating:** the server changes its database on start (canon proposals get a column and now belong to a world) and backs it up first. **Tidy up the canon** needs a 0.4.2 server.
+
+### Added
+
+- **Tidy up the canon** on a world's overview goes over the whole world and suggests fixes: summaries that no longer match their file, contradictions between files, duplicate files, new files for names that come up in several events, and aliases and tags for files the events call by another name. You review the suggestions in the same sheet as a scene's canon changes, even with canon review turned off, and nothing changes until you commit. A fixed contradiction shows what the other file says next to the change, so you can judge which side is right. Two files about the same character are merged into one: the other's name becomes an alias, and its chats, scenes and replies move to the character that stays. Events are never changed, and a run never holds up a scene. ([#47](https://github.com/Linyeir/teahouse/issues/47), [#105](https://github.com/Linyeir/teahouse/issues/105))
 
 ### Changed
 

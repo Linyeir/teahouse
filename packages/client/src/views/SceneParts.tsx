@@ -108,22 +108,38 @@ function frontmatterValue(text: string, key: string): string | null {
   return line ? line.replace(/^(['"])(.*)\1$/, '$2') : null;
 }
 
-/** One file of the proposal: what changes in words, its decision, the raw diff on request. */
-function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFileView }) {
+/** Where a proposal lives: its API path, and its key in the query cache. */
+export interface ProposalTarget {
+  base: string;
+  queryKey: readonly unknown[];
+}
+
+/** The name a proposed file goes by: its `name`, else its path. */
+const fileName = (file: ProposalFileView) =>
+  frontmatterValue(file.after ?? file.before ?? '', 'name') ?? file.path;
+
+/**
+ * One file of the proposal: what changes in words, its decision, the raw diff on request.
+ * A fix of a contradiction says what the other file says, so you can judge which is right.
+ */
+function ProposalFileCard({ target, file }: { target: ProposalTarget; file: ProposalFileView }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<string | null>(null);
   const decide = useMutation({
     mutationFn: (input: { decision: ProposalFileView['decision']; after?: string }) =>
-      api.put<CanonProposal>(`/api/scenes/${sceneId}/proposal/file`, { path: file.path, ...input }),
+      api.put<CanonProposal>(`${target.base}/file`, { path: file.path, ...input }),
     onSuccess: (proposal) => {
-      queryClient.setQueryData(['proposal', sceneId], proposal);
+      queryClient.setQueryData(target.queryKey, proposal);
       setDraft(null);
     },
   });
-  const conflict = hasConflictMarkers(file.after);
+  const removed = file.after === null;
+  const conflict = file.after !== null && hasConflictMarkers(file.after);
   const draftConflict = draft !== null && hasConflictMarkers(draft);
-  const name = frontmatterValue(file.after, 'name') ?? file.path;
+  const contradictions = (file.changes ?? []).flatMap((c) =>
+    c.contradicts ? [c.contradicts] : [],
+  );
   const badge =
     file.decision === 'accepted'
       ? styles.accepted
@@ -134,14 +150,24 @@ function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFi
   return (
     <div className={`${styles.file} ${conflict ? styles.conflictFile : ''}`}>
       <div className={styles.fileHeader}>
-        <span className={styles.fileName}>{name}</span>
+        <span className={styles.fileName}>{fileName(file)}</span>
         <span className={styles.filePath}>{file.path}</span>
         <span className={styles.badge}>
-          {file.before === null ? t('scenes.newFile') : t('scenes.changed')}
+          {removed
+            ? t('scenes.mergedAway')
+            : file.before === null
+              ? t('scenes.newFile')
+              : t('scenes.changed')}
         </span>
         <span className={badge}>{t(`scenes.decision.${file.decision}`)}</span>
       </div>
       {conflict && <p className={styles.conflictText}>{t('scenes.conflictHint')}</p>}
+      {contradictions.map((c) => (
+        <p key={c.path} className={styles.contradiction}>
+          <span aria-hidden="true">⚠ </span>
+          {t('scenes.contradicts', { path: c.path })} <q>{c.quote}</q>
+        </p>
+      ))}
       {(file.changes ?? []).length > 0 && (
         <ul className={styles.changes}>
           {(file.changes ?? []).map((change, i) => (
@@ -158,7 +184,7 @@ function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFi
       {draft === null ? (
         <details className={styles.raw} open={conflict || undefined}>
           <summary className={styles.rawToggle}>{t('scenes.rawDiff')}</summary>
-          <DiffView before={file.before ?? ''} after={file.after} />
+          <DiffView before={file.before ?? ''} after={file.after ?? ''} />
         </details>
       ) : (
         <textarea
@@ -171,9 +197,11 @@ function ProposalFileCard({ sceneId, file }: { sceneId: string; file: ProposalFi
       <div className={`${ui.actions} ${styles.fileActions}`}>
         {draft === null ? (
           <>
-            <button className={ui.ghost} type="button" onClick={() => setDraft(file.after)}>
-              {t('common.edit')}
-            </button>
+            {!removed && (
+              <button className={ui.ghost} type="button" onClick={() => setDraft(file.after ?? '')}>
+                {t('common.edit')}
+              </button>
+            )}
             <button
               className={ui.button}
               type="button"
@@ -239,16 +267,13 @@ function ProposalSummary({ files }: { files: ProposalFileView[] }) {
   const { t } = useTranslation();
   const event = files.find((f) => f.changes?.some((c) => c.op === 'event'));
   const created = files.filter((f) => f.before === null).length;
+  const summary = event?.after ? frontmatterValue(event.after, 'summary') : null;
   return (
     <div className={`${ui.card} ${styles.summary}`}>
       {event && (
         <>
-          <h3 className={styles.eventTitle}>
-            {frontmatterValue(event.after, 'name') ?? event.path}
-          </h3>
-          {frontmatterValue(event.after, 'summary') && (
-            <p>{frontmatterValue(event.after, 'summary')}</p>
-          )}
+          <h3 className={styles.eventTitle}>{fileName(event)}</h3>
+          {summary && <p>{summary}</p>}
         </>
       )}
       <span className={ui.hint}>
@@ -262,6 +287,121 @@ function ProposalSummary({ files }: { files: ProposalFileView[] }) {
   );
 }
 
+/** A mutation as the review sheet uses it: start it, see whether it runs, and how it failed. */
+interface Action {
+  mutate: () => void;
+  isPending: boolean;
+  error: unknown;
+}
+
+/**
+ * The review of a proposal in a sheet: what changes, every file with its decision, and at the
+ * bottom the commit. Used for a closing scene's proposal and for a world's cleanup run.
+ */
+export function ProposalSheet({
+  title,
+  closeLabel,
+  onClose,
+  target,
+  data,
+  summary,
+  apply,
+  regenerate,
+  emptyApplyLabel,
+}: {
+  title: string;
+  closeLabel: string;
+  onClose: () => void;
+  target: ProposalTarget;
+  data: CanonProposal;
+  summary: ReactNode;
+  apply: Action;
+  regenerate: Action;
+  emptyApplyLabel: string;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const decideAll = useMutation({
+    mutationFn: async (decision: 'accepted' | 'rejected') => {
+      let last: CanonProposal | null = null;
+      for (const file of data.files) {
+        // A conflict is only ever accepted by hand, after it is resolved.
+        if (decision === 'accepted' && file.after !== null && hasConflictMarkers(file.after)) {
+          continue;
+        }
+        if (file.decision === decision) continue;
+        last = await api.put<CanonProposal>(`${target.base}/file`, {
+          path: file.path,
+          decision,
+        });
+      }
+      return last;
+    },
+    onSuccess: (last) => {
+      if (last) queryClient.setQueryData(target.queryKey, last);
+    },
+  });
+  const pending = data.files.filter((f) => f.decision === 'pending').length;
+  const accepted = data.files.filter((f) => f.decision === 'accepted').length;
+
+  return (
+    <ReviewSheet title={title} closeLabel={closeLabel} onClose={onClose}>
+      <div className={styles.sheetBody}>
+        {summary}
+        <span className={ui.hint}>{t('scenes.reviewHint')}</span>
+        {data.status === 'failed' && <p className={ui.error}>{data.error}</p>}
+        <ProposalNotes notes={data.notes} />
+        <div className={ui.actions}>
+          <button
+            className={ui.button}
+            type="button"
+            disabled={decideAll.isPending}
+            onClick={() => decideAll.mutate('rejected')}
+          >
+            {t('scenes.rejectAll')}
+          </button>
+          <button
+            className={ui.button}
+            type="button"
+            disabled={decideAll.isPending}
+            onClick={() => decideAll.mutate('accepted')}
+          >
+            {t('scenes.acceptAll')}
+          </button>
+        </div>
+        <ErrorText error={decideAll.error} />
+        {data.files.map((file) => (
+          <ProposalFileCard key={file.path} target={target} file={file} />
+        ))}
+      </div>
+      <div className={styles.sheetFooter}>
+        <ErrorText error={apply.error ?? regenerate.error} />
+        {pending > 0 && (
+          <span className={ui.hint}>{t('scenes.decideAll', { count: pending })}</span>
+        )}
+        <div className={ui.actions}>
+          <button
+            className={ui.button}
+            type="button"
+            disabled={regenerate.isPending}
+            onClick={() => regenerate.mutate()}
+          >
+            {t('scenes.regenerate')}
+          </button>
+          <button
+            className={ui.primary}
+            type="button"
+            disabled={data.status !== 'ready' || pending > 0 || apply.isPending}
+            onClick={() => apply.mutate()}
+          >
+            {accepted > 0 ? t('scenes.apply', { count: accepted }) : emptyApplyLabel}
+          </button>
+        </div>
+      </div>
+    </ReviewSheet>
+  );
+}
+
 /**
  * The canon proposal of a closing scene. It opens as a full-height sheet; "View scene" closes
  * it to read the scene again, and a card in the chat opens it once more.
@@ -270,38 +410,24 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(true);
-  const proposal = useQuery({
+  const target: ProposalTarget = {
+    base: `/api/scenes/${sceneId}/proposal`,
     queryKey: ['proposal', sceneId],
-    queryFn: () => api.get<CanonProposal | null>(`/api/scenes/${sceneId}/proposal`),
+  };
+  const proposal = useQuery({
+    queryKey: target.queryKey,
+    queryFn: () => api.get<CanonProposal | null>(target.base),
   });
   const apply = useMutation({
-    mutationFn: () => api.post(`/api/scenes/${sceneId}/proposal/apply`),
+    mutationFn: () => api.post(`${target.base}/apply`),
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['proposal', sceneId] });
+      void queryClient.invalidateQueries({ queryKey: target.queryKey });
       void queryClient.invalidateQueries({ queryKey: ['chat', chatId] });
     },
   });
   const regenerate = useMutation({
-    mutationFn: () => api.post(`/api/scenes/${sceneId}/proposal/regenerate`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['proposal', sceneId] }),
-  });
-  const decideAll = useMutation({
-    mutationFn: async (decision: 'accepted' | 'rejected') => {
-      let last: CanonProposal | null = null;
-      for (const file of proposal.data?.files ?? []) {
-        // A conflict is only ever accepted by hand, after it is resolved.
-        if (decision === 'accepted' && hasConflictMarkers(file.after)) continue;
-        if (file.decision === decision) continue;
-        last = await api.put<CanonProposal>(`/api/scenes/${sceneId}/proposal/file`, {
-          path: file.path,
-          decision,
-        });
-      }
-      return last;
-    },
-    onSuccess: (last) => {
-      if (last) queryClient.setQueryData(['proposal', sceneId], last);
-    },
+    mutationFn: () => api.post(`${target.base}/regenerate`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: target.queryKey }),
   });
 
   const data = proposal.data;
@@ -329,8 +455,6 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
       </div>
     );
   }
-  const pending = data.files.filter((f) => f.decision === 'pending').length;
-  const accepted = data.files.filter((f) => f.decision === 'accepted').length;
 
   return (
     <>
@@ -344,62 +468,17 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
         </div>
       </div>
       {open && (
-        <ReviewSheet title={t('scenes.reviewTitle')} onClose={() => setOpen(false)}>
-          <div className={styles.sheetBody}>
-            <ProposalSummary files={data.files} />
-            <span className={ui.hint}>{t('scenes.reviewHint')}</span>
-            {data.status === 'failed' && <p className={ui.error}>{data.error}</p>}
-            <ProposalNotes notes={data.notes} />
-            <div className={ui.actions}>
-              <button
-                className={ui.button}
-                type="button"
-                disabled={decideAll.isPending}
-                onClick={() => decideAll.mutate('rejected')}
-              >
-                {t('scenes.rejectAll')}
-              </button>
-              <button
-                className={ui.button}
-                type="button"
-                disabled={decideAll.isPending}
-                onClick={() => decideAll.mutate('accepted')}
-              >
-                {t('scenes.acceptAll')}
-              </button>
-            </div>
-            <ErrorText error={decideAll.error} />
-            {data.files.map((file) => (
-              <ProposalFileCard key={file.path} sceneId={sceneId} file={file} />
-            ))}
-          </div>
-          <div className={styles.sheetFooter}>
-            <ErrorText error={apply.error ?? regenerate.error} />
-            {pending > 0 && (
-              <span className={ui.hint}>{t('scenes.decideAll', { count: pending })}</span>
-            )}
-            <div className={ui.actions}>
-              <button
-                className={ui.button}
-                type="button"
-                disabled={regenerate.isPending}
-                onClick={() => regenerate.mutate()}
-              >
-                {t('scenes.regenerate')}
-              </button>
-              <button
-                className={ui.primary}
-                type="button"
-                disabled={data.status !== 'ready' || pending > 0 || apply.isPending}
-                onClick={() => apply.mutate()}
-              >
-                {accepted > 0
-                  ? t('scenes.apply', { count: accepted })
-                  : t('scenes.closeWithoutChanges')}
-              </button>
-            </div>
-          </div>
-        </ReviewSheet>
+        <ProposalSheet
+          title={t('scenes.reviewTitle')}
+          closeLabel={t('scenes.viewScene')}
+          onClose={() => setOpen(false)}
+          target={target}
+          data={data}
+          summary={<ProposalSummary files={data.files} />}
+          apply={apply}
+          regenerate={regenerate}
+          emptyApplyLabel={t('scenes.closeWithoutChanges')}
+        />
       )}
     </>
   );
@@ -408,14 +487,15 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
 /** A modal sheet over the whole height: its own scrolling body and a footer that stays. */
 function ReviewSheet({
   title,
+  closeLabel,
   onClose,
   children,
 }: {
   title: string;
+  closeLabel: string;
   onClose: () => void;
   children: ReactNode;
 }) {
-  const { t } = useTranslation();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -436,7 +516,7 @@ function ReviewSheet({
       <div className={styles.sheetHeader}>
         <h2 id={titleId}>{title}</h2>
         <button className={ui.ghost} type="button" onClick={onClose}>
-          {t('scenes.viewScene')}
+          {closeLabel}
         </button>
       </div>
       {children}
