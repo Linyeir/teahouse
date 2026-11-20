@@ -45,7 +45,10 @@ export function getMessageRow(db: Db, messageId: string): MessageRow | undefined
     .get();
 }
 
-function loadTree(db: Db, chatId: string) {
+export type Tree = ReturnType<typeof loadTree>;
+
+/** All messages of a chat, by ID and by parent. One query; reuse it within a request. */
+export function loadTree(db: Db, chatId: string) {
   const rows = db
     .select()
     .from(messages)
@@ -63,9 +66,17 @@ function loadTree(db: Db, chatId: string) {
   return { byId, children };
 }
 
-/** Messages from the root to `leafId`, each with the IDs of its siblings. */
-export function activePath(db: Db, chatId: string, leafId: string | null): PathMessage[] {
-  const { byId, children } = loadTree(db, chatId);
+/**
+ * Messages from the root to `leafId`, each with the IDs of its siblings. Pass `tree` when
+ * reading several paths of one chat, so its messages are loaded once.
+ */
+export function activePath(
+  db: Db,
+  chatId: string,
+  leafId: string | null,
+  tree: Tree = loadTree(db, chatId),
+): PathMessage[] {
+  const { byId, children } = tree;
   const path: PathMessage[] = [];
   let current = leafId ? byId.get(leafId) : undefined;
   while (current) {

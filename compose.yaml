@@ -1,10 +1,15 @@
 services:
   teahouse:
-    build: .
+    image: ghcr.io/linyeir/teahouse:latest
+    # To build from this checkout instead of pulling the release:
+    # build: .
     ports:
       - "8787:8787"
     volumes:
       - teahouse-data:/data
+    # Lets the container reach LM Studio or llama.cpp on this machine (needed on Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:

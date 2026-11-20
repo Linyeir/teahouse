@@ -85,9 +85,18 @@ export function vnPages(
     greeting?: { messageId: string; opener: string };
     /** The background before the narrator picks one. */
     background?: string | null;
+    /**
+     * A character's slug for a `who` in a reply. Replies stored before the server did this
+     * may name a character `Mira` instead of `mira`, which would put a second Mira on stage.
+     */
+    resolve?: (who: string) => string | null;
   } = {},
 ): VnPage[] {
-  const { greeting } = options;
+  const { greeting, resolve = () => null } = options;
+  const bySlug = (beat: Beat): Beat =>
+    beat.type === 'say' || beat.type === 'leave' || beat.type === 'enter'
+      ? { ...beat, who: resolve(beat.who) ?? beat.who }
+      : beat;
   let stage: StageState = {
     background: options.background ?? null,
     present: cast.map((who) => ({ who, mood: null })),
@@ -102,7 +111,7 @@ export function vnPages(
         ? parseUserInput(message.content)
         : isGreeting
           ? greetingBeats(message.content, greeting?.opener ?? '')
-          : stageBeats(message, { final: message.status !== 'streaming' });
+          : stageBeats(message, { final: message.status !== 'streaming' }).map(bySlug);
     stage = stageAfter(
       all.filter((b) => b.type !== 'bg' || backgrounds.has(b.id)),
       stage,
@@ -113,4 +122,24 @@ export function vnPages(
     pages.push({ message, beats, speaker, stage });
   }
   return pages;
+}
+
+/** What a key does in the novel view, or null to leave it to the browser. */
+export type StageKeyAction = 'advance' | 'next' | 'back';
+
+/**
+ * Keys page through the novel view only while nothing else has focus: the stage, its
+ * textbox or the page itself. A focused button, link or field elsewhere (Log, End scene,
+ * Continue, the composer) keeps Enter and Space for itself.
+ */
+export function stageKeyAction(
+  key: string,
+  focus: 'stage' | 'none' | 'other',
+  modifiers = false,
+): StageKeyAction | null {
+  if (focus === 'other' || modifiers) return null;
+  if (key === ' ' || key === 'Enter') return 'advance';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'ArrowLeft') return 'back';
+  return null;
 }

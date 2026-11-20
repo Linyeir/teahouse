@@ -69,6 +69,16 @@ export const endpointProbeInput = z.object({
 export type EndpointProbeInput = z.infer<typeof endpointProbeInput>;
 
 export const modelList = z.object({ models: z.array(z.string()) });
+
+export const endpointPreset = z.object({ name: z.string(), baseUrl: z.string() });
+export type EndpointPreset = z.infer<typeof endpointPreset>;
+
+/** Common endpoints, as seen from a server outside a container. */
+export const ENDPOINT_PRESETS: EndpointPreset[] = [
+  { name: 'LM Studio', baseUrl: 'http://localhost:1234/v1' },
+  { name: 'llama.cpp', baseUrl: 'http://localhost:8080/v1' },
+  { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
+];
 export type ModelList = z.infer<typeof modelList>;
 
 export const settings = z.object({

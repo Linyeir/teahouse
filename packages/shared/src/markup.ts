@@ -38,9 +38,23 @@ function attributes(source: string): Record<string, string> {
   return attrs;
 }
 
-/** Removes reasoning blocks and, while streaming, a tag that is still being written. */
+const REASONING = /<(think|thinking)>[\s\S]*?(<\/\1>|$)/gi;
+const REASONING_END = /<\/(?:think|thinking)>/gi;
+
+/**
+ * Removes the reasoning of reasoning models: `<think>` and `<thinking>` blocks, and everything
+ * before a closing tag whose opening one is missing (some servers cut it off, so the
+ * reasoning arrives as plain text that ends in `</think>`).
+ */
+export function stripReasoning(text: string): string {
+  const out = text.replace(REASONING, '');
+  const orphan = [...out.matchAll(REASONING_END)].at(-1);
+  return orphan ? out.slice((orphan.index ?? 0) + orphan[0].length) : out;
+}
+
+/** Removes reasoning and, while streaming, a tag that is still being written. */
 function clean(text: string, final: boolean): string {
-  let out = text.replace(/<think>[\s\S]*?(<\/think>|$)/gi, '');
+  let out = stripReasoning(text);
   if (!final) out = out.replace(/<\/?[a-z]*(\s[^<>]*)?$/i, '');
   return out;
 }
@@ -136,6 +150,23 @@ export function findForeignLine(text: string, foreign: (who: string) => boolean)
     if (who && foreign(who)) return match.index ?? null;
   }
   return null;
+}
+
+const WHO = /(\bwho\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/i;
+
+/**
+ * Rewrites `who` of `<say>` and `<leave>` to what `resolve` returns, e.g. a character's name,
+ * alias or a differently cased slug to the slug. Unresolved speakers stay as they are.
+ */
+export function normalizeSpeakers(text: string, resolve: (who: string) => string | null): string {
+  return text.replace(TAG, (tag, closing: string, name: string) => {
+    if (closing || !/^(say|leave)$/i.test(name)) return tag;
+    return tag.replace(WHO, (attr, prefix: string, a?: string, b?: string, c?: string) => {
+      const who = (a ?? b ?? c ?? '').trim();
+      const slug = resolve(who);
+      return slug && slug !== who ? `${prefix}"${slug}"` : attr;
+    });
+  });
 }
 
 /** What the stage shows after a sequence of beats: background and who is present. */

@@ -5,10 +5,11 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createStore, del, get, set } from 'idb-keyval';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router';
+import { createBrowserRouter, RouterProvider } from 'react-router';
 import { App } from './App.tsx';
 import { getServer, isApp } from './api.ts';
 import { registerOfflineMutations } from './mutations.ts';
+import { holdWhileStreaming } from './persist.ts';
 import './global.css';
 import './i18n.ts';
 
@@ -36,18 +37,23 @@ if (!isApp) registerSW({ immediate: true });
 
 // The local copy: the query cache plus queued mutations, in IndexedDB.
 const store = createStore('teahouse', 'cache');
-const persister = createAsyncStoragePersister({
-  storage: {
-    getItem: (key) => get<string>(key, store).then((v) => v ?? null),
-    setItem: (key, value) => set(key, value, store),
-    removeItem: (key) => del(key, store),
-  },
-  key: 'local-copy',
-  throttleTime: 1000,
-});
+const persister = holdWhileStreaming(
+  createAsyncStoragePersister({
+    storage: {
+      getItem: (key) => get<string>(key, store).then((v) => v ?? null),
+      setItem: (key, value) => set(key, value, store),
+      removeItem: (key) => del(key, store),
+    },
+    key: 'local-copy',
+    throttleTime: 1000,
+  }),
+);
 
 /** Results that are not worth keeping offline, or would be wrong when restored. */
 const VOLATILE = new Set(['auth-status', 'pairing-addresses', 'proposal', 'trusted-certificate']);
+
+// A data router, so views can hold navigation back (unsaved edits); App keeps its <Routes>.
+const router = createBrowserRouter([{ path: '*', element: <App /> }]);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
@@ -69,9 +75,7 @@ createRoot(root).render(
       // Messages queued before a reload continue once they are back in the cache.
       onSuccess={() => void queryClient.resumePausedMutations()}
     >
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </PersistQueryClientProvider>
   </StrictMode>,
 );

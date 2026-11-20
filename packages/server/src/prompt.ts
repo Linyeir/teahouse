@@ -2,7 +2,7 @@ import { DEFAULT_IMAGE_LABELS, renderTemplate } from '@teahouse/shared';
 import type { ChatMessage } from './llm/client.ts';
 
 export const DEFAULT_NARRATOR_TEMPLATE = `You are co-writing an interactive roleplay with {{user}}, one turn at a time.
-Each turn belongs to one character or to the narrator; the end of this prompt says whose turn it is.
+Each turn belongs to one character or to the narrator; the <turn> at the end says whose turn it is.
 Never write actions, thoughts or speech for {{user}}.
 Keep replies focused and end at a point where someone else can react.
 Write in {{language}}.`;
@@ -34,8 +34,13 @@ type StoryMessage = { role: 'user' | 'assistant'; content: string };
 export interface NarratorContext {
   /** The character whose turn it is; null for the narrator's turn. */
   speaker: { slug: string; name: string } | null;
-  /** `{{char}}` in canon and history: the speaker, or the characters present. */
+  /** `{{char}}` in the history: the speaker, or the characters present. */
   characterName: string;
+  /**
+   * `{{char}}` in the system message (canon, memory): everyone in the scene, so it stays the
+   * same whoever's turn it is.
+   */
+  sceneName: string;
   /** Canon files selected for this turn, already rendered as `<file>` blocks. */
   canon: string;
   /** Active Memory summary of the scene so far. */
@@ -48,6 +53,7 @@ export interface NarratorContext {
   history: StoryMessage[];
 }
 
+/** The world's cast and backgrounds, which change only when the world does. */
 function stageText(stage: StageInfo): string {
   const characters = stage.characters
     .map(
@@ -58,43 +64,49 @@ function stageText(stage: StageInfo): string {
   const backgrounds = stage.backgrounds.length
     ? stage.backgrounds.map((b) => `- ${b.id}: ${b.description}`).join('\n')
     : '(none; do not use <bg>)';
-  const current = [
+  return `Characters:\n${characters}\n\nBackgrounds:\n${backgrounds}`;
+}
+
+/** Where the scene stands now, which changes with backgrounds and entrances. */
+function currentText(stage: StageInfo): string {
+  return [
     `Current background: ${stage.background ?? 'none yet'}.`,
     `Present: ${stage.present.length ? stage.present.join(', ') : 'nobody yet'}.`,
   ].join(' ');
-  return `Characters:\n${characters}\n\nBackgrounds:\n${backgrounds}\n\n${current}`;
 }
 
 const block = (tag: string, content: string, attrs = '') =>
   content.trim() ? `<${tag}${attrs}>\n${content.trim()}\n</${tag}>` : '';
 
 /**
- * Builds the narrator prompt. Static parts come first (template, then canon), so local
- * servers can reuse their KV cache across turns.
+ * Builds the narrator prompt. Local servers reuse their KV cache for the longest prefix that
+ * did not change, so the system message holds only what stays the same from turn to turn
+ * (template, canon, memory, the world's cast) and whose turn it is goes last, in a user
+ * message. That also means the prompt never ends on an assistant message, which llama-server
+ * would continue as a prefill instead of answering.
  */
 export function buildNarratorMessages(ctx: NarratorContext): ChatMessage[] {
-  const vars = { char: ctx.characterName, user: ctx.userName, language: ctx.language };
-  const render = (text: string) => renderTemplate(text, vars);
-  const turn = ctx.speaker
-    ? renderTemplate(CHARACTER_TURN, { char: ctx.speaker.name, slug: ctx.speaker.slug })
-    : NARRATOR_TURN;
-  // Ordered from most to least stable, for KV cache reuse: the stage block changes only when
-  // the background or the people present change, the turn whenever someone else speaks.
+  const vars = { user: ctx.userName, language: ctx.language };
   const system = [
-    render(DEFAULT_NARRATOR_TEMPLATE),
-    render(MARKUP_INSTRUCTIONS),
-    block('canon', render(ctx.canon)),
-    block('scene_so_far', render(ctx.memory)),
+    renderTemplate(DEFAULT_NARRATOR_TEMPLATE, vars),
+    renderTemplate(MARKUP_INSTRUCTIONS, vars),
+    block('canon', renderTemplate(ctx.canon, { ...vars, char: ctx.sceneName })),
+    block('scene_so_far', renderTemplate(ctx.memory, { ...vars, char: ctx.sceneName })),
     block('stage', stageText(ctx.stage)),
-    block('turn', turn),
   ]
     .filter(Boolean)
     .join('\n\n');
+  const render = (text: string) => renderTemplate(text, { ...vars, char: ctx.characterName });
+  const turn = ctx.speaker
+    ? renderTemplate(CHARACTER_TURN, { char: ctx.speaker.name, slug: ctx.speaker.slug })
+    : NARRATOR_TURN;
   const story: StoryMessage[] = [
     ...(ctx.startMessage
       ? [{ role: 'assistant' as const, content: render(ctx.startMessage) }]
       : []),
     ...ctx.history.map((m) => ({ role: m.role, content: render(m.content) })),
+    // After the user's own input, if there is any: it becomes part of that message.
+    { role: 'user', content: block('turn', `${currentText(ctx.stage)}\n\n${turn}`) },
   ];
   return [{ role: 'system', content: system }, ...mergeRuns(story)];
 }

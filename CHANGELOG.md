@@ -2,9 +2,45 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [0.4.0] - unreleased
+## [0.4.1] - unreleased
+
+### Changed
+
+- Opening a long chat is much faster: the server read all of a chat's messages again for every closed scene, which took 0.6 s at 40 scenes; it now reads them once (about 12 ms in the same test). While a reply streams, the apps no longer save their offline copy every second, only once the reply is done. The server log shows `chat.fetch` (time, size, scenes) for every chat opened and `canon.select` (time, files) for every reply. ([#63](https://github.com/Linyeir/teahouse/issues/63))
+
+- Without a profile, the chat says so above the text field, with a link to **Profiles**, instead of letting you write a message that nobody answers. A message sent anyway is not stored; its text goes back into the field. ([#65](https://github.com/Linyeir/teahouse/issues/65), [#58](https://github.com/Linyeir/teahouse/issues/58))
+- Every error in a chat offers a way on: a failed reply has **Retry** and **Open Profiles**, other failed actions **Retry**. ([#58](https://github.com/Linyeir/teahouse/issues/58))
+- **Load models** says why it failed: nothing answering at that address, a rejected API key, a wrong path, or no answer in time, which now comes after 15 seconds instead of minutes. Replies that fail to connect say the same. ([#65](https://github.com/Linyeir/teahouse/issues/65))
+- In the Docker image, the LM Studio and llama.cpp presets point at `host.docker.internal`, because `localhost` is the container itself there, and a `localhost` address that does not answer says so. The image sets `TEAHOUSE_IN_CONTAINER=1` for this. ([#65](https://github.com/Linyeir/teahouse/issues/65))
+
+- Running the server from source needs Node.js 24 or later, as `.nvmrc`, the Docker image and CI already use. Node 22 failed two of the client tests. ([#64](https://github.com/Linyeir/teahouse/issues/64))
+
+- In the novel view, a card's greeting reads like every later reply: `*actions*` as narration, speech under the opener's name. A finished or regenerated reply starts at its first line, the name badge no longer covers text, and ▼ shows there's more to read, ▶ that a next message follows. ([#56](https://github.com/Linyeir/teahouse/issues/56))
+- The stage shows a background from the first message: `defaultBackground:` in `world.md`, else the world's first background, until the narrator picks one. Sprites shrink to fit when several characters are present, and the page counter stays readable over a bright background. ([#62](https://github.com/Linyeir/teahouse/issues/62))
+
+### Fixed
+
+- In the novel view, Enter and Space on a focused button (Log, End scene, Continue) turned the page instead of pressing the button, so you could not play with the keyboard alone. The keys now page only when the stage has focus or nothing does. The page buttons are 44 px targets with a visible focus ring, and on a touchscreen tapping the left third of the stage goes back, the rest reads on. ([#54](https://github.com/Linyeir/teahouse/issues/54))
+- With llama.cpp (`llama-server`), a turn without your input, such as **Continue** or a character answering another, could come back empty or repeat the end of the last reply: the prompt ended on the previous reply, which the server continued instead of answering. Whose turn it is and where the scene stands now come last, as a message of their own. The part before stays the same from turn to turn, so local servers reuse more of their cache when the speaker changes. ([#66](https://github.com/Linyeir/teahouse/issues/66))
+- Reasoning models could show their reasoning in the text box when the server dropped the opening `<think>` tag. Teahouse now removes everything up to a lone `</think>`, and `<thinking>` blocks too, and stores replies without them. ([#66](https://github.com/Linyeir/teahouse/issues/66))
+- A reply that named a character `Mira` instead of `mira` put a second, imageless Mira on the stage. Replies now store every speaker by slug, matching names and aliases in any case, and the stage does the same for older replies. A mood written in other case finds its image too. ([#66](https://github.com/Linyeir/teahouse/issues/66))
+- The world editor lost unsaved edits when you opened another file, and when the file changed elsewhere while you typed. Edits now stay with their file until you save or discard them, and the file list marks files with unsaved changes. Leaving the world with unsaved edits asks first, and so does closing the tab. ([#55](https://github.com/Linyeir/teahouse/issues/55))
+- Saving a file that changed since you started editing it (a canon update, an edit in Obsidian) overwrote that change without a word. Teahouse now saves nothing and shows the file as it is against your version: discard your edit, or save yours anyway. ([#55](https://github.com/Linyeir/teahouse/issues/55))
+
+## [0.4.0] - 2026-10-24
 
 **Updating:** apps and server can be updated in any order, but picking who talks needs a 0.4.0 server; with an older one the narrator still plays the whole cast. The server migrates its database (replies get a speaker) and backs it up first. Replies written before keep no speaker; regenerating one plays whoever had the last turn.
+
+### Security
+
+- **Update now.** A request could reach the API without signing in by spelling the path differently, so anyone who could reach the server's port could use it: pair a device, read and change worlds, chats and profiles, and sign out your devices. The server now checks the sign-in for every API route it serves, whatever the spelling. If your server was reachable from outside your own devices, check **Settings → Signed-in devices** for devices you don't know and sign them out, and replace the API key of your LLM endpoint.
+- **Update now.** Importing a world archive could run code on the server: archives carried the world's Git repository, including its configuration and hooks, which ran at the first commit. Exports no longer contain the Git repository, and imports ignore one and start the world with a fresh history. Archives with links or paths outside the archive are refused instead of partly imported. Until you have updated, import only archives you exported yourself.
+
+### Added
+
+- The server warns at startup when it listens on an address other machines can reach, because it serves plain HTTP: the password and device tokens then cross the network unencrypted unless a reverse proxy adds HTTPS. [docs/https.md](docs/https.md) explains how to act on it; on loopback (`TEAHOUSE_HOST=127.0.0.1`) it stays quiet. ([#51](https://github.com/Linyeir/teahouse/issues/51))
+- The Docker image has a health check, so `docker ps` and orchestrators see whether the server answers, not only whether it runs. ([#19](https://github.com/Linyeir/teahouse/issues/19))
+- [SECURITY.md](SECURITY.md) says how to report a vulnerability privately and what happens then. ([#18](https://github.com/Linyeir/teahouse/issues/18))
 
 ### Changed
 
@@ -13,8 +49,6 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 - The log view shows above each reply whose turn it was.
 - The **Generate reply** button under a message that got no reply is gone. **Continue** does the same, with the character you picked.
 - The novel view shows a whole message in one text box instead of one line at a time, under the name of the character whose turn it was. Sprites and background show how the message leaves the stage. A long reply scrolls in the box: click, space or Enter read on, then turn to the next message; the arrow keys step between messages. ([#41](https://github.com/Linyeir/teahouse/issues/41))
-- In the novel view, a card's greeting reads like every later reply: `*actions*` as narration, speech under the opener's name. A finished or regenerated reply starts at its first line, the name badge no longer covers text, and ▼ shows there's more to read, ▶ that a next message follows. ([#56](https://github.com/Linyeir/teahouse/issues/56))
-- The stage shows a background from the first message: `defaultBackground:` in `world.md`, else the world's first background, until the narrator picks one. Sprites shrink to fit when several characters are present, and the page buttons are larger and easier to read. ([#62](https://github.com/Linyeir/teahouse/issues/62))
 - If the model starts writing a line for another character, Teahouse cuts the reply there, as it already did for lines written for you.
 - At the end of a scene, the canon update reads the full file of every character who had a turn, not only of the cast the scene started with.
 - The canon update also reads the files the scene mentions by name, alias or tag, in full or by their summary as far as they fit. Before, it saw them only as one line in an index and could add things that were already there or contradicted them. Files it has not seen in full it only extends, never rewrites. ([#38](https://github.com/Linyeir/teahouse/issues/38))
@@ -23,8 +57,18 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 ### Fixed
 
+- After a crash or a hard stop of the server, a reply that was being written could stay "writing" and a scene could wait for its canon update for good, with no way out. The server now settles both when it starts: the reply keeps what it got as stopped, and the canon proposal shows that it failed and can be proposed again. While a proposal is being written, **Propose again** starts over, for an endpoint that never answers. Stopping the server no longer waits for a canon update that hangs. ([#50](https://github.com/Linyeir/teahouse/issues/50))
 - A greeting that names its character as `{{char}}` showed the placeholder in the chat. New chats fill in the name when they start, which also keeps the greeting about its own character once others take turns.
 - Chats showed `{{user}}` and `{{char}}` as written, e.g. in greetings of imported cards. The log and novel views now show your persona's name and the character's; the stored text keeps the placeholders, so editing shows them and a renamed persona appears everywhere.
+
+## [0.3.5] - 2026-10-24
+
+**Updating:** update the server now; the apps do not change. A security release: it fixes two holes that let someone take over a server or run code on it. Nothing else changes, and the database is not migrated. Exported world archives no longer contain the world's Git history, and imported worlds start with a fresh history.
+
+### Security
+
+- **Update now.** A request could reach the API without signing in by spelling the path differently, so anyone who could reach the server's port could use it: pair a device, read and change worlds, chats and profiles, and sign out your devices. The server now checks the sign-in for every API route it serves, whatever the spelling. If your server was reachable from outside your own devices, check **Settings → Signed-in devices** for devices you don't know and sign them out, and replace the API key of your LLM endpoint.
+- **Update now.** Importing a world archive could run code on the server: archives carried the world's Git repository, including its configuration and hooks, which ran at the first commit. Exports no longer contain the Git repository, and imports ignore one and start the world with a fresh history. Archives with links or paths outside the archive are refused instead of partly imported. Until you have updated, import only archives you exported yourself.
 
 ## [0.3.4] - 2026-10-11
 
@@ -148,7 +192,9 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.4.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.0
+[0.3.5]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.5
 [0.3.4]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.2

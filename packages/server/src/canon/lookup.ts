@@ -67,6 +67,7 @@ export async function lookUp(options: {
   worldId: string;
   known: Set<string>;
   budget: number;
+  signal?: AbortSignal;
 }): Promise<LookupResult> {
   const { toolsFn, profile, worlds, worldId, known } = options;
   const result: LookupResult = { files: new Map(), calls: [], error: null };
@@ -119,7 +120,10 @@ export async function lookUp(options: {
 
   try {
     for (let round = 0; round < MAX_LOOKUP_ROUNDS; round++) {
-      const turn = await toolsFn(profile, conversation, LOOKUP_TOOLS, { minTokens: 1000 });
+      const turn = await toolsFn(profile, conversation, LOOKUP_TOOLS, {
+        minTokens: 1000,
+        signal: options.signal,
+      });
       if (turn.toolCalls.length === 0) break;
       conversation.push({
         role: 'assistant',

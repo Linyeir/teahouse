@@ -18,7 +18,8 @@
     "create": "Anlegen",
     "loading": "Lädt …",
     "confirmDelete": "„%{name}“ löschen?",
-    "dismiss": "Schließen"
+    "dismiss": "Schließen",
+    "retry": "Erneut versuchen"
   },
   "auth": {
     "setupTitle": "Willkommen bei Teahouse",
@@ -96,7 +97,7 @@
     "rename": "Umbenennen",
     "error": "Erzeugung fehlgeschlagen: %{message}",
     "stopped": "Gestoppt",
-    "noProfile": "Lege zuerst ein Profil an.",
+    "noProfile": "Lege zuerst ein Profil an. Deine Nachricht steht wieder im Textfeld.",
     "previousVersion": "Vorige Version",
     "nextVersion": "Nächste Version",
     "emptyReply": "Die Antwort kam leer zurück. Neu erzeugen oder das Profil im Verlauf prüfen.",
@@ -104,7 +105,9 @@
     "present": "In der Szene",
     "others": "Sonst in der Welt",
     "narrator": "Erzähler",
-    "takeTurn": "Weiter"
+    "takeTurn": "Weiter",
+    "openProfiles": "Profile öffnen",
+    "connectModel": "Verbinde ein Modell, um zu spielen: Lege ein Profil mit deinem LLM-Endpunkt an."
   },
   "profiles": {
     "new": "Neues Profil",
@@ -199,7 +202,18 @@
     "groupChat": "Gruppenchat …",
     "groupChatWho": "Wer ist von Anfang an dabei? Andere können später dazukommen.",
     "opening": "Beginnt mit",
-    "startGroupChat": "Gruppenchat starten"
+    "startGroupChat": "Gruppenchat starten",
+    "unsaved": "Ungespeicherte Änderungen",
+    "leaveTitle_one": "Mit ungespeicherten Änderungen in 1 Datei verlassen?",
+    "leaveTitle_other": "Mit ungespeicherten Änderungen in %{count} Dateien verlassen?",
+    "leaveHint": "Deine Änderungen gehen verloren, wenn du die Seite verlässt. Bleib, um sie vorher zu speichern.",
+    "stay": "Bleiben",
+    "leaveDiscard": "Verlassen und verwerfen",
+    "conflictTitle": "Diese Datei hat sich geändert, seit du sie bearbeitest",
+    "conflictDeleted": "Diese Datei wurde gelöscht, seit du sie bearbeitest",
+    "conflictHint": "Vielleicht durch ein Canon-Update oder in einem anderen Editor. Der Diff zeigt die Datei, wie sie jetzt ist, gegen deine Fassung. Gespeichert wurde nichts.",
+    "conflictDiscard": "Meine Änderung verwerfen",
+    "conflictOverwrite": "Meine Fassung trotzdem speichern"
   },
   "scenes": {
     "title": "Szene %{n}",
@@ -218,6 +232,7 @@
     },
     "memoryUpToHere": "Active Memory: Zusammenfassung bis hier",
     "generating": "Canon-Vorschlag wird geschrieben …",
+    "generatingHint": "Dauert es zu lange? „Neu vorschlagen“ fängt von vorn an.",
     "reviewTitle": "Canon-Änderungen",
     "reviewHint": "Nimm jede Datei an, bearbeite oder verwirf sie. Angenommene Dateien werden gemeinsam committet.",
     "newFile": "neu",

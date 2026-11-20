@@ -154,3 +154,34 @@ textarea.input {
     display: none;
   }
 }
+
+.dialog {
+  max-width: min(420px, calc(100vw - 2 * var(--space)));
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: calc(var(--space) * 1.5);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.dialog h2 {
+  margin: 0 0 var(--space);
+  font-size: 1.1rem;
+}
+
+/* An error or notice with its actions on one line, wrapping on narrow screens. */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.banner a {
+  text-decoration: none;
+}

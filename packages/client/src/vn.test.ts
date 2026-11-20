@@ -1,6 +1,6 @@
 import { NARRATOR_SPEAKER, type PathMessage, USER_SPEAKER } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
-import { greetingBeats, vnPages } from './vn.ts';
+import { greetingBeats, stageKeyAction, vnPages } from './vn.ts';
 
 let n = 0;
 const msg = (
@@ -132,5 +132,46 @@ describe('vnPages with a greeting', () => {
       { background: 'inn' },
     );
     expect(pages.map((p) => p.stage.background)).toEqual(['inn', 'docks']);
+  });
+});
+
+describe('vnPages with speakers by name', () => {
+  it('shows one sprite per cast member when a reply names them differently', () => {
+    const slugs: Record<string, string> = { mira: 'mira', tomas: 'tomas' };
+    const [page] = vnPages(
+      [
+        msg(
+          'assistant',
+          '<say who="Mira" mood="amused">So.</say><narration>Tomas nods.</narration><say who="TOMAS">Aye.</say>',
+          'mira',
+        ),
+      ],
+      ['mira', 'tomas'],
+      new Set(),
+      { resolve: (who) => slugs[who.toLowerCase()] ?? null },
+    );
+    expect(page?.stage.present).toEqual([
+      { who: 'mira', mood: 'amused' },
+      { who: 'tomas', mood: null },
+    ]);
+  });
+});
+
+describe('stageKeyAction', () => {
+  it('pages with Space, Enter and the arrows on the stage or with nothing focused', () => {
+    for (const focus of ['stage', 'none'] as const) {
+      expect(stageKeyAction(' ', focus)).toBe('advance');
+      expect(stageKeyAction('Enter', focus)).toBe('advance');
+      expect(stageKeyAction('ArrowRight', focus)).toBe('next');
+      expect(stageKeyAction('ArrowLeft', focus)).toBe('back');
+    }
+  });
+
+  it('leaves keys to a focused control elsewhere and to shortcuts', () => {
+    for (const key of [' ', 'Enter', 'ArrowRight', 'ArrowLeft']) {
+      expect(stageKeyAction(key, 'other')).toBeNull();
+      expect(stageKeyAction(key, 'stage', true)).toBeNull();
+    }
+    expect(stageKeyAction('a', 'stage')).toBeNull();
   });
 });

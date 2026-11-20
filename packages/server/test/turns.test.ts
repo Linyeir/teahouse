@@ -35,17 +35,21 @@ async function setup(replies: string[][]) {
   const path = async () => (await ctx.api<ChatPath>('GET', `/api/chats/${id}`)).body;
   const settled = () => waitFor(async () => (await path()).messages.at(-1)?.status !== 'streaming');
   const system = (n: number) => String(prompts[n]?.[0]?.content);
-  return { ...ctx, world, id, path, settled, prompts, system };
+  /** The end of the prompt: whose turn it is and the stage as it stands. */
+  const turn = (n: number) => String(prompts[n]?.at(-1)?.content);
+  return { ...ctx, world, id, path, settled, prompts, system, turn };
 }
 
 describe('one character per turn', () => {
   it('plays the character the user picked and stores them as the speaker', async () => {
-    const { api, id, path, settled, system } = await setup([['<say who="tomas">Rooms?</say>']]);
+    const { api, id, path, settled, system, turn } = await setup([
+      ['<say who="tomas">Rooms?</say>'],
+    ]);
     await api('POST', `/api/chats/${id}/messages`, { content: 'Hello.', speaker: 'tomas' });
     await settled();
 
-    expect(system(0)).toContain("<turn>\nThis turn is Tomas's.");
-    expect(system(0)).toContain('use <say> only with who="tomas"');
+    expect(turn(0)).toContain("This turn is Tomas's.");
+    expect(turn(0)).toContain('use <say> only with who="tomas"');
     // Tomas joins the core canon although he is not in the cast.
     expect(system(0)).toContain('The innkeeper.');
     const reply = (await path()).messages.at(-1);
@@ -53,15 +57,15 @@ describe('one character per turn', () => {
   });
 
   it('defaults to whoever had the last turn, then to the first of the cast', async () => {
-    const { api, id, path, settled, system } = await setup([]);
+    const { api, id, path, settled, turn } = await setup([]);
     await api('POST', `/api/chats/${id}/messages`, { content: 'Hi.' });
     await settled();
-    expect(system(0)).toContain("This turn is Mira's.");
+    expect(turn(0)).toContain("This turn is Mira's.");
     await api('POST', `/api/chats/${id}/generate`, { speaker: 'tomas' });
     await settled();
     await api('POST', `/api/chats/${id}/messages`, { content: 'And?' });
     await settled();
-    expect(system(2)).toContain("This turn is Tomas's.");
+    expect(turn(2)).toContain("This turn is Tomas's.");
     expect((await path()).messages.map((m) => m.speaker)).toEqual([
       null,
       null,
@@ -73,12 +77,12 @@ describe('one character per turn', () => {
   });
 
   it('brings the speaker on stage', async () => {
-    const { api, id, settled, system } = await setup([['<narration>Tomas nods.</narration>']]);
+    const { api, id, settled, turn } = await setup([['<narration>Tomas nods.</narration>']]);
     await api('POST', `/api/chats/${id}/generate`, { speaker: 'tomas' });
     await settled();
     await api('POST', `/api/chats/${id}/messages`, { content: 'Hi.' });
     await settled();
-    expect(system(1)).toContain('Present: mira, tomas.');
+    expect(turn(1)).toContain('Present: mira, tomas.');
   });
 
   it('cuts the reply where the character starts speaking for someone else', async () => {
@@ -92,17 +96,17 @@ describe('one character per turn', () => {
     await settled();
     expect((await path()).messages.at(-1)).toMatchObject({
       status: 'complete',
-      content: '<say who="Mira">Well?</say><narration>Tomas sighs.</narration>',
+      content: '<say who="mira">Well?</say><narration>Tomas sighs.</narration>',
     });
   });
 
   it('lets the narrator describe, but not speak for anyone', async () => {
-    const { api, id, path, settled, system } = await setup([
+    const { api, id, path, settled, turn } = await setup([
       ['<narration>Thunder.</narration>', '<say who="mira">Oh.</say>'],
     ]);
     await api('POST', `/api/chats/${id}/generate`, { speaker: NARRATOR_SPEAKER });
     await settled();
-    expect(system(0)).toContain("This turn is the narrator's.");
+    expect(turn(0)).toContain("This turn is the narrator's.");
     expect((await path()).messages.at(-1)).toMatchObject({
       speaker: NARRATOR_SPEAKER,
       content: '<narration>Thunder.</narration>',
@@ -110,13 +114,13 @@ describe('one character per turn', () => {
   });
 
   it('regenerates with the same speaker', async () => {
-    const { api, id, path, settled, system } = await setup([]);
+    const { api, id, path, settled, turn } = await setup([]);
     await api('POST', `/api/chats/${id}/messages`, { content: 'Hi.', speaker: 'tomas' });
     await settled();
     const reply = (await path()).messages.at(-1);
     await api('POST', `/api/messages/${reply?.id}/regenerate`);
     await settled();
-    expect(system(1)).toContain("This turn is Tomas's.");
+    expect(turn(1)).toContain("This turn is Tomas's.");
     expect((await path()).messages.at(-1)?.speaker).toBe('tomas');
   });
 
@@ -126,11 +130,44 @@ describe('one character per turn', () => {
     await settled();
     await api('POST', `/api/chats/${id}/generate`, { speaker: 'mira' });
     await settled();
-    // System, then the greeting and Tomas's turn as one assistant message.
-    expect(prompts[1]?.map((m) => m.role)).toEqual(['system', 'assistant']);
+    // System, the greeting and Tomas's turn as one assistant message, then whose turn it is.
+    expect(prompts[1]?.map((m) => m.role)).toEqual(['system', 'assistant', 'user']);
     expect(prompts[1]?.[1]?.content).toBe(
       '<narration>Mira looks up.</narration>\n\n<narration>…</narration>',
     );
+  });
+
+  it('keeps the system message the same when the speaker changes or someone leaves', async () => {
+    const { api, id, settled, prompts, system, turn } = await setup([
+      ['<say who="tomas">Evening.</say>'],
+      ['<narration>Tomas heads out.</narration><leave who="tomas"/>'],
+      ['<narration>Rain.</narration>'],
+    ]);
+    // Tomas joins with his turn, then Mira, the narrator and Tomas again take turns without
+    // the user writing in between.
+    for (const speaker of ['tomas', 'mira', NARRATOR_SPEAKER, 'tomas']) {
+      await api('POST', `/api/chats/${id}/generate`, { speaker });
+      await settled();
+    }
+    expect(system(2)).toBe(system(1));
+    expect(system(3)).toBe(system(1));
+    expect(turn(2)).toContain('Present: mira.');
+    expect(turn(3)).toContain("This turn is Tomas's.");
+    // A turn without user input still ends on a user message: llama-server would continue
+    // a final assistant message as a prefill instead of answering.
+    expect(prompts.map((p) => p.at(-1)?.role)).toEqual(['user', 'user', 'user', 'user']);
+  });
+
+  it('stores replies without reasoning and with every speaker as a slug', async () => {
+    const { api, id, path, settled } = await setup([
+      ['Mira should answer.</think>', '<say who="MIRA" mood="sad">Hi.</say>'],
+    ]);
+    await api('POST', `/api/chats/${id}/messages`, { content: 'Hello.', speaker: 'mira' });
+    await settled();
+    expect((await path()).messages.at(-1)).toMatchObject({
+      status: 'complete',
+      content: '<say who="mira" mood="sad">Hi.</say>',
+    });
   });
 
   it('refuses a speaker who is not in the world', async () => {
@@ -142,7 +179,7 @@ describe('one character per turn', () => {
 
 describe('group chats', () => {
   it('starts with several characters, opened by one greeting', async () => {
-    const { api, worlds, world, settled, system } = await setup([]);
+    const { api, worlds, world, settled, turn } = await setup([]);
     await worlds.write(
       world.id,
       'characters/tomas.md',
@@ -162,8 +199,8 @@ describe('group chats', () => {
     await api('POST', `/api/chats/${chat.body.chat.id}/messages`, { content: 'A room, please.' });
     await settled();
     // Nobody had a turn yet: the opener goes first.
-    expect(system(0)).toContain("This turn is Tomas's.");
-    expect(system(0)).toContain('Present: tomas, mira.');
+    expect(turn(0)).toContain("This turn is Tomas's.");
+    expect(turn(0)).toContain('Present: tomas, mira.');
   });
 
   it('refuses a cast with a character who is not in the world', async () => {

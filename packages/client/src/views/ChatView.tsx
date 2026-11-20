@@ -7,6 +7,7 @@ import {
   type MemoryNode,
   NARRATOR_SPEAKER,
   type PathMessage,
+  type Profile,
   type SendMessageResult,
   type Settings,
   sceneStage,
@@ -17,7 +18,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
 import { api } from '../api.ts';
 import { BeatsText, formatStory, messageBeats } from '../components/Beats.tsx';
-import { ErrorText } from '../components/Field.tsx';
+import { ErrorBanner, GenerationError, NoProfileNotice } from '../components/ErrorBanner.tsx';
 import ui from '../components/ui.module.css';
 import { onDraftRestored, readDraft, restoreDraft, writeDraft } from '../drafts.ts';
 import { useConnection } from '../events.ts';
@@ -78,6 +79,10 @@ export function ChatView() {
   const settings = useQuery({
     queryKey: ['settings'],
     queryFn: () => api.get<Settings>('/api/settings'),
+  });
+  const profiles = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api.get<Profile[]>('/api/profiles'),
   });
   const [ending, setEnding] = useState(false);
   const [view, setView] = useViewMode();
@@ -141,7 +146,7 @@ export function ChatView() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, lastLength]);
 
-  if (path.error) return <ErrorText error={path.error} />;
+  if (path.error) return <ErrorBanner error={path.error} onRetry={() => void path.refetch()} />;
   if (!path.data) return <div className={ui.page}>{t('common.loading')}</div>;
 
   const data = path.data;
@@ -152,6 +157,12 @@ export function ChatView() {
   const lastAssistant = last?.role === 'assistant' ? last : undefined;
   // Send and edit errors arrive as notices, because a queued one may fail in another view.
   const actionError = generate.error ?? regenerate.error;
+  const retryAction = () => {
+    if (generate.error) generate.mutate(generate.variables);
+    else if (regenerate.error && regenerate.variables) regenerate.mutate(regenerate.variables);
+  };
+  // Known to be none, not just still loading: nothing could answer a message.
+  const noProfile = profiles.data?.length === 0;
   const placeholders = {
     userName,
     names,
@@ -231,7 +242,16 @@ export function ChatView() {
               theme={world?.theme ?? {}}
               userName={userName}
             />
-            {lastAssistant && !streaming && <ReplyNotice message={lastAssistant} />}
+            {lastAssistant && !streaming && (
+              <ReplyNotice
+                message={lastAssistant}
+                onRetry={
+                  active && lastAssistant.id !== scene?.startMessageId
+                    ? () => regenerate.mutate(lastAssistant.id)
+                    : undefined
+                }
+              />
+            )}
             {lastAssistant && active && !streaming && (
               <MessageTools
                 message={lastAssistant}
@@ -293,13 +313,7 @@ export function ChatView() {
           <QueuedMessage key={draft.id} draft={draft} online={online} />
         ))}
         <div className={styles.message}>
-          <ErrorText
-            error={
-              actionError && 'code' in actionError && actionError.code === 'no_profile'
-                ? t('chats.noProfile')
-                : actionError
-            }
-          />
+          <ErrorBanner error={actionError} onRetry={retryAction} />
         </div>
         {ending && active && <EndScene chatId={chatId} onDone={() => setEnding(false)} />}
         {scene?.status === 'closing' && <ProposalReview chatId={chatId} sceneId={scene.id} />}
@@ -314,6 +328,7 @@ export function ChatView() {
           characters={characters.data ?? []}
           streaming={Boolean(streaming)}
           online={online}
+          noProfile={noProfile}
           // One message can wait offline (concept, section 9); more would pile up turns.
           blocked={pending.length > 0}
           onSend={(content, speaker) =>
@@ -406,7 +421,10 @@ function MessageView({
         </div>
       )}
       {message.status === 'error' && (
-        <p className={ui.error}>{t('chats.error', { message: message.error })}</p>
+        <GenerationError
+          message={message.error ?? ''}
+          onRetry={isLast && canRegenerate && !readOnly ? onRegenerate : undefined}
+        />
       )}
       {message.status === 'stopped' && <p className={ui.hint}>{t('chats.stopped')}</p>}
       {!streaming && !readOnly && draft === null && (
@@ -426,13 +444,13 @@ function MessageView({
  * The novel view only shows beats, so a reply that failed, was stopped or came back empty
  * needs to be said out loud there.
  */
-function ReplyNotice({ message }: { message: PathMessage }) {
+function ReplyNotice({ message, onRetry }: { message: PathMessage; onRetry?: () => void }) {
   const { t } = useTranslation();
   if (message.status === 'error') {
     return (
-      <p className={`${ui.error} ${styles.notice}`} role="alert">
-        {t('chats.error', { message: message.error })}
-      </p>
+      <div className={styles.notice}>
+        <GenerationError message={message.error ?? ''} onRetry={onRetry} />
+      </div>
     );
   }
   if (message.status === 'stopped')
@@ -538,6 +556,7 @@ function Composer({
   characters,
   streaming,
   online,
+  noProfile,
   blocked,
   onSend,
   onTurn,
@@ -549,6 +568,8 @@ function Composer({
   characters: CharacterSummary[];
   streaming: boolean;
   online: boolean;
+  /** No profile to answer: the text can be written and stays as a draft, but not sent. */
+  noProfile: boolean;
   blocked: boolean;
   onSend: (content: string, speaker: string) => void;
   /** Someone's turn without input from the user. */
@@ -575,7 +596,7 @@ function Composer({
 
   const submit = () => {
     const content = text.trim();
-    if (!content || streaming || blocked) return;
+    if (!content || streaming || blocked || noProfile) return;
     onSend(content, speaker);
     setText('');
     setPicked(null);
@@ -594,6 +615,11 @@ function Composer({
 
   return (
     <div className={styles.composer}>
+      {noProfile && (
+        <div className={styles.composerInner}>
+          <NoProfileNotice />
+        </div>
+      )}
       <label className={`${styles.composerInner} ${styles.turn}`}>
         <span className={ui.hint}>{t('chats.nextTurn')}</span>
         <select className={ui.input} value={speaker} onChange={(e) => setPicked(e.target.value)}>
@@ -633,7 +659,12 @@ function Composer({
             {t('chats.stop')}
           </button>
         ) : text.trim() ? (
-          <button className={ui.primary} type="button" onClick={submit} disabled={blocked}>
+          <button
+            className={ui.primary}
+            type="button"
+            onClick={submit}
+            disabled={blocked || noProfile}
+          >
             {t('chats.send')}
           </button>
         ) : (
@@ -645,7 +676,7 @@ function Composer({
               onTurn(speaker);
               setPicked(null);
             }}
-            disabled={blocked || !online}
+            disabled={blocked || !online || noProfile}
           >
             {t('chats.takeTurn')}
           </button>

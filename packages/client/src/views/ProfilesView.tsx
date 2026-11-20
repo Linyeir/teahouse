@@ -1,16 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ModelList, Profile, ProfileInput, Settings } from '@teahouse/shared';
+import {
+  ENDPOINT_PRESETS,
+  type EndpointPreset,
+  type ModelList,
+  type Profile,
+  type ProfileInput,
+  type Settings,
+} from '@teahouse/shared';
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.ts';
 import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 
-const PRESETS = [
-  { name: 'LM Studio', baseUrl: 'http://localhost:1234/v1' },
-  { name: 'llama.cpp', baseUrl: 'http://localhost:8080/v1' },
-  { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
-];
+/**
+ * Endpoint presets as the server sees them: in its Docker image, local model servers are at
+ * host.docker.internal rather than localhost. Servers before 0.4.1 have no list to offer.
+ */
+function usePresets(): EndpointPreset[] {
+  const presets = useQuery({
+    queryKey: ['endpoint-presets'],
+    queryFn: () => api.get<EndpointPreset[]>('/api/endpoints/presets'),
+    retry: false,
+  });
+  return presets.data ?? ENDPOINT_PRESETS;
+}
 
 /** Form state keeps numbers as strings so fields can be empty while typing. */
 interface Draft {
@@ -30,7 +44,7 @@ const blank: Draft = {
   id: null,
   hasApiKey: false,
   name: '',
-  baseUrl: PRESETS[0]?.baseUrl ?? '',
+  baseUrl: '',
   apiKey: '',
   model: '',
   temperature: '',
@@ -74,6 +88,7 @@ function toInput(d: Draft): ProfileInput {
 export function ProfilesView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const presets = usePresets();
   const profiles = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api.get<Profile[]>('/api/profiles'),
@@ -184,7 +199,11 @@ export function ProfilesView() {
           );
         })}
       </ul>
-      <button className={ui.primary} type="button" onClick={() => setDraft(blank)}>
+      <button
+        className={ui.primary}
+        type="button"
+        onClick={() => setDraft({ ...blank, baseUrl: presets[0]?.baseUrl ?? '' })}
+      >
         {t('profiles.new')}
       </button>
     </div>
@@ -202,6 +221,7 @@ function ProfileForm({
 }) {
   const { t } = useTranslation();
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
+  const presets = usePresets();
 
   const [typing, setTyping] = useState(false);
   const models = useMutation({
@@ -240,14 +260,14 @@ function ProfileForm({
           <Field label={t('profiles.preset')}>
             <select
               className={ui.input}
-              value={PRESETS.find((p) => p.baseUrl === draft.baseUrl)?.baseUrl ?? ''}
+              value={presets.find((p) => p.baseUrl === draft.baseUrl)?.baseUrl ?? ''}
               onChange={(e) => {
-                const preset = PRESETS.find((p) => p.baseUrl === e.target.value);
+                const preset = presets.find((p) => p.baseUrl === e.target.value);
                 if (preset) set({ baseUrl: preset.baseUrl, name: draft.name || preset.name });
               }}
             >
               <option value="">—</option>
-              {PRESETS.map((p) => (
+              {presets.map((p) => (
                 <option key={p.baseUrl} value={p.baseUrl}>
                   {p.name}
                 </option>

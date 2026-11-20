@@ -18,7 +18,8 @@
     "create": "Create",
     "loading": "Loading…",
     "confirmDelete": "Delete “%{name}”?",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "retry": "Retry"
   },
   "auth": {
     "setupTitle": "Welcome to Teahouse",
@@ -96,7 +97,7 @@
     "rename": "Rename",
     "error": "Generation failed: %{message}",
     "stopped": "Stopped",
-    "noProfile": "Add a profile before chatting.",
+    "noProfile": "Add a profile before chatting. Your message is back in the text field.",
     "previousVersion": "Previous version",
     "nextVersion": "Next version",
     "emptyReply": "The reply came back empty. Regenerate, or check the profile in the log view.",
@@ -104,7 +105,9 @@
     "present": "In the scene",
     "others": "Elsewhere in the world",
     "narrator": "Narrator",
-    "takeTurn": "Continue"
+    "takeTurn": "Continue",
+    "openProfiles": "Open Profiles",
+    "connectModel": "Connect a model to play: add a profile with your LLM endpoint."
   },
   "profiles": {
     "new": "New profile",
@@ -199,7 +202,18 @@
     "groupChat": "Group chat…",
     "groupChatWho": "Who is there from the start? Others can join later.",
     "opening": "Opens with",
-    "startGroupChat": "Start group chat"
+    "startGroupChat": "Start group chat",
+    "unsaved": "Unsaved changes",
+    "leaveTitle_one": "Leave with unsaved changes in 1 file?",
+    "leaveTitle_other": "Leave with unsaved changes in %{count} files?",
+    "leaveHint": "Your edits are lost if you leave. Stay to save them first.",
+    "stay": "Stay",
+    "leaveDiscard": "Leave and discard",
+    "conflictTitle": "This file changed since you started editing it",
+    "conflictDeleted": "This file was deleted since you started editing it",
+    "conflictHint": "Perhaps by a canon update or in another editor. The diff shows the file as it is now against your version. Nothing was saved.",
+    "conflictDiscard": "Discard my edit",
+    "conflictOverwrite": "Save my version anyway"
   },
   "scenes": {
     "title": "Scene %{n}",
@@ -218,6 +232,7 @@
     },
     "memoryUpToHere": "Active Memory: summary up to here",
     "generating": "Writing the canon proposal…",
+    "generatingHint": "Taking too long? Propose again starts over.",
     "reviewTitle": "Canon changes",
     "reviewHint": "Accept, edit or reject each file. Accepted files are committed together.",
     "newFile": "new",

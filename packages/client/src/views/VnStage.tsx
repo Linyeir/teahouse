@@ -4,18 +4,19 @@ import {
   USER_SPEAKER,
   type WorldBackground,
 } from '@teahouse/shared';
-import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { assetUrl } from '../api.ts';
 import { formatStory, speakerName } from '../components/Beats.tsx';
-import { type VnPage, vnPages } from '../vn.ts';
+import { stageKeyAction, type VnPage, vnPages } from '../vn.ts';
 import styles from './VnStage.module.css';
 
-/** The image for a character in a mood: that label, else neutral, else any. */
+/** The image for a character in a mood: that label (in any case), else neutral, else the first. */
 function spriteFor(character: CharacterSummary | undefined, mood: string | null) {
   const images = character?.images ?? [];
+  const wanted = mood?.trim().toLowerCase();
   return (
-    images.find((i) => i.label === mood) ??
+    images.find((i) => i.label.toLowerCase() === wanted) ??
     images.find((i) => i.label === 'neutral') ??
     images[0] ??
     null
@@ -44,12 +45,19 @@ export function VnStage({
   userName: string;
 }) {
   const { t } = useTranslation();
+  const slugs = new Map(
+    characters.flatMap((c) => [
+      [c.name.toLowerCase(), c.slug],
+      [c.slug.toLowerCase(), c.slug],
+    ]),
+  );
   // Until the narrator picks one: the world's default background, else its first.
   const startBackground =
     backgrounds.find((b) => b.id === defaultBackground)?.id ?? backgrounds[0]?.id ?? null;
   const pages = vnPages(messages, cast, new Set(backgrounds.map((b) => b.id)), {
     greeting,
     background: startBackground,
+    resolve: (who) => slugs.get(who.trim().toLowerCase()) ?? null,
   });
 
   // null follows the newest message (also while it streams in).
@@ -80,26 +88,39 @@ export function VnStage({
     }
   };
 
+  const stageRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target?.closest('textarea, input, select, [contenteditable]')) return;
-      if (e.key === ' ' || e.key === 'Enter') {
-        // Other buttons keep their own Space and Enter.
-        if (target?.closest('button, a') && target !== textboxButton.current) return;
-        e.preventDefault();
-        advance();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        go(1);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        go(-1);
-      }
+      // The stage's own controls and any other control keep their keys; the textbox and
+      // the stage itself page.
+      const focus =
+        !target || target === document.body
+          ? 'none'
+          : target === textboxButton.current ||
+              (stageRef.current?.contains(target) && !target.closest('button, a, input'))
+            ? 'stage'
+            : 'other';
+      const action = stageKeyAction(e.key, focus, e.ctrlKey || e.metaKey || e.altKey);
+      if (!action) return;
+      e.preventDefault();
+      if (action === 'advance') advance();
+      else go(action === 'next' ? 1 : -1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // On touch, the whole stage is the page: the left third goes back, the rest reads on.
+  const pointer = useRef<string>('mouse');
+  const onStageClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (pointer.current !== 'touch' || (e.target as HTMLElement).closest(`.${styles.controls}`)) {
+      return;
+    }
+    const box = e.currentTarget.getBoundingClientRect();
+    if (e.clientX < box.left + box.width / 3) go(-1);
+    else advance();
+  };
 
   const pageId = page?.message.id;
   const length = page?.message.content.length ?? 0;
@@ -139,7 +160,17 @@ export function VnStage({
   const focus = page?.speaker && page.speaker !== USER_SPEAKER ? page.speaker : null;
 
   return (
-    <div className={styles.stage} style={themeStyle}>
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keys are handled on the window, see above
+    // biome-ignore lint/a11y/noStaticElementInteractions: a tap zone for touch; the textbox and controls are the accessible way
+    <div
+      ref={stageRef}
+      className={styles.stage}
+      style={themeStyle}
+      onPointerDown={(e) => {
+        pointer.current = e.pointerType;
+      }}
+      onClick={onStageClick}
+    >
       {background && (
         <img className={styles.background} src={assetUrl(worldId, background.file)} alt="" />
       )}
@@ -171,7 +202,8 @@ export function VnStage({
           type="button"
           ref={textboxButton}
           className={styles.textbox}
-          onClick={advance}
+          // Touch taps are the stage's (see onStageClick); a click or a key reads on.
+          onClick={() => pointer.current !== 'touch' && advance()}
           aria-live="polite"
         >
           <div ref={textbox} className={styles.scroll} onScroll={measure}>

@@ -15,6 +15,7 @@ import { Hub } from './hub.ts';
 import { complete } from './llm/client.ts';
 import { ModelOutputError } from './llm/json.ts';
 import { Memory } from './memory.ts';
+import { recoverInterrupted } from './recover.ts';
 import { NoProfileError } from './roles.ts';
 import { authRoutes } from './routes/auth.ts';
 import { chatRoutes } from './routes/chats.ts';
@@ -33,6 +34,10 @@ import { WorldNotFoundError, type WorldService } from './worlds/service.ts';
 declare module 'fastify' {
   interface FastifyRequest {
     deviceId: string;
+  }
+  interface FastifyInstance {
+    /** Every route with its methods and whether it is public, for the perimeter tests. */
+    routeTable: { method: string | string[]; url: string; public: boolean }[];
   }
   interface FastifyContextConfig {
     /** Route is reachable without a device token. */
@@ -53,6 +58,14 @@ export interface AppOptions {
   /** Extra origins allowed to call the API from a browser, besides the Tauri apps. */
   corsOrigins?: string[];
 }
+
+/** Whether a route pattern (not a request URL) belongs to the API and so needs a device token. */
+export function isApiRoute(pattern: string | undefined): boolean {
+  return pattern !== undefined && (pattern === '/api' || pattern.startsWith('/api/'));
+}
+
+/** Routes @fastify/static registers for the client files. */
+const STATIC_ROUTES = new Set(['/*', '/']);
 
 /** Origins of the Tauri webviews: macOS and Linux, then Windows and Android. */
 const APP_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost'];
@@ -79,6 +92,24 @@ export async function buildApp({
     maxAge: 600,
   });
   app.decorateRequest('deviceId', '');
+  // Default deny: a route outside /api/ would skip the token check below, so it must say
+  // that it is public. Only the static client files are exempt.
+  app.decorate('routeTable', []);
+  app.addHook('onRoute', (route) => {
+    app.routeTable.push({
+      method: route.method,
+      url: route.url,
+      public: route.config?.public === true,
+    });
+    if (isApiRoute(route.url) || route.config?.public || STATIC_ROUTES.has(route.url)) return;
+    throw new Error(`Route ${route.url} is outside /api/ and not marked public`);
+  });
+
+  // Nothing runs yet: whatever the database says is running was cut off by a crash or stop.
+  const recovered = recoverInterrupted(db);
+  if (recovered.messages || recovered.proposals) {
+    app.log.warn(recovered, 'Settled replies and canon proposals cut off by the last stop');
+  }
 
   const hub = new Hub();
   const memory = new Memory(db, worlds, completeFn ?? complete, (err) =>
@@ -105,7 +136,11 @@ export async function buildApp({
   };
 
   app.addHook('onRequest', async (req, reply) => {
-    if (!req.url.startsWith('/api/') || req.routeOptions.config?.public) return;
+    // Decide on the route Fastify matched, never on the raw URL: the router decodes the path
+    // (`/%61pi/devices` reaches `/api/devices`), a string test on `req.url` does not. Every API
+    // route needs a device token unless it is marked public; requests that match no API route
+    // (static files, the app shell, 404s) never reach a handler that reads data.
+    if (!isApiRoute(req.routeOptions.url) || req.routeOptions.config?.public) return;
     const header = req.headers.authorization;
     const token = header?.startsWith('Bearer ')
       ? header.slice(7)
@@ -181,8 +216,8 @@ export async function buildApp({
   }
 
   app.addHook('onClose', async () => {
-    await generator.stopAll();
-    await Promise.all([memory.idle(), proposals.idle()]);
+    await Promise.all([generator.stopAll(), proposals.stopAll()]);
+    await memory.idle();
   });
   return app;
 }

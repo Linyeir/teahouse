@@ -186,7 +186,7 @@ Only within the active scene:
 - **Edits:** every message of the active scene is editable, including the user's and the start message
 - **Forks:** possible at any message of the active scene
 
-Swiping a single beat (regenerating from a beat via assistant prefill) is postponed because not all endpoints support prefill.
+Swiping a single beat (regenerating from a beat via assistant prefill) is cut for now because not all endpoints support prefill (section 13).
 
 ## 7. Scenes
 
@@ -248,23 +248,26 @@ Swiping a single beat (regenerating from a beat via assistant prefill) is postpo
 - **No music, no animation**
 - Free-form labels per character and world; a default set is suggested on upload. The narrator receives the label list per character and the world's background list with short descriptions.
 - If no matching image exists, a default image is used
-- Images are uploaded or imported (ST cards, sprite packs). Image generation exists only as a plugin.
-- Conceivable later: an extra call that derives poses or image choice from the action when `mood` alone is not enough
+- Images are uploaded or imported (ST cards, sprite packs). Image generation is not part of Teahouse; it was meant to come as a plugin (section 11).
+- An extra call that derives poses or image choice from the action, when `mood` alone is not enough, is cut for now (section 13)
 
 ### Themes
 
 - From v0.2 the app defines a token layer of CSS variables (colors, typography, text box style of the VN view)
-- Themes are plugins that provide these variables and optionally fonts and layout variants (later)
+- Themes are data, not plugins: presets of values for a frozen, documented set of these variables ([#111](https://github.com/Linyeir/teahouse/issues/111)). Fonts and layout variants would need code and are not planned.
 - A theme can be preset per world
 
-## 11. Plugins (later)
+## 11. Plugins (deferred)
 
-- **Full access** to server and UI. No sandboxing, no permission declarations.
+**Decision (2026-10-24): when plugins come, they are trusted-only, and they come later.** A plugin runs with the full rights of Teahouse; there is no sandbox and no permission model, and users install only code they would run themselves. A sandbox (a separate runtime with a narrow API and declared permissions) was rejected: it is a project of its own, and nothing needs it yet. Plugins themselves are deferred because the server has no hook seams for them to attach to, and because the realistic needs are covered by data, which needs no trust: theme presets (section 10) and templates as world files ([#100](https://github.com/Linyeir/teahouse/issues/100)). Two preconditions stand before any plugin code: hooks that exist and are used by Teahouse itself first, and a narrowed IPC surface in the apps. Today any code in the app's webview can call every command the Tauri shell exposes, among them `native_fetch` (requests to any address, past CORS) and `pin_certificate` (trust any certificate for a server). Plugin code in the webview could exfiltrate data or trust an attacker's certificate. Client-side plugins therefore need those commands scoped so plugin code cannot reach them (a separate webview or origin without the capabilities, or commands that check their caller) before they can run in the apps. Reopen when a concrete need is not met by data extensions.
+
+The plan as it stood, kept for when this is reopened:
+
 - Server-side plugins run in the server process and attach to hooks (prompt building, providers, memory steps, import formats)
 - Client-side plugins are ordinary code in the React app
 - A plugin package optionally contains a server part and a client part
 - **Installation** via Git URL or zip in the server UI. The server loads its part and serves the client bundle to all apps, which load it at startup.
-- **Security model, stated explicitly:** an installed plugin has access to API keys and runs in every connected app, in Tauri including the exposed IPC commands. Users install only what they would run themselves.
+- An installed plugin has access to API keys and runs in every connected app
 - **Versioned plugin API field**, so old plugins do not silently break after updates
 
 ## 12. Import and export
@@ -303,8 +306,25 @@ Each version ends with something that is actually usable.
 | **v0.1** | Server, profiles, OpenAI-compatible adapter, worlds as Markdown plus Git, card import, template layers, scenes, Active Memory, canon with diff review, memory test run, plain web chat | The core memory promise is testable |
 | **v0.2** | Tag markup and parser, VN view with character images and backgrounds, theme token layer, world export | It feels like a visual novel |
 | **v0.3** | Tauri apps for desktop and Android, sync, offline use, device pairing via QR code | Playing across devices |
-| **v0.4** | Plugins and themes as plugins, ST chat import, beat swipes, possibly a call for poses and image choice | Extensibility |
-| **later** | Embeddings, fork world, text completion, ST preset import | — |
+| **v0.4.0** | One character per LLM call with the user picking who talks next, group chats, recovery from stuck states after a crash, security docs | Group chats on the owner's devices, without known holes |
+| **v0.4.1** | Papercuts of daily use, UI contract (tokens, lint guard) | Nothing gets in the way of an evening's play |
+| **v0.5** | Turn and scene end rendering and flow, well-formed narration | Every turn looks right and flows right |
+| **v0.6** | First-run path, README and docs, measured claims, public launch | A stranger reaches a good first scene in under 10 minutes |
+| **v0.7** | Canon retrieval and its eval, world page and file editor, image slots, ST library import, templates as world files | Memory that finds things, worlds you edit here |
+| **later** | Embeddings, fork world, text completion, ST preset import, ST chat import with a memory path | — |
+
+The [milestones](https://github.com/Linyeir/teahouse/milestones) hold the issues of each version.
+
+### Cut for now
+
+Planned for v0.4 originally, cut in the council review of 2026-10-23:
+
+| Item | Why | Reopen when |
+|---|---|---|
+| Code plugins | No hook seams exist; the apps' IPC surface is open to any webview code; data extensions cover the realistic needs (section 11) | A concrete need is not met by theme presets or templates, and the preconditions in section 11 are met |
+| Themes as plugins | Themes are data on a frozen token set ([#111](https://github.com/Linyeir/teahouse/issues/111)); fonts and layout variants are not needed for that | Themes need something presets cannot express |
+| Beat swipes | Need assistant prefill, which not all endpoints support; regenerating the whole reply covers it | The supported endpoints all handle prefill, or users ask for it over whole-reply swipes |
+| Pose and image choice call | One more LLM call per turn for little gain while `mood` labels work; latency matters more | Worlds with large sprite sets show that `mood` alone picks the wrong images |
 
 ### Order within v0.1
 

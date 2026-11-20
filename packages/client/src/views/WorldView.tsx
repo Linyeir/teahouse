@@ -1,14 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CanonFile, Commit, FileContent } from '@teahouse/shared';
+import type { CanonFile, Commit, FileConflict, FileContent, FileWritten } from '@teahouse/shared';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useSearchParams } from 'react-router';
-import { api, download } from '../api.ts';
+import { useBlocker, useParams, useSearchParams } from 'react-router';
+import { api, download, RequestError } from '../api.ts';
+import { Dialog } from '../components/Dialog.tsx';
 import { ErrorText } from '../components/Field.tsx';
 import { CharacterImages, WorldBackgrounds } from '../components/ImageManager.tsx';
 import { CharacterRow, GroupChatStart } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
+import { clearDraft, clearDrafts, setDraft, useDirtyPaths, useDraft } from '../worldDrafts.ts';
+import { DiffView } from './SceneParts.tsx';
 import { ImportCard } from './WorldsView.tsx';
 import styles from './WorldView.module.css';
 
@@ -48,6 +51,18 @@ export function WorldView() {
   });
 
   const select = (path: string | null) => setSearch(path ? { file: path } : {});
+  const dirty = useDirtyPaths(worldId);
+  // Edits survive switching files; leaving the world or the page asks first.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty.length > 0 && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (dirty.length === 0) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty.length]);
   const groups = [
     { name: '', files: files.data?.filter((f) => !f.path.includes('/')) ?? [] },
     ...FOLDERS.map((folder) => ({
@@ -82,6 +97,12 @@ export function WorldView() {
                   >
                     {f.error && <span className={styles.warning}>⚠ </span>}
                     {group.name ? f.name : f.path}
+                    {dirty.includes(f.path) && (
+                      <span className={styles.dirty} title={t('worlds.unsaved')}>
+                        {' ●'}
+                        <span className={styles.visuallyHidden}>{t('worlds.unsaved')}</span>
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -110,6 +131,31 @@ export function WorldView() {
           <Overview worldId={worldId} />
         )}
       </section>
+      {blocker.state === 'blocked' && (
+        <Dialog
+          title={t('worlds.leaveTitle', { count: dirty.length })}
+          onCancel={() => blocker.reset()}
+          actions={
+            <>
+              <button className={ui.button} type="button" onClick={() => blocker.reset()}>
+                {t('worlds.stay')}
+              </button>
+              <button
+                className={ui.danger}
+                type="button"
+                onClick={() => {
+                  clearDrafts(worldId);
+                  blocker.proceed();
+                }}
+              >
+                {t('worlds.leaveDiscard')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('worlds.leaveHint')}</p>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -223,7 +269,8 @@ function FileEditor({
     queryKey: ['worlds', worldId, 'history', path],
     queryFn: () => api.get<Commit[]>(`/api/worlds/${worldId}/history?path=${encoded}`),
   });
-  const [draft, setDraft] = useState<string | null>(null);
+  const stored = useDraft(worldId, path);
+  const [conflict, setConflict] = useState<FileConflict | null>(null);
   const [version, setVersion] = useState<Commit | null>(null);
   const old = useQuery({
     queryKey: ['worlds', worldId, 'file-at', path, version?.sha],
@@ -232,16 +279,25 @@ function FileEditor({
     enabled: Boolean(version),
   });
 
-  useEffect(() => {
-    if (file.data) setDraft(file.data.content);
-  }, [file.data]);
-
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['worlds', worldId] });
   const save = useMutation({
-    mutationFn: (content: string) => api.put(`/api/worlds/${worldId}/file`, { path, content }),
-    onSuccess: () => {
+    mutationFn: (input: { content: string; baseSha: string | undefined }) =>
+      api.put<FileWritten>(`/api/worlds/${worldId}/file`, { path, ...input }),
+    onSuccess: (written, { content }) => {
+      queryClient.setQueryData<FileContent>(['worlds', worldId, 'file', path], {
+        path,
+        content,
+        sha: written.sha,
+      });
+      clearDraft(worldId, path);
+      setConflict(null);
       setVersion(null);
       void invalidate();
+    },
+    onError: (err) => {
+      if (err instanceof RequestError && err.code === 'file_conflict') {
+        setConflict(err.data as FileConflict);
+      }
     },
   });
   const remove = useMutation({
@@ -253,9 +309,19 @@ function FileEditor({
   });
 
   if (file.error) return <ErrorText error={file.error} />;
-  if (draft === null) return <p>{t('common.loading')}</p>;
+  if (!file.data) return <p>{t('common.loading')}</p>;
 
-  const dirty = draft !== file.data?.content;
+  const current = file.data;
+  // An edit stays against the content it started from, even when the file changes meanwhile.
+  const draft = stored?.text ?? current.content;
+  const dirty = stored !== undefined;
+  const baseSha = stored ? stored.baseSha : current.sha;
+  const edit = (text: string) =>
+    setDraft(worldId, path, { text, base: stored?.base ?? current.content, baseSha });
+  const discard = () => {
+    clearDraft(worldId, path);
+    setConflict(null);
+  };
   const viewingOld = version !== null;
 
   return (
@@ -274,7 +340,9 @@ function FileEditor({
               className={ui.primary}
               type="button"
               disabled={!old.data || save.isPending}
-              onClick={() => old.data && save.mutate(old.data.content)}
+              onClick={() =>
+                old.data && save.mutate({ content: old.data.content, baseSha: current.sha })
+              }
             >
               {t('worlds.restore')}
             </button>
@@ -292,37 +360,57 @@ function FileEditor({
                 {t('common.delete')}
               </button>
             )}
-            <button
-              className={ui.button}
-              type="button"
-              disabled={!dirty}
-              onClick={() => setDraft(file.data?.content ?? '')}
-            >
+            <button className={ui.button} type="button" disabled={!dirty} onClick={discard}>
               {t('worlds.discard')}
             </button>
             <button
               className={ui.primary}
               type="button"
               disabled={!dirty || save.isPending}
-              onClick={() => save.mutate(draft)}
+              onClick={() => save.mutate({ content: draft, baseSha })}
             >
               {t('common.save')}
             </button>
           </>
         )}
       </div>
-      <ErrorText error={save.error ?? remove.error} />
+      {conflict ? (
+        <div className={styles.conflict}>
+          <strong>
+            {conflict.current === null ? t('worlds.conflictDeleted') : t('worlds.conflictTitle')}
+          </strong>
+          <span className={ui.hint}>{t('worlds.conflictHint')}</span>
+          <DiffView before={conflict.current ?? ''} after={draft} />
+          <div className={ui.actions}>
+            <button className={ui.button} type="button" onClick={discard}>
+              {t('worlds.conflictDiscard')}
+            </button>
+            <button
+              className={ui.primary}
+              type="button"
+              disabled={save.isPending}
+              onClick={() =>
+                save.mutate({ content: draft, baseSha: conflict.currentSha ?? undefined })
+              }
+            >
+              {t('worlds.conflictOverwrite')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ErrorText error={save.error ?? remove.error} />
+      )}
       <textarea
         className={`${ui.input} ${styles.textarea}`}
         aria-label={path}
         spellCheck={!viewingOld}
         readOnly={viewingOld}
         value={viewingOld ? (old.data?.content ?? '') : draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => edit(e.target.value)}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            if (dirty && !viewingOld) save.mutate(draft);
+            if (dirty && !viewingOld) save.mutate({ content: draft, baseSha });
           }
         }}
       />

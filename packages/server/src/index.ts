@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { buildApp } from './app.ts';
-import { loadConfig } from './config.ts';
+import { loadConfig, plainHttpWarning } from './config.ts';
 import { openDb } from './db/index.ts';
 import { WorldService } from './worlds/service.ts';
 import { WorldWatcher } from './worlds/watcher.ts';
@@ -30,3 +30,5 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 }
 
 await app.listen({ host: config.host, port: config.port });
+const warning = plainHttpWarning(config.host);
+if (warning) app.log.warn({ host: config.host }, warning);

@@ -208,7 +208,8 @@
   right: 6px;
   display: flex;
   align-items: center;
-  padding: 0 2px;
+  gap: 2px;
+  padding: 0 4px;
   border-radius: 999px;
   /* Dark enough for 4.5:1 white text even over a pure white background. */
   background: rgb(0 0 0 / 60%);
@@ -218,20 +219,20 @@
 
 .controls button {
   all: unset;
+  cursor: pointer;
   box-sizing: border-box;
-  width: 44px;
-  height: 44px;
-  display: flex;
+  /* A target a finger can hit. */
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 999px;
-  cursor: pointer;
-  font-size: 1.4rem;
-  line-height: 1;
+  font-size: 1.25rem;
 }
 
 .controls button:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--color-accent);
   outline-offset: -4px;
 }
 
