@@ -169,3 +169,15 @@
   flex: 1;
   border-top: 1px solid var(--color-border);
 }
+
+/* What the canon role proposed but did not get as proposed. */
+.notes {
+  font-size: 0.9rem;
+  border-left: 3px solid var(--color-border);
+  padding-left: 10px;
+}
+
+.notes ul {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+}

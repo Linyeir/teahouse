@@ -2,6 +2,15 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [0.4.2] - unreleased
+
+**Updating:** the server adds a column to its database on start and backs it up first.
+
+### Fixed
+
+- A canon update could rewrite a section or the summary of a file it had only seen in the index, and lose what it did not know was there. Now such a file is only added to: a replaced section becomes an addition, and its summary stays. The canon review lists every change that was left out or softened, and why, and marks new aliases the scene never uses; with review off, those are left out. ([#72](https://github.com/Linyeir/teahouse/issues/72))
+- Text with conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) could end up in a world file, for example by saving a conflicted file in the review without resolving it. Teahouse now refuses to accept or commit such text and keeps the file in the review. ([#72](https://github.com/Linyeir/teahouse/issues/72))
+
 ## [0.4.1] - 2026-11-20
 
 **Updating:** apps and server can be updated in any order. **Branch from here**, the default background and the characters' name colors need a 0.4.1 server; with an older one, branching follows the newest reply instead, and the stage keeps its plain start and badge colors.
@@ -203,6 +212,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.4.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.2
 [0.4.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.0
 [0.3.5]: https://github.com/Linyeir/teahouse/releases/tag/v0.3.5

@@ -77,7 +77,10 @@ describe('database backups', () => {
     const data = await tempDir('teahouse-data-');
     const file = join(data, 'teahouse.db');
     openDb(file).$client.close();
-    const broken = await migrations(4, [{ tag: '0004_broken', sql: 'NOT SQL AT ALL;' }]);
+    // All bundled migrations, then one that fails.
+    const broken = await migrations(Number.POSITIVE_INFINITY, [
+      { tag: '9999_broken', sql: 'NOT SQL AT ALL;' },
+    ]);
     expect(() => openDb(file, { migrationsFolder: broken })).toThrow(
       /Migrating the database failed\. Its state before is in .*teahouse-.*\.db/,
     );

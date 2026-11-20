@@ -328,6 +328,19 @@ describe('scenes', () => {
     expect(pending).toMatchObject({ decision: 'pending' });
     expect(pending?.after).toContain('<<<<<<< current');
 
+    // Text with conflict markers is never accepted, neither as it is nor saved as an edit.
+    const asIs = await api('PUT', `/api/scenes/${sceneId}/proposal/file`, {
+      path: 'characters/mira.md',
+      decision: 'accepted',
+    });
+    expect(asIs.status).toBe(409);
+    const edited = await api('PUT', `/api/scenes/${sceneId}/proposal/file`, {
+      path: 'characters/mira.md',
+      decision: 'accepted',
+      after: `${pending?.after}\nOne more line.`,
+    });
+    expect(edited.status).toBe(409);
+
     // Resolve by hand and accept again.
     const resolved = (pending?.after ?? '').replace(
       /<<<<<<< current[\s\S]*>>>>>>> proposal\n/,
@@ -342,6 +355,39 @@ describe('scenes', () => {
     expect(await worlds.read(world.id, 'characters/mira.md')).toContain(
       'Hates Ash, owes him anyway.',
     );
+  });
+
+  it('only extends files the canon role did not read, and says so in the review', async () => {
+    const { api, chatId, send, path, proposal, worlds, world } = await setup({
+      canonReply: () => ({
+        ...defaultCanon(),
+        operations: [
+          { op: 'replace_section', path: 'lore/fog.md', heading: 'Origin', text: 'A curse.' },
+          { op: 'set_summary', path: 'lore/fog.md', text: 'Rewritten.' },
+          { op: 'add_alias', path: 'characters/mira.md', alias: 'The Fox' },
+        ],
+      }),
+    });
+    // A file the scene never mentions: the canon role only sees it in the index.
+    await worlds.write(
+      world.id,
+      'lore/fog.md',
+      '---\ntype: lore\nname: Sea fog\nsummary: Old.\n---\n\n# Sea fog\n\n## Origin\n\nThe cold current.\n',
+    );
+    await send('Deal.');
+    const sceneId = (await path()).scene?.id ?? '';
+    await api('POST', `/api/chats/${chatId}/scene/close`, { withCanon: true });
+    await waitFor(async () => (await proposal(sceneId))?.status === 'ready');
+
+    const ready = await proposal(sceneId);
+    const fog = ready.files.find((f) => f.path === 'lore/fog.md');
+    expect(fog?.after).toContain('The cold current.\n\nA curse.');
+    expect(fog?.after).toContain('summary: Old.');
+    expect(ready.notes.map((n) => [n.path, n.op, n.outcome, n.detail])).toEqual([
+      ['characters/mira.md', 'add_alias', 'flagged', 'The Fox'],
+      ['lore/fog.md', 'replace_section', 'downgraded', 'Origin'],
+      ['lore/fog.md', 'set_summary', 'skipped', null],
+    ]);
   });
 
   it('applies canon without review when review is off, and retries invalid JSON once', async () => {

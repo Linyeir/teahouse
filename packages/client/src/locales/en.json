@@ -266,7 +266,17 @@
     "cast": "Present",
     "start": "Start scene",
     "background": "Background",
-    "noBackground": "None"
+    "noBackground": "None",
+    "notesTitle": "Not applied as proposed",
+    "note": {
+      "unseen_replace": "added to the section instead of replacing it, because the file was not read in full",
+      "unseen_summary": "summary kept, because the file was not read in full",
+      "alias_not_in_scene": "this name never comes up in the scene; check it before accepting",
+      "missing_file": "left out, the file does not exist",
+      "invalid_path": "left out, not a valid path",
+      "wrong_folder": "left out, new files belong in characters/, places/, events/ or lore/",
+      "invalid_yaml": "left out, the file's frontmatter is not valid YAML"
+    }
   },
   "vn": {
     "showLog": "Log",

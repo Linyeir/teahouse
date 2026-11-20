@@ -53,26 +53,56 @@ const TYPE_BY_FOLDER: Record<string, string> = {
   lore: 'lore',
 };
 
+/** An operation that was not applied as proposed, and why. */
+export type NoteCode =
+  | 'invalid_path'
+  | 'wrong_folder'
+  | 'missing_file'
+  | 'invalid_yaml'
+  | 'unseen_summary'
+  | 'unseen_replace'
+  | 'alias_not_in_scene';
+
+export interface OpNote {
+  op: CanonOp;
+  /** What happened, for the review to put into words. */
+  code: NoteCode;
+  /** `skipped`: left out. `downgraded`: applied in a safer form. `flagged`: applied, but worth a look. */
+  outcome: 'skipped' | 'downgraded' | 'flagged';
+  reason: string;
+}
+
 export interface ApplyResult {
   /** Path → new content, only for files that changed. */
   files: Map<string, string>;
-  /** Operations that could not be applied, with the reason. */
-  skipped: { op: CanonOp; reason: string }[];
+  /** Operations that were skipped or changed, with the reason. */
+  notes: OpNote[];
 }
 
 /**
  * Applies operations to the given files (path → current content, missing = new file).
  * Pure: the caller decides what to write.
+ *
+ * `seen` lists the existing files the model had in full. Any other file may hold more than
+ * the model knows, so it is only extended: a section replace becomes an append, and its
+ * summary is left alone. Without `seen`, every file counts as seen.
  */
-export function applyOps(current: Map<string, string>, ops: CanonOp[]): ApplyResult {
+export function applyOps(
+  current: Map<string, string>,
+  ops: CanonOp[],
+  seen?: Set<string>,
+): ApplyResult {
   const files = new Map<string, string>();
-  const skipped: ApplyResult['skipped'] = [];
+  const notes: OpNote[] = [];
+  const skip = (op: CanonOp, code: NoteCode, reason: string) =>
+    notes.push({ op, code, outcome: 'skipped', reason });
   const get = (p: string) => files.get(p) ?? current.get(p);
+  const unseen = (p: string) => seen !== undefined && current.has(p) && !seen.has(p);
 
   for (const op of ops) {
     const target = normalizePath(op.path);
     if (!target) {
-      skipped.push({ op, reason: 'invalid path' });
+      skip(op, 'invalid_path', 'invalid path');
       continue;
     }
     const existing = get(target);
@@ -93,7 +123,7 @@ export function applyOps(current: Map<string, string>, ops: CanonOp[]): ApplyRes
       const folder = target.split('/')[0] ?? '';
       const type = TYPE_BY_FOLDER[folder];
       if (!type) {
-        skipped.push({ op, reason: 'new files belong in characters/, places/, events/ or lore/' });
+        skip(op, 'wrong_folder', 'new files belong in characters/, places/, events/ or lore/');
         continue;
       }
       const data: Record<string, unknown> = {
@@ -110,13 +140,26 @@ export function applyOps(current: Map<string, string>, ops: CanonOp[]): ApplyRes
     }
 
     if (existing === undefined) {
-      skipped.push({ op, reason: 'file does not exist' });
+      skip(op, 'missing_file', 'file does not exist');
       continue;
     }
     const doc = parseDocument(existing);
     if (doc.error) {
-      skipped.push({ op, reason: 'frontmatter is not valid YAML' });
+      skip(op, 'invalid_yaml', 'frontmatter is not valid YAML');
       continue;
+    }
+    if (op.op === 'set_summary' && unseen(target)) {
+      skip(op, 'unseen_summary', 'the file was not read in full, so its summary stays');
+      continue;
+    }
+    const downgrade = op.op === 'replace_section' && unseen(target);
+    if (downgrade) {
+      notes.push({
+        op,
+        code: 'unseen_replace',
+        outcome: 'downgraded',
+        reason: 'the file was not read in full, so the section was added to instead of replaced',
+      });
     }
     switch (op.op) {
       case 'append_section':
@@ -125,7 +168,7 @@ export function applyOps(current: Map<string, string>, ops: CanonOp[]): ApplyRes
           doc.body,
           op.heading,
           op.text,
-          op.op === 'append_section' ? 'append' : 'replace',
+          op.op === 'append_section' || downgrade ? 'append' : 'replace',
         );
         break;
       case 'set_summary':
@@ -144,10 +187,10 @@ export function applyOps(current: Map<string, string>, ops: CanonOp[]): ApplyRes
   for (const [p, content] of files) {
     if (current.get(p) === content) files.delete(p);
   }
-  return { files, skipped };
+  return { files, notes };
 }
 
-function normalizePath(p: string): string | null {
+export function normalizePath(p: string): string | null {
   const normalized = posix.normalize(p.trim().replace(/^\.?\//, ''));
   if (
     normalized.startsWith('..') ||
@@ -158,6 +201,12 @@ function normalizePath(p: string): string | null {
   }
   return normalized.endsWith('.md') ? normalized : `${normalized}.md`;
 }
+
+/** Lines git writes around a conflict: `<<<<<<< label`, `=======`, `>>>>>>> label`. */
+const CONFLICT_MARKER = /^(<{7}|>{7})(\s|$)|^={7}\s*$/m;
+
+/** Whether a text still holds merge conflict markers. Such text never goes into the canon. */
+export const hasConflictMarkers = (text: string) => CONFLICT_MARKER.test(text);
 
 const addUnique = (list: string[], value: string) =>
   list.some((v) => v.toLowerCase() === value.toLowerCase()) ? list : [...list, value];

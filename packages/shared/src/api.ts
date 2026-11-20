@@ -205,12 +205,27 @@ export const proposalFile = z.object({
 });
 export type ProposalFileView = z.infer<typeof proposalFile>;
 
+/** A proposed change that was left out or changed on the way, and why. */
+export const proposalNote = z.object({
+  path: z.string(),
+  /** The operation, e.g. `replace_section`. */
+  op: z.string(),
+  outcome: z.enum(['skipped', 'downgraded', 'flagged']),
+  /** What happened, for the app to put into words; `reason` says it in English. */
+  code: z.string(),
+  reason: z.string(),
+  /** What it was about: a section heading or an alias. */
+  detail: z.string().nullable(),
+});
+export type ProposalNote = z.infer<typeof proposalNote>;
+
 export const canonProposal = z.object({
   id,
   sceneId: id,
   status: z.enum(['generating', 'ready', 'failed', 'applied']),
   error: z.string().nullable(),
   files: z.array(proposalFile),
+  notes: z.array(proposalNote),
 });
 export type CanonProposal = z.infer<typeof canonProposal>;
 
