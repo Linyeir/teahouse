@@ -14,6 +14,8 @@ export type ServerEvent =
   | { type: 'generation.finished'; chatId: string; message: Message }
   | { type: 'chat.changed'; chatId: string }
   | { type: 'proposal.changed'; chatId: string; sceneId: string }
+  /** The world's canon cleanup proposal changed: started, written, decided or applied. */
+  | { type: 'cleanup.changed'; worldId: string }
   /** A device was paired or signed out. */
   | { type: 'devices.changed' };
 

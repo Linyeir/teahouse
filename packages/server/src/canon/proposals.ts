@@ -1,18 +1,19 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import {
   type CanonFile,
   type CanonProposal,
   markupToText,
   NARRATOR_SPEAKER,
+  type ProposalChange,
   type ProposalNote,
 } from '@teahouse/shared';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { mentions } from '../context/canon.ts';
 import { contextWindow, countTokens } from '../context/tokens.ts';
 import { memoryOnPath } from '../context/turn.ts';
 import type { Db } from '../db/index.ts';
-import { canonProposals, chats, type ProposalFile, scenes } from '../db/schema.ts';
+import { canonProposals, chats, messages, type ProposalFile, scenes } from '../db/schema.ts';
 import type { GenerationLog } from '../generation.ts';
 import type { Hub } from '../hub.ts';
 import { type ChatMessage, complete, completeWithTools } from '../llm/client.ts';
@@ -28,9 +29,11 @@ import { slug, type WorldService } from '../worlds/service.ts';
 import { lookUp, type ToolsFn } from './lookup.ts';
 import { mergeThreeWay } from './merge.ts';
 import {
+  type ApplyResult,
   applyOps,
   type CanonOp,
   canonUpdate,
+  cleanupUpdate,
   hasConflictMarkers,
   normalizePath,
   type OpNote,
@@ -61,6 +64,34 @@ Rules:
 - Write the event body and all text in {{language}}. Refer to the user's persona as {{user}}.
 - Return only the JSON object.`;
 
+const CLEANUP_PROMPT = `You maintain the canon of a roleplay world: Markdown files that hold lasting world knowledge.
+Go over the whole canon and propose fixes. Nothing happened in play; you only tidy what is there.
+
+Look for:
+1. Summaries that no longer match their file's body: refresh them with set_summary.
+2. Contradictions between files: two files that state facts that cannot both be true. Fix the file that is more likely wrong with fix_contradiction and quote, word for word, what the other file says. Events in events/ record what happened in play: they are right, and they are never changed.
+3. Names of people, places or things that recur in several events but have no file: create one in characters/, places/ or lore/ from what the events say.
+4. Files that events refer to by another name, nickname or title than their name and aliases: add_alias; and fitting tags: add_tag.
+5. Duplicates: two files about the same person, place or thing. Merge them with merge: "path" is the file to keep, "from" the duplicate, which is then deleted. Its name, aliases, tags and text are carried over by code; do not copy them yourself.
+
+Return one JSON object:
+{ "operations": [ ... ] }
+
+Allowed operations (paths are relative to the world, e.g. "characters/mira.md"):
+- {"op":"set_summary","path","text"}: replace a file's 1-3 sentence summary
+- {"op":"fix_contradiction","path","heading","text","other","other_quote"}: replace the text under a heading of "path" so it agrees with "other", which says "other_quote"
+- {"op":"create","path","name","summary","tags","body"}: a new file in characters/, places/ or lore/
+- {"op":"add_alias","path","alias"} / {"op":"add_tag","path","tag"}
+- {"op":"merge","path","from"}: fold the duplicate "from" into "path" (same folder only)
+- {"op":"append_section","path","heading","text"} / {"op":"replace_section","path","heading","text"}
+
+Rules:
+- Propose only what the files clearly support. Fewer, sure fixes are better than many guesses. If nothing needs fixing, return {"operations": []}.
+- Never change world.md, user.md or anything in events/.
+- <files> shows files in full, or by their summary where it says summary="true". Change a file you only know from <canon_index> or by its summary only with append_section, add_alias, add_tag or merge.
+- Write all text in {{language}}. Refer to the user's persona as {{user}}.
+- Return only the JSON object.`;
+
 const SECTION_BUDGET_SHARE = 0.5;
 
 /** Lower bound for the answer, as passed to `completeJson`. */
@@ -86,6 +117,16 @@ interface Run {
   done: Promise<void>;
 }
 
+/** Whose proposal: the one of a closing scene, or the cleanup run of a world. */
+type Owner = { kind: 'scene'; sceneId: string } | { kind: 'cleanup'; worldId: string };
+
+const sceneOwner = (sceneId: string): Owner => ({ kind: 'scene', sceneId });
+const cleanupOwner = (worldId: string): Owner => ({ kind: 'cleanup', worldId });
+const ownerKey = (owner: Owner) =>
+  owner.kind === 'scene' ? owner.sceneId : `cleanup:${owner.worldId}`;
+
+type ProposalRow = typeof canonProposals.$inferSelect;
+
 export class CanonProposals {
   readonly #running = new Map<string, Run>();
   readonly #complete: typeof complete;
@@ -97,11 +138,22 @@ export class CanonProposals {
     this.#tools = deps.tools !== undefined ? deps.tools : deps.complete ? null : completeWithTools;
   }
 
+  /** The proposal of a scene. */
   get(sceneId: string): CanonProposal | null {
-    const row = this.#row(sceneId);
+    return this.#view(this.#row(sceneOwner(sceneId)));
+  }
+
+  /** The world's latest cleanup proposal, applied or not. */
+  cleanup(worldId: string): CanonProposal | null {
+    return this.#view(this.#row(cleanupOwner(worldId)));
+  }
+
+  #view(row: ProposalRow | undefined): CanonProposal | null {
     return row
       ? {
           id: row.id,
+          worldId: row.worldId,
+          kind: row.kind,
           sceneId: row.sceneId,
           status: row.status,
           error: row.error,
@@ -116,10 +168,25 @@ export class CanonProposals {
    * generated (perhaps on an LLM call that never returns) is abandoned for the new one.
    */
   start(sceneId: string): void {
-    this.#running.get(sceneId)?.controller.abort();
+    const { chat } = this.#sceneAndChat(sceneId);
+    this.#start(sceneOwner(sceneId), chat.worldId, (signal) => this.#generate(sceneId, signal));
+  }
+
+  /**
+   * Starts a cleanup run over the whole world. It never blocks a scene, and its proposal
+   * always waits for review, whatever the `canonReview` setting says.
+   */
+  startCleanup(worldId: string): void {
+    this.#start(cleanupOwner(worldId), worldId, (signal) => this.#generateCleanup(worldId, signal));
+  }
+
+  #start(owner: Owner, worldId: string, generate: (signal: AbortSignal) => Promise<void>) {
+    const key = ownerKey(owner);
+    this.#running.get(key)?.controller.abort();
     const timestamp = now();
-    const existing = this.#row(sceneId);
-    if (existing) {
+    const existing = this.#row(owner);
+    // An applied cleanup stays as a record; the next run gets a proposal of its own.
+    if (existing && !(owner.kind === 'cleanup' && existing.status === 'applied')) {
       this.deps.db
         .update(canonProposals)
         .set({
@@ -137,7 +204,9 @@ export class CanonProposals {
         .insert(canonProposals)
         .values({
           id: newId(),
-          sceneId,
+          worldId,
+          kind: owner.kind,
+          sceneId: owner.kind === 'scene' ? owner.sceneId : null,
           status: 'generating',
           files: [],
           createdAt: timestamp,
@@ -145,15 +214,15 @@ export class CanonProposals {
         })
         .run();
     }
-    this.#changed(sceneId);
+    this.#changed(owner);
     const run: Run = { controller: new AbortController(), done: Promise.resolve() };
     // An abandoned run must not overwrite the proposal of the one that replaced it.
-    const current = () => this.#running.get(sceneId) === run;
-    this.#running.set(sceneId, run);
-    run.done = this.#generate(sceneId, run.controller.signal)
+    const current = () => this.#running.get(key) === run;
+    this.#running.set(key, run);
+    run.done = generate(run.controller.signal)
       .catch((err) => {
         if (!current()) return;
-        this.#update(sceneId, {
+        this.#update(owner, {
           status: 'failed',
           error: run.controller.signal.aborted
             ? INTERRUPTED
@@ -163,7 +232,7 @@ export class CanonProposals {
         });
       })
       .finally(() => {
-        if (current()) this.#running.delete(sceneId);
+        if (current()) this.#running.delete(key);
       });
   }
 
@@ -177,24 +246,43 @@ export class CanonProposals {
     await this.idle();
   }
 
-  /** Records the user's decision (and optional edit) for one file. */
+  /** Records the user's decision (and optional edit) for one file of a scene's proposal. */
   decide(
     sceneId: string,
     path: string,
     decision: ProposalFile['decision'],
     after?: string,
   ): CanonProposal {
-    const row = this.#row(sceneId);
+    this.#decide(sceneOwner(sceneId), path, decision, after);
+    return this.get(sceneId) as CanonProposal;
+  }
+
+  /** Records the user's decision (and optional edit) for one file of a cleanup proposal. */
+  decideCleanup(
+    worldId: string,
+    path: string,
+    decision: ProposalFile['decision'],
+    after?: string,
+  ): CanonProposal {
+    this.#decide(cleanupOwner(worldId), path, decision, after);
+    return this.cleanup(worldId) as CanonProposal;
+  }
+
+  #decide(owner: Owner, path: string, decision: ProposalFile['decision'], after?: string) {
+    const row = this.#row(owner);
     if (row?.status !== 'ready') throw new ProposalError('No proposal to review');
     const file = row.files.find((f) => f.path === path);
     if (!file) throw new ProposalError(`${path} is not part of the proposal`);
-    if (decision === 'accepted' && hasConflictMarkers(after ?? file.after)) {
+    if (after !== undefined && file.after === null) {
+      throw new ProposalError(`${path} is merged into another file and cannot be edited`);
+    }
+    const text = after ?? file.after;
+    if (decision === 'accepted' && text !== null && hasConflictMarkers(text)) {
       throw new ProposalError(`${path} still has conflict markers; resolve them first`);
     }
     file.decision = decision;
     if (after !== undefined) file.after = after;
-    this.#update(sceneId, { files: row.files });
-    return this.get(sceneId) as CanonProposal;
+    this.#update(owner, { files: row.files });
   }
 
   /**
@@ -202,21 +290,85 @@ export class CanonProposals {
    * proposal are merged three-way; conflicts are put back into the proposal for review.
    */
   async apply(sceneId: string): Promise<{ commit: string | null; conflicts: string[] }> {
-    const row = this.#row(sceneId);
+    const owner = sceneOwner(sceneId);
+    const row = this.#row(owner);
     if (row?.status !== 'ready') throw new ProposalError('No proposal to apply');
     const { scene, chat } = this.#sceneAndChat(sceneId);
-    const accepted = row.files.filter((f) => f.decision === 'accepted');
+    const message = `Canon: ${chat.title}, scene ${scene.number}\n\nChat: ${chat.id}\nScene: ${scene.id}`;
+    const result = await this.#write(owner, row, chat.worldId, message);
+    if (result.conflicts.length > 0) return result;
 
-    const writes = new Map<string, string>();
+    const timestamp = now();
+    this.deps.db
+      .update(scenes)
+      .set({
+        status: 'closed',
+        canonCommit: result.commit,
+        updatedAt: timestamp,
+        revision: scene.revision + 1,
+      })
+      .where(eq(scenes.id, scene.id))
+      .run();
+    this.#update(owner, { status: 'applied' });
+    this.deps.hub.broadcast({ type: 'chat.changed', chatId: chat.id });
+    return result;
+  }
+
+  /**
+   * Writes the accepted files of the world's cleanup in one commit, like `apply`, but leaves
+   * every scene as it is. A character merged into another keeps its chats: they move over.
+   */
+  async applyCleanup(worldId: string): Promise<{ commit: string | null; conflicts: string[] }> {
+    const owner = cleanupOwner(worldId);
+    const row = this.#row(owner);
+    if (row?.status !== 'ready') throw new ProposalError('No proposal to apply');
+    const result = await this.#write(owner, row, worldId, `Canon cleanup\n\nProposal: ${row.id}`);
+    if (result.conflicts.length > 0) return result;
+    this.#redirectCharacters(worldId, mergedCharacters(row.files));
+    this.#update(owner, { status: 'applied' });
+    return result;
+  }
+
+  /** Commits the accepted files of `row`; on conflicts, nothing is written. */
+  async #write(
+    owner: Owner,
+    row: ProposalRow,
+    worldId: string,
+    message: string,
+  ): Promise<{ commit: string | null; conflicts: string[] }> {
+    const accepted = row.files.filter((f) => f.decision === 'accepted');
+    // A merged file goes only together with the file that takes in its content.
+    for (const file of accepted) {
+      if (file.after !== null) continue;
+      const into = file.changes?.find((c) => c.op === 'merged_into')?.detail;
+      const target = row.files.find((f) => f.path === into);
+      if (target && target.decision !== 'accepted') {
+        throw new ProposalError(
+          `${file.path} is merged into ${target.path}: accept both, or reject the merged file`,
+        );
+      }
+    }
+    const writes = new Map<string, string | null>();
     const conflicts: string[] = [];
     for (const file of accepted) {
+      const current = await this.deps.worlds.readIfExists(worldId, file.path);
+      if (file.after === null) {
+        // A merged file is deleted only as the proposal saw it: anything newer is kept.
+        if (current === null || current === file.before) {
+          writes.set(file.path, null);
+        } else {
+          conflicts.push(file.path);
+          file.before = current;
+          file.decision = 'pending';
+        }
+        continue;
+      }
       // Text with conflict markers never goes into the canon, however it got accepted.
       if (hasConflictMarkers(file.after)) {
         conflicts.push(file.path);
         file.decision = 'pending';
         continue;
       }
-      const current = await this.deps.worlds.readIfExists(chat.worldId, file.path);
       if (current === file.before || current === file.after) {
         writes.set(file.path, file.after);
         continue;
@@ -235,36 +387,224 @@ export class CanonProposals {
       }
     }
     if (conflicts.length > 0) {
-      this.#update(sceneId, { files: row.files });
+      this.#update(owner, { files: row.files });
       return { commit: null, conflicts };
     }
-
-    const message = `Canon: ${chat.title}, scene ${scene.number}\n\nChat: ${chat.id}\nScene: ${scene.id}`;
     const commit =
       writes.size === 0
         ? null
-        : await this.deps.worlds.transaction(chat.worldId, message, async (dir) => {
+        : await this.deps.worlds.transaction(worldId, message, async (dir) => {
             for (const [path, content] of writes) {
               const full = canonFilePath(dir, path);
+              if (content === null) {
+                await rm(full, { force: true });
+                continue;
+              }
               await mkdir(dirname(full), { recursive: true });
               await writeFile(full, content);
             }
           });
-
-    const timestamp = now();
-    this.deps.db
-      .update(scenes)
-      .set({
-        status: 'closed',
-        canonCommit: commit,
-        updatedAt: timestamp,
-        revision: scene.revision + 1,
-      })
-      .where(eq(scenes.id, scene.id))
-      .run();
-    this.#update(sceneId, { status: 'applied' });
-    this.deps.hub.broadcast({ type: 'chat.changed', chatId: chat.id });
     return { commit, conflicts: [] };
+  }
+
+  /**
+   * Points everything that named a merged character at the one it was merged into: the
+   * chats it opened, the cast of their scenes, the speaker of replies and `who=` in markup.
+   */
+  #redirectCharacters(worldId: string, moved: Map<string, string>): void {
+    if (moved.size === 0) return;
+    const { db, hub } = this.deps;
+    const to = (slug: string) => moved.get(slug) ?? slug;
+    const who = new RegExp(
+      `(\\bwho\\s*=\\s*["'])(${[...moved.keys()].map(escapeRegExp).join('|')})(["'])`,
+      'gi',
+    );
+    const timestamp = now();
+    const touched = new Set<string>();
+    const chatRows = db.select().from(chats).where(eq(chats.worldId, worldId)).all();
+    db.transaction((tx) => {
+      for (const chat of chatRows) {
+        if (moved.has(chat.characterSlug)) {
+          tx.update(chats)
+            .set({
+              characterSlug: to(chat.characterSlug),
+              updatedAt: timestamp,
+              revision: chat.revision + 1,
+            })
+            .where(eq(chats.id, chat.id))
+            .run();
+          touched.add(chat.id);
+        }
+        for (const scene of tx.select().from(scenes).where(eq(scenes.chatId, chat.id)).all()) {
+          if (!scene.cast.some((c) => moved.has(c))) continue;
+          tx.update(scenes)
+            .set({
+              cast: [...new Set(scene.cast.map(to))],
+              updatedAt: timestamp,
+              revision: scene.revision + 1,
+            })
+            .where(eq(scenes.id, scene.id))
+            .run();
+          touched.add(chat.id);
+        }
+        for (const message of tx
+          .select()
+          .from(messages)
+          .where(eq(messages.chatId, chat.id))
+          .all()) {
+          const speaker = message.speaker && to(message.speaker);
+          const content = message.content.replace(who, (_m, a, slug: string, b) => {
+            return `${a}${moved.get(slug.toLowerCase()) ?? slug}${b}`;
+          });
+          if (speaker === message.speaker && content === message.content) continue;
+          tx.update(messages)
+            .set({ speaker, content, updatedAt: timestamp, revision: message.revision + 1 })
+            .where(eq(messages.id, message.id))
+            .run();
+          touched.add(chat.id);
+        }
+      }
+    });
+    for (const chatId of touched) hub.broadcast({ type: 'chat.changed', chatId });
+  }
+
+  async #generateCleanup(worldId: string, signal: AbortSignal): Promise<void> {
+    const { db, worlds } = this.deps;
+    const owner = cleanupOwner(worldId);
+    const settings = getSettings(db);
+    const profile = profileFor(db, 'canon');
+    const files = await worlds.files(worldId);
+    const index = indexLines(files);
+    const system = CLEANUP_PROMPT.replaceAll('{{language}}', settings.outputLanguage).replaceAll(
+      '{{user}}',
+      settings.userName,
+    );
+
+    // The canon files first, since they are what gets fixed, then the events that say what
+    // happened in play. What does not fit in full goes by its summary, and the canon role
+    // can still read it with the lookup tools.
+    const window = contextWindow(profile);
+    const used = [system, ...index].reduce((n, t) => n + countTokens(t), 0);
+    const room = window - used - Math.max(profile.maxTokens ?? 0, ANSWER_TOKENS);
+    const ordered = [...files.filter((f) => !isEvent(f)), ...files.filter(isEvent).reverse()];
+    const texts = new Map<string, string>();
+    for (const f of ordered) texts.set(f.path, (await worlds.read(worldId, f.path)).trim());
+    const fitted = fitFiles(ordered, texts, room);
+
+    const prompt = (extra: Map<string, string>): ChatMessage[] => {
+      const shown = [
+        ...fitted.filter((f) => !extra.has(f.path)).map((f) => f.text),
+        ...[...extra].map(([path, text]) => `<file path="${path}">\n${text}\n</file>`),
+      ];
+      return [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: `<canon_index>\n${index.join('\n')}\n</canon_index>\n\n<files>\n${shown.join('\n\n')}\n</files>`,
+        },
+      ];
+    };
+
+    let looked = new Map<string, string>();
+    if (this.#tools) {
+      const lookup = await lookUp({
+        toolsFn: this.#tools,
+        profile,
+        messages: prompt(looked),
+        worlds,
+        worldId,
+        known: new Set(fitted.filter((f) => f.full).map((f) => f.path)),
+        budget: room - fitted.reduce((n, f) => n + countTokens(f.text), 0),
+        signal,
+      });
+      looked = lookup.files;
+      this.deps.log?.info(
+        {
+          worldId,
+          calls: lookup.calls,
+          read: [...lookup.files.keys()],
+          ...(lookup.error && { error: lookup.error }),
+        },
+        'Canon cleanup lookups',
+      );
+    }
+    signal.throwIfAborted();
+    const update = await completeJson(this.#complete, profile, prompt(looked), cleanupUpdate, {
+      name: 'canon_cleanup',
+      minTokens: ANSWER_TOKENS,
+      signal,
+    });
+
+    // Events are the record of play, world.md and user.md the owner's own: never touched.
+    const operations = update.operations.filter((op) => {
+      const path = normalizePath(op.path);
+      return path !== null && !path.startsWith('events/') && path.includes('/');
+    });
+    const current = await this.#currentTexts(worldId, operations);
+    const seen = new Set([...fitted.filter((f) => f.full).map((f) => f.path), ...looked.keys()]);
+    const applied = applyOps(current, operations, seen);
+    const proposalFiles = filesOf(operations, applied, current);
+    const notes = [
+      ...applied.notes.map(toNote),
+      ...this.#overlapNotes(
+        worldId,
+        proposalFiles.map((f) => f.path),
+      ),
+    ];
+    const baseCommit = (await worlds.history(worldId))[0]?.sha ?? null;
+    signal.throwIfAborted();
+    this.#update(owner, { status: 'ready', files: proposalFiles, notes, baseCommit, error: null });
+  }
+
+  /** The current text of every existing file the operations name. */
+  async #currentTexts(worldId: string, operations: CanonOp[]): Promise<Map<string, string>> {
+    const current = new Map<string, string>();
+    const paths = operations.flatMap((op) => (op.op === 'merge' ? [op.path, op.from] : [op.path]));
+    for (const raw of paths) {
+      const path = normalizePath(raw);
+      if (!path || current.has(path)) continue;
+      const text = await this.deps.worlds.readIfExists(worldId, path).catch(() => null);
+      if (text !== null) current.set(path, text);
+    }
+    return current;
+  }
+
+  /** Flags files that an open scene proposal changes too, so the review says which is which. */
+  #overlapNotes(worldId: string, paths: string[]): ProposalNote[] {
+    const { db } = this.deps;
+    const open = db
+      .select()
+      .from(canonProposals)
+      .where(
+        and(
+          eq(canonProposals.worldId, worldId),
+          eq(canonProposals.kind, 'scene'),
+          eq(canonProposals.status, 'ready'),
+          isNull(canonProposals.deletedAt),
+        ),
+      )
+      .all();
+    const sceneIds = open.flatMap((p) => (p.sceneId ? [p.sceneId] : []));
+    if (sceneIds.length === 0) return [];
+    const sceneRows = db.select().from(scenes).where(inArray(scenes.id, sceneIds)).all();
+    const notes: ProposalNote[] = [];
+    for (const proposal of open) {
+      const scene = sceneRows.find((s) => s.id === proposal.sceneId);
+      const chat = scene && db.select().from(chats).where(eq(chats.id, scene.chatId)).get();
+      if (!scene || !chat) continue;
+      for (const file of proposal.files) {
+        if (!paths.includes(file.path)) continue;
+        notes.push({
+          path: file.path,
+          op: 'review',
+          code: 'also_in_scene_proposal',
+          outcome: 'flagged',
+          reason: `the open canon changes of ${chat.title}, scene ${scene.number}, change this file too`,
+          detail: `${chat.title} #${scene.number}`,
+        });
+      }
+    }
+    return notes;
   }
 
   async #generate(sceneId: string, signal: AbortSignal): Promise<void> {
@@ -282,10 +622,7 @@ export class CanonProposals {
     );
     const characters = [...new Set([...scene.cast, ...speakers])];
     const corePaths = ['world.md', 'user.md', ...characters.map((c) => `characters/${c}.md`)];
-    const index = files.map((f) => {
-      const aliases = f.aliases.length ? ` (aliases: ${f.aliases.join(', ')})` : '';
-      return `- ${f.path} (${f.type ?? 'file'}): ${f.name}${aliases}${f.summary ? ` – ${f.summary}` : ''}`;
-    });
+    const index = indexLines(files);
     const core: string[] = [];
     for (const path of corePaths) {
       const text = await worlds.readIfExists(chat.worldId, path);
@@ -386,13 +723,7 @@ export class CanonProposals {
         : `# ${update.event.title}\n\n${update.event.body}`,
     });
 
-    const current = new Map<string, string>();
-    for (const op of update.operations) {
-      const path = normalizePath(op.path);
-      if (!path || current.has(path)) continue;
-      const text = await worlds.readIfExists(chat.worldId, path).catch(() => null);
-      if (text !== null) current.set(path, text);
-    }
+    const current = await this.#currentTexts(chat.worldId, update.operations);
     // The files the model had in full; any other it may only extend (see applyOps).
     const seen = new Set([
       ...corePaths,
@@ -415,21 +746,6 @@ export class CanonProposals {
     const applied = applyOps(current, operations, seen);
     const notes = [...aliasNotes, ...applied.notes].map(toNote);
 
-    // What each file gets, from the operations that went through (not the skipped ones).
-    const skippedOps = new Set(
-      applied.notes.filter((n) => n.outcome === 'skipped').map((n) => n.op),
-    );
-    const downgraded = new Set(
-      applied.notes.filter((n) => n.outcome === 'downgraded').map((n) => n.op),
-    );
-    const changesOf = (path: string) =>
-      operations
-        .filter((op) => !skippedOps.has(op) && normalizePath(op.path) === path)
-        // A downgraded replace was applied as an addition, so the review says so.
-        .map((op) => ({
-          op: downgraded.has(op) ? 'append_section' : op.op,
-          detail: opDetail(op),
-        }));
     const proposalFiles: ProposalFile[] = [
       {
         path: eventPath,
@@ -438,17 +754,12 @@ export class CanonProposals {
         decision: 'pending',
         changes: [{ op: 'event', detail: update.event.title }],
       },
-      ...[...applied.files].map(([path, after]) => ({
-        path,
-        before: current.get(path) ?? null,
-        after,
-        decision: 'pending' as const,
-        changes: changesOf(path),
-      })),
+      ...filesOf(operations, applied, current),
     ];
     const baseCommit = (await worlds.history(chat.worldId))[0]?.sha ?? null;
     signal.throwIfAborted();
-    this.#update(sceneId, {
+    const owner = sceneOwner(sceneId);
+    this.#update(owner, {
       status: 'ready',
       files: proposalFiles,
       notes,
@@ -458,7 +769,7 @@ export class CanonProposals {
 
     if (!settings.canonReview) {
       for (const file of proposalFiles) file.decision = 'accepted';
-      this.#update(sceneId, { files: proposalFiles });
+      this.#update(owner, { files: proposalFiles });
       await this.apply(sceneId);
     }
   }
@@ -495,35 +806,125 @@ export class CanonProposals {
     return { scene, chat };
   }
 
-  #row(sceneId: string) {
+  #row(owner: Owner) {
+    const where =
+      owner.kind === 'scene'
+        ? eq(canonProposals.sceneId, owner.sceneId)
+        : and(eq(canonProposals.worldId, owner.worldId), eq(canonProposals.kind, 'cleanup'));
     return this.deps.db
       .select()
       .from(canonProposals)
-      .where(and(eq(canonProposals.sceneId, sceneId), isNull(canonProposals.deletedAt)))
+      .where(and(where, isNull(canonProposals.deletedAt)))
       .orderBy(desc(canonProposals.createdAt))
       .get();
   }
 
-  #update(sceneId: string, patch: Partial<typeof canonProposals.$inferInsert>): void {
-    const row = this.#row(sceneId);
+  #update(owner: Owner, patch: Partial<typeof canonProposals.$inferInsert>): void {
+    const row = this.#row(owner);
     if (!row) return;
     this.deps.db
       .update(canonProposals)
       .set({ ...patch, updatedAt: now(), revision: row.revision + 1 })
       .where(eq(canonProposals.id, row.id))
       .run();
-    this.#changed(sceneId);
+    this.#changed(owner);
   }
 
-  #changed(sceneId: string): void {
-    const scene = this.deps.db.select().from(scenes).where(eq(scenes.id, sceneId)).get();
-    if (scene) this.deps.hub.broadcast({ type: 'proposal.changed', chatId: scene.chatId, sceneId });
+  #changed(owner: Owner): void {
+    if (owner.kind === 'cleanup') {
+      this.deps.hub.broadcast({ type: 'cleanup.changed', worldId: owner.worldId });
+      return;
+    }
+    const scene = this.deps.db.select().from(scenes).where(eq(scenes.id, owner.sceneId)).get();
+    if (scene) {
+      this.deps.hub.broadcast({
+        type: 'proposal.changed',
+        chatId: scene.chatId,
+        sceneId: owner.sceneId,
+      });
+    }
   }
 }
+
+/** One line per file for `<canon_index>`: path, type, name, aliases and summary. */
+function indexLines(files: CanonFile[]): string[] {
+  return files.map((f) => {
+    const aliases = f.aliases.length ? ` (aliases: ${f.aliases.join(', ')})` : '';
+    return `- ${f.path} (${f.type ?? 'file'}): ${f.name}${aliases}${f.summary ? ` – ${f.summary}` : ''}`;
+  });
+}
+
+/** The files of a proposal, each with what changes in it, from the operations that went through. */
+function filesOf(
+  operations: CanonOp[],
+  applied: ApplyResult,
+  current: Map<string, string>,
+): ProposalFile[] {
+  const skipped = new Set(applied.notes.filter((n) => n.outcome === 'skipped').map((n) => n.op));
+  const downgraded = new Set(
+    applied.notes.filter((n) => n.outcome === 'downgraded').map((n) => n.op),
+  );
+  const changesOf = (path: string) =>
+    operations.flatMap((op): ProposalChange[] => {
+      if (skipped.has(op)) return [];
+      const target = normalizePath(op.path);
+      if (op.op === 'merge') {
+        const from = normalizePath(op.from);
+        if (target === path) return [{ op: 'merge', detail: from }];
+        if (from === path) return [{ op: 'merged_into', detail: target }];
+        return [];
+      }
+      if (target !== path) return [];
+      // A downgraded replace was applied as an addition, so the review says so.
+      const change: ProposalChange = {
+        op: downgraded.has(op) ? 'append_section' : op.op,
+        detail: opDetail(op),
+      };
+      if (op.op === 'fix_contradiction') {
+        change.contradicts = { path: normalizePath(op.other) ?? op.other, quote: op.other_quote };
+      }
+      return [change];
+    });
+  return [...applied.files].map(([path, after]) => ({
+    path,
+    before: current.get(path) ?? null,
+    after,
+    decision: 'pending' as const,
+    changes: changesOf(path),
+  }));
+}
+
+/** Slugs of accepted character files merged into another character, mapped to that one. */
+export function mergedCharacters(files: ProposalFile[]): Map<string, string> {
+  const slugOf = (path: string | null | undefined) =>
+    (path && /^characters\/([^/]+)\.md$/.exec(path)?.[1]) || null;
+  const moved = new Map<string, string>();
+  for (const file of files) {
+    if (file.decision !== 'accepted' || file.after !== null) continue;
+    const from = slugOf(file.path);
+    const to = slugOf(file.changes?.find((c) => c.op === 'merged_into')?.detail);
+    if (from && to) moved.set(from, to);
+  }
+  // a → b and b → c: a ends up at c.
+  for (const [from, to] of moved) {
+    let end = to;
+    const seen = new Set([from]);
+    while (moved.has(end) && !seen.has(end)) {
+      seen.add(end);
+      end = moved.get(end) as string;
+    }
+    moved.set(from, end);
+  }
+  return moved;
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** What an operation is about: a section heading, an alias or a tag. */
 function opDetail(op: CanonOp): string | null {
   if (op.op === 'append_section' || op.op === 'replace_section') return op.heading;
+  if (op.op === 'fix_contradiction') return op.heading;
+  if (op.op === 'merge') return normalizePath(op.from);
   if (op.op === 'add_alias') return op.alias;
   if (op.op === 'add_tag') return op.tag;
   return null;

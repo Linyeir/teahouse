@@ -273,7 +273,9 @@
       "missing_file": "weggelassen, die Datei gibt es nicht",
       "invalid_path": "weggelassen, kein gültiger Pfad",
       "wrong_folder": "weggelassen, neue Dateien gehören nach characters/, places/, events/ oder lore/",
-      "invalid_yaml": "weggelassen, der Frontmatter der Datei ist kein gültiges YAML"
+      "invalid_yaml": "weggelassen, der Frontmatter der Datei ist kein gültiges YAML",
+      "merge_not_allowed": "weggelassen, diese Dateien lassen sich nicht zusammenführen",
+      "also_in_scene_proposal": "die offenen Canon-Änderungen dieser Szene ändern die Datei auch; was du später übernimmst, wird zusammengeführt"
     },
     "reviewWaiting": "Die Canon-Änderungen dieser Szene warten auf deine Entscheidung.",
     "openReview": "Canon-Änderungen prüfen",
@@ -295,8 +297,13 @@
       "replace_section": "Schreibt „%{detail}“ neu",
       "set_summary": "Neue Zusammenfassung",
       "add_alias": "Auch genannt „%{detail}“",
-      "add_tag": "Neues Tag „%{detail}“"
-    }
+      "add_tag": "Neues Tag „%{detail}“",
+      "fix_contradiction": "Behebt einen Widerspruch in „%{detail}“",
+      "merge": "Übernimmt alles aus %{detail}",
+      "merged_into": "Geht in %{detail} auf; diese Datei wird gelöscht"
+    },
+    "mergedAway": "wird zusammengeführt",
+    "contradicts": "Widerspricht %{path}:"
   },
   "vn": {
     "showLog": "Verlauf",
@@ -344,5 +351,18 @@
     "updateApp": "Auf dem Server läuft Teahouse %{server}, dafür ist diese App (Teahouse %{app}) zu alt. Installiere die neueste App aus den Teahouse-Releases.",
     "reload": "Der Server wurde auf Teahouse %{server} aktualisiert. Lade die Seite neu, um die neue Version zu laden.",
     "before032": "älter als 0.3.2"
+  },
+  "cleanup": {
+    "title": "Canon aufräumen",
+    "hint": "Geht die ganze Welt durch: frischt Zusammenfassungen auf, findet Widersprüche und doppelte Dateien, legt Dateien für oft genannte Namen an und ergänzt Aliasse und Tags. Du prüfst jede Änderung, bevor sie übernommen wird.",
+    "start": "Aufräumen starten",
+    "restart": "Neu starten",
+    "generating": "Der Aufräumlauf liest die Welt …",
+    "waiting_one": "1 Datei wartet auf deine Entscheidung.",
+    "waiting_other": "%{count} Dateien warten auf deine Entscheidung.",
+    "review": "Vorschläge prüfen",
+    "nothingFound": "Beim letzten Lauf gab es nichts aufzuräumen.",
+    "applyNothing": "Nichts übernehmen",
+    "counts": "Widersprüche: %{contradictions} · Zusammengeführt: %{merges} · Neu: %{created} · Geändert: %{changed}"
   }
 }

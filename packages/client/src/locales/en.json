@@ -273,7 +273,9 @@
       "missing_file": "left out, the file does not exist",
       "invalid_path": "left out, not a valid path",
       "wrong_folder": "left out, new files belong in characters/, places/, events/ or lore/",
-      "invalid_yaml": "left out, the file's frontmatter is not valid YAML"
+      "invalid_yaml": "left out, the file's frontmatter is not valid YAML",
+      "merge_not_allowed": "left out, these files cannot be merged",
+      "also_in_scene_proposal": "this scene's open canon changes change the file too; whichever you commit later is merged"
     },
     "reviewWaiting": "The canon changes of this scene are waiting for your decision.",
     "openReview": "Review canon changes",
@@ -295,8 +297,13 @@
       "replace_section": "Rewrites „%{detail}“",
       "set_summary": "New summary",
       "add_alias": "Also known as „%{detail}“",
-      "add_tag": "New tag „%{detail}“"
-    }
+      "add_tag": "New tag „%{detail}“",
+      "fix_contradiction": "Fixes a contradiction in „%{detail}“",
+      "merge": "Takes in everything from %{detail}",
+      "merged_into": "Goes into %{detail}; this file is deleted"
+    },
+    "mergedAway": "merged",
+    "contradicts": "Contradicts %{path}:"
   },
   "vn": {
     "showLog": "Log",
@@ -344,5 +351,18 @@
     "updateApp": "The server runs Teahouse %{server}, which this app (Teahouse %{app}) is too old for. Install the latest app from the Teahouse releases.",
     "reload": "The server was updated to Teahouse %{server}. Reload the page to load the new version.",
     "before032": "older than 0.3.2"
+  },
+  "cleanup": {
+    "title": "Tidy up the canon",
+    "hint": "Goes over the whole world: refreshes summaries, finds contradictions and duplicate files, creates files for names that come up often, and adds aliases and tags. You review every change before it is committed.",
+    "start": "Start tidying up",
+    "restart": "Start again",
+    "generating": "Reading the world …",
+    "waiting_one": "1 file is waiting for your decision.",
+    "waiting_other": "%{count} files are waiting for your decision.",
+    "review": "Review suggestions",
+    "nothingFound": "The last run found nothing to tidy up.",
+    "applyNothing": "Commit nothing",
+    "counts": "Contradictions: %{contradictions} · Merged: %{merges} · New: %{created} · Changed: %{changed}"
   }
 }

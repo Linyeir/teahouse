@@ -286,6 +286,14 @@
   border-color: var(--color-danger);
 }
 
+.contradiction {
+  margin: 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--color-danger);
+  background: var(--color-surface-muted);
+  font-size: 0.9rem;
+}
+
 .conflictText {
   margin: 8px;
   color: var(--color-danger);

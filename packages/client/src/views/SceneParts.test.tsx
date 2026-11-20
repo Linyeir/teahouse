@@ -11,6 +11,8 @@ const i18n = (await import('../i18n.ts')).default;
 
 const proposal = (patch: Partial<CanonProposal>): CanonProposal => ({
   id: 'p',
+  worldId: 'w',
+  kind: 'scene',
   sceneId: 's',
   status: 'generating',
   error: null,
@@ -97,5 +99,40 @@ describe('canon proposal review', () => {
     expect(html).toContain('Not applied as proposed');
     expect(html).toContain('lore/fog.md');
     expect(html).toContain('instead of replacing it');
+  });
+
+  it('shows a contradiction fix with what the other file says, and a merged file', () => {
+    const html = render(
+      proposal({
+        status: 'ready',
+        files: [
+          {
+            path: 'places/lighthouse.md',
+            before: '---\nname: Lighthouse\n---\n\n## Keepers\n\nMira keeps the lamp.\n',
+            after: '---\nname: Lighthouse\n---\n\n## Keepers\n\nNobody keeps the lamp.\n',
+            decision: 'pending',
+            changes: [
+              {
+                op: 'fix_contradiction',
+                detail: 'Keepers',
+                contradicts: { path: 'characters/mira.md', quote: 'Never set foot there.' },
+              },
+            ],
+          },
+          {
+            path: 'characters/fox.md',
+            before: '---\nname: The Fox\n---\n',
+            after: null,
+            decision: 'pending',
+            changes: [{ op: 'merged_into', detail: 'characters/mira.md' }],
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('Contradicts characters/mira.md:');
+    expect(html).toContain('<q>Never set foot there.</q>');
+    expect(html).toContain('Fixes a contradiction in „Keepers“');
+    expect(html).toContain('The Fox');
+    expect(html).toContain('Goes into characters/mira.md; this file is deleted');
   });
 });
