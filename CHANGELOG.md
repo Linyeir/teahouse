@@ -2,9 +2,9 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [0.4.2] - unreleased
+## [0.4.2] - 2026-11-21
 
-**Updating:** the server changes its database on start (canon proposals get a column and now belong to a world) and backs it up first. **Tidy up the canon** needs a 0.4.2 server.
+**Updating:** apps and server can be updated in any order, but **Tidy up the canon** needs a 0.4.2 server. The server changes its database on start (canon proposals now belong to a world) and backs it up first.
 
 ### Added
 
