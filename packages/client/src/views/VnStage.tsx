@@ -8,6 +8,8 @@ import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from
 import { useTranslation } from 'react-i18next';
 import { assetUrl } from '../api.ts';
 import { formatStory, speakerName } from '../components/Beats.tsx';
+import ui from '../components/ui.module.css';
+import { namePreset } from '../nameColors.ts';
 import { stageKeyAction, type VnPage, vnPages } from '../vn.ts';
 import styles from './VnStage.module.css';
 
@@ -33,6 +35,9 @@ export function VnStage({
   defaultBackground,
   theme,
   userName,
+  tools,
+  picked,
+  onPickSpeaker,
 }: {
   worldId: string;
   messages: PathMessage[];
@@ -43,6 +48,12 @@ export function VnStage({
   defaultBackground: string | null;
   theme: Record<string, string>;
   userName: string;
+  /** Swipe, regenerate and edit for the page being read; absent when the scene is over. */
+  tools?: StageTools;
+  /** Who takes the next turn, highlighted on stage. */
+  picked?: string;
+  /** Tapping a sprite picks who takes the next turn. */
+  onPickSpeaker?: (slug: string) => void;
 }) {
   const { t } = useTranslation();
   const slugs = new Map(
@@ -88,6 +99,9 @@ export function VnStage({
     }
   };
 
+  // Editing the message on the page, in place of the textbox.
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+
   const stageRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,7 +112,8 @@ export function VnStage({
         !target || target === document.body
           ? 'none'
           : target === textboxButton.current ||
-              (stageRef.current?.contains(target) && !target.closest('button, a, input'))
+              (stageRef.current?.contains(target) &&
+                !target.closest('button, a, input, textarea, select'))
             ? 'stage'
             : 'other';
       const action = stageKeyAction(e.key, focus, e.ctrlKey || e.metaKey || e.altKey);
@@ -114,7 +129,12 @@ export function VnStage({
   // On touch, the whole stage is the page: the left third goes back, the rest reads on.
   const pointer = useRef<string>('mouse');
   const onStageClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (pointer.current !== 'touch' || (e.target as HTMLElement).closest(`.${styles.controls}`)) {
+    const target = e.target as HTMLElement;
+    if (
+      pointer.current !== 'touch' ||
+      editing ||
+      target.closest(`.${styles.controls}, .${styles.sprite} button`)
+    ) {
       return;
     }
     const box = e.currentTarget.getBoundingClientRect();
@@ -158,86 +178,291 @@ export function VnStage({
   const speaker = page?.speaker ? speakerName(page.speaker, names, userName) : null;
   // The character whose turn it is stands out; on the narrator's or the user's turn, nobody.
   const focus = page?.speaker && page.speaker !== USER_SPEAKER ? page.speaker : null;
+  const present = stage?.present ?? cast.map((who) => ({ who, mood: null }));
+  // A world that sets its own badge color keeps it for everyone without `color:`.
+  const badge = page?.speaker
+    ? nameBadge(page.speaker, characters, 'vn-name-bg' in theme)
+    : undefined;
+  // Screen readers hear a page once it is complete, not every streamed word.
+  const announcement = page && !streaming ? pageAnnouncement(page, names, userName) : '';
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: keys are handled on the window, see above
-    // biome-ignore lint/a11y/noStaticElementInteractions: a tap zone for touch; the textbox and controls are the accessible way
-    <div
-      ref={stageRef}
-      className={styles.stage}
-      style={themeStyle}
-      onPointerDown={(e) => {
-        pointer.current = e.pointerType;
-      }}
-      onClick={onStageClick}
-    >
-      {background && (
-        <img className={styles.background} src={assetUrl(worldId, background.file)} alt="" />
-      )}
-      <div className={styles.sprites}>
-        {(stage?.present ?? cast.map((who) => ({ who, mood: null }))).map((p) => {
-          const character = characters.find((c) => c.slug === p.who);
-          const sprite = spriteFor(character, p.mood);
-          const dim = focus !== null && focus !== p.who;
-          return (
-            <div key={p.who} className={`${styles.sprite} ${dim ? styles.dim : ''}`}>
-              {sprite ? (
-                <img src={assetUrl(worldId, sprite.file)} alt={character?.name ?? p.who} />
-              ) : (
-                <div className={styles.placeholder} title={character?.name ?? p.who}>
-                  {(character?.name ?? p.who).slice(0, 1)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className={styles.textboxFrame}>
-        {speaker && (
-          <span className={`${styles.name} ${speaker.known ? '' : styles.unknown}`}>
-            {speaker.name}
-          </span>
+    <>
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: keys are handled on the window, see above */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a tap zone for touch; the textbox and controls are the accessible way */}
+      <div
+        ref={stageRef}
+        className={styles.stage}
+        style={themeStyle}
+        onPointerDown={(e) => {
+          pointer.current = e.pointerType;
+        }}
+        onClick={onStageClick}
+      >
+        {background && (
+          <img className={styles.background} src={assetUrl(worldId, background.file)} alt="" />
         )}
-        <button
-          type="button"
-          ref={textboxButton}
-          className={styles.textbox}
-          // Touch taps are the stage's (see onStageClick); a click or a key reads on.
-          onClick={() => pointer.current !== 'touch' && advance()}
-          aria-live="polite"
-        >
-          <div ref={textbox} className={styles.scroll} onScroll={measure}>
-            {page ? (
-              <PageText page={page} names={names} userName={userName} streaming={streaming} />
+        <div className={`${styles.sprites} ${present.length >= 4 ? styles.crowd : ''}`}>
+          {present.map((p) => {
+            const character = characters.find((c) => c.slug === p.who);
+            const sprite = spriteFor(character, p.mood);
+            const dim = focus !== null && focus !== p.who;
+            const name = character?.name ?? p.who;
+            const image = sprite ? (
+              <img src={assetUrl(worldId, sprite.file)} alt={onPickSpeaker ? '' : name} />
             ) : (
-              <span className={`${styles.text} ${styles.empty}`}>{t('vn.empty')}</span>
-            )}
-          </div>
-          {cue && (
-            <span className={styles.cue} aria-hidden="true">
-              {cue}
+              <div className={styles.placeholder} title={name}>
+                {name.slice(0, 1)}
+              </div>
+            );
+            const classes = [
+              styles.sprite,
+              dim ? styles.dim : '',
+              focus === p.who ? styles.speaking : '',
+              picked === p.who ? styles.picked : '',
+            ].join(' ');
+            return (
+              <div key={p.who} className={classes}>
+                {onPickSpeaker ? (
+                  // The speaker chips above the text field are the keyboard way to pick.
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={t('vn.pickSpeaker', { name })}
+                    onClick={() => onPickSpeaker(p.who)}
+                  >
+                    {image}
+                  </button>
+                ) : (
+                  image
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className={styles.textboxFrame}>
+          {speaker && (
+            <span
+              className={`${styles.name} ${speaker.known ? '' : styles.unknown} ${
+                page?.speaker === USER_SPEAKER ? styles.userName : ''
+              }`}
+              style={badge}
+            >
+              {speaker.name}
             </span>
           )}
-        </button>
-      </div>
-      <div className={styles.controls}>
-        <button
-          type="button"
-          onClick={() => go(-1)}
-          disabled={position <= 0}
-          aria-label={t('vn.back')}
-        >
-          ‹
-        </button>
-        <span>
-          {pages.length ? position + 1 : 0}/{pages.length}
+          {editing ? (
+            <form
+              className={styles.editor}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const message = messages.find((m) => m.id === editing.id);
+                if (message && tools) tools.onEdit(message, editing.text);
+                setEditing(null);
+              }}
+            >
+              <textarea
+                aria-label={t('common.edit')}
+                value={editing.text}
+                onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setEditing(null);
+                }}
+                // biome-ignore lint/a11y/noAutofocus: the user just asked to edit this text
+                autoFocus
+              />
+              <div className={styles.editorActions}>
+                <button className={ui.button} type="button" onClick={() => setEditing(null)}>
+                  {t('common.cancel')}
+                </button>
+                <button className={ui.primary} type="submit">
+                  {t('common.save')}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              ref={textboxButton}
+              className={styles.textbox}
+              // Touch taps are the stage's (see onStageClick); a click or a key reads on.
+              onClick={() => pointer.current !== 'touch' && advance()}
+            >
+              <div ref={textbox} className={styles.scroll} onScroll={measure}>
+                {page ? (
+                  <PageText page={page} names={names} userName={userName} streaming={streaming} />
+                ) : (
+                  <span className={`${styles.text} ${styles.empty}`}>{t('vn.empty')}</span>
+                )}
+              </div>
+              {cue && (
+                <span className={styles.cue} aria-hidden="true">
+                  {cue}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+        <div className={styles.controls}>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            disabled={position <= 0}
+            aria-label={t('vn.back')}
+          >
+            ‹
+          </button>
+          <span>
+            {pages.length ? position + 1 : 0}/{pages.length}
+          </span>
+          <button type="button" onClick={() => go(1)} disabled={atEnd} aria-label={t('vn.next')}>
+            ›
+          </button>
+        </div>
+        <span className={styles.srOnly} aria-live="polite">
+          {announcement}
         </span>
-        <button type="button" onClick={() => go(1)} disabled={atEnd} aria-label={t('vn.next')}>
-          ›
+      </div>
+      {tools && page && !streaming && !editing && (
+        <PageTools
+          message={page.message}
+          last={atEnd}
+          tools={tools}
+          onEdit={() => setEditing({ id: page.message.id, text: tools.editText(page.message.id) })}
+        />
+      )}
+    </>
+  );
+}
+
+export interface StageTools {
+  online: boolean;
+  canRegenerate: (message: PathMessage) => boolean;
+  onSelect: (id: string) => void;
+  onRegenerate: (message: PathMessage) => void;
+  /** The stored text of a message (placeholders unfilled), to edit. */
+  editText: (id: string) => string;
+  onEdit: (message: PathMessage, content: string) => void;
+}
+
+/**
+ * Tools for the message on the page. On the last page: its versions and regenerate. On an
+ * earlier page only edit, because a new version there would drop everything after it.
+ */
+function PageTools({
+  message,
+  last,
+  tools,
+  onEdit,
+}: {
+  message: PathMessage;
+  last: boolean;
+  tools: StageTools;
+  onEdit: () => void;
+}) {
+  const { t } = useTranslation();
+  const [menu, setMenu] = useState(false);
+  const index = message.siblingIds.indexOf(message.id);
+  const count = message.siblingIds.length;
+  const regenerate = last && message.role === 'assistant' && tools.canRegenerate(message);
+  const needsServer = last && (count > 1 || regenerate);
+  return (
+    <div className={styles.tools}>
+      {last && count > 1 && (
+        <>
+          <button
+            className={ui.ghost}
+            type="button"
+            disabled={index <= 0 || !tools.online}
+            aria-label={t('chats.previousVersion')}
+            onClick={() => tools.onSelect(message.siblingIds[index - 1] ?? message.id)}
+          >
+            ‹
+          </button>
+          <span>
+            {index + 1}/{count}
+          </span>
+          <button
+            className={ui.ghost}
+            type="button"
+            disabled={index >= count - 1 || !tools.online}
+            aria-label={t('chats.nextVersion')}
+            onClick={() => tools.onSelect(message.siblingIds[index + 1] ?? message.id)}
+          >
+            ›
+          </button>
+        </>
+      )}
+      {regenerate && (
+        <button
+          className={ui.ghost}
+          type="button"
+          disabled={!tools.online}
+          aria-label={t('chats.regenerate')}
+          title={t('chats.regenerate')}
+          onClick={() => tools.onRegenerate(message)}
+        >
+          ⟳
         </button>
+      )}
+      {needsServer && !tools.online && <span className={ui.hint}>{t('vn.needsServer')}</span>}
+      <div className={styles.menu}>
+        <button
+          className={ui.ghost}
+          type="button"
+          aria-label={t('vn.more')}
+          aria-haspopup="menu"
+          aria-expanded={menu}
+          onClick={() => setMenu(!menu)}
+        >
+          ⋯
+        </button>
+        {menu && (
+          <div className={styles.menuList} role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              // biome-ignore lint/a11y/noAutofocus: focus moves into the menu that just opened
+              autoFocus
+              onClick={() => {
+                setMenu(false);
+                onEdit();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setMenu(false);
+              }}
+            >
+              {t('common.edit')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+/** Badge colors: the character's `color:`, else a preset picked by slug, per theme. */
+function nameBadge(
+  speaker: string,
+  characters: CharacterSummary[],
+  themed: boolean,
+): CSSProperties | undefined {
+  if (speaker === USER_SPEAKER) return undefined;
+  const color = characters.find((c) => c.slug === speaker)?.color;
+  if (color) return { '--name-light': color, '--name-dark': color } as CSSProperties;
+  if (themed) return undefined;
+  const preset = namePreset(speaker);
+  return { '--name-light': preset.light, '--name-dark': preset.dark } as CSSProperties;
+}
+
+/** A page as one sentence for screen readers: who speaks, then the text. */
+function pageAnnouncement(page: VnPage, names: Map<string, string>, userName: string): string {
+  const lines = page.beats.map((beat) =>
+    beat.type === 'say'
+      ? `${speakerName(beat.who, names, userName).name}: ${beat.text}`
+      : beat.text,
+  );
+  return lines.join('\n');
 }
 
 /**

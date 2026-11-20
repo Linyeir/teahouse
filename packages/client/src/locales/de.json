@@ -107,7 +107,10 @@
     "narrator": "Erzähler",
     "takeTurn": "Weiter",
     "openProfiles": "Profile öffnen",
-    "connectModel": "Verbinde ein Modell, um zu spielen: Lege ein Profil mit deinem LLM-Endpunkt an."
+    "connectModel": "Verbinde ein Modell, um zu spielen: Lege ein Profil mit deinem LLM-Endpunkt an.",
+    "sendTo": "Senden — %{name} antwortet",
+    "sendNarrator": "Senden — der Erzähler antwortet",
+    "someoneElse": "+ jemand anderes"
   },
   "profiles": {
     "new": "Neues Profil",
@@ -265,7 +268,10 @@
     "showNovel": "Novel",
     "empty": "Die Szene hat noch nicht begonnen.",
     "back": "Vorige Nachricht",
-    "next": "Nächste Nachricht"
+    "next": "Nächste Nachricht",
+    "pickSpeaker": "%{name} ist als Nächstes dran",
+    "needsServer": "Braucht den Server",
+    "more": "Mehr"
   },
   "images": {
     "characterTitle": "Bilder von %{name}",

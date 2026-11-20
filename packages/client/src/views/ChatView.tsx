@@ -85,6 +85,10 @@ export function ChatView() {
     queryFn: () => api.get<Profile[]>('/api/profiles'),
   });
   const [ending, setEnding] = useState(false);
+  // Who takes the next turn, picked with the chips or a sprite; null follows the default.
+  const [picked, setPicked] = useState<{ chatId: string; slug: string } | null>(null);
+  const pickedSlug = picked?.chatId === chatId ? picked.slug : null;
+  const pick = (slug: string | null) => setPicked(slug ? { chatId, slug } : null);
   const [view, setView] = useViewMode();
 
   const refresh = (data?: ChatPath) => {
@@ -241,6 +245,21 @@ export function ChatView() {
               defaultBackground={world?.defaultBackground ?? null}
               theme={world?.theme ?? {}}
               userName={userName}
+              picked={active ? (pickedSlug ?? defaultSpeaker(messages, scene.cast)) : undefined}
+              onPickSpeaker={active ? pick : undefined}
+              tools={
+                active
+                  ? {
+                      online,
+                      canRegenerate: (m) => m.id !== scene?.startMessageId && m.parentId !== null,
+                      onSelect: (id) => selectLeaf.mutate(id),
+                      onRegenerate: (m) => regenerate.mutate(m.id),
+                      editText: (id) => messages.find((m) => m.id === id)?.content ?? '',
+                      onEdit: (m, content) =>
+                        edit.mutate({ chatId, id: m.id, content, baseRevision: m.revision }),
+                    }
+                  : undefined
+              }
             />
             {lastAssistant && !streaming && (
               <ReplyNotice
@@ -250,14 +269,6 @@ export function ChatView() {
                     ? () => regenerate.mutate(lastAssistant.id)
                     : undefined
                 }
-              />
-            )}
-            {lastAssistant && active && !streaming && (
-              <MessageTools
-                message={lastAssistant}
-                canRegenerate={lastAssistant.id !== scene?.startMessageId}
-                onSelect={(id) => selectLeaf.mutate(id)}
-                onRegenerate={() => regenerate.mutate(lastAssistant.id)}
               />
             )}
           </>
@@ -326,6 +337,8 @@ export function ChatView() {
           messages={messages}
           cast={scene.cast}
           characters={characters.data ?? []}
+          picked={pickedSlug}
+          onPick={pick}
           streaming={Boolean(streaming)}
           online={online}
           noProfile={noProfile}
@@ -554,6 +567,8 @@ function Composer({
   messages,
   cast,
   characters,
+  picked,
+  onPick,
   streaming,
   online,
   noProfile,
@@ -566,6 +581,9 @@ function Composer({
   messages: PathMessage[];
   cast: string[];
   characters: CharacterSummary[];
+  /** Who takes the next turn; null follows the default, whoever had the last turn. */
+  picked: string | null;
+  onPick: (slug: string | null) => void;
   streaming: boolean;
   online: boolean;
   /** No profile to answer: the text can be written and stays as a draft, but not sent. */
@@ -578,8 +596,7 @@ function Composer({
 }) {
   const { t } = useTranslation();
   const [text, setTextState] = useState(() => readDraft(chatId));
-  // Null follows the default: whoever had the last turn.
-  const [picked, setPicked] = useState<string | null>(null);
+  const setPicked = onPick;
   const speaker = picked ?? defaultSpeaker(messages, cast);
   const setText = (next: string) => {
     setTextState(next);
@@ -620,32 +637,14 @@ function Composer({
           <NoProfileNotice />
         </div>
       )}
-      <label className={`${styles.composerInner} ${styles.turn}`}>
-        <span className={ui.hint}>{t('chats.nextTurn')}</span>
-        <select className={ui.input} value={speaker} onChange={(e) => setPicked(e.target.value)}>
-          <optgroup label={t('chats.present')}>
-            {present.map((slug) => (
-              <option key={slug} value={slug}>
-                {name(slug)}
-              </option>
-            ))}
-          </optgroup>
-          <option value={NARRATOR_SPEAKER}>{t('chats.narrator')}</option>
-          {others.length > 0 && (
-            <optgroup label={t('chats.others')}>
-              {others.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {/* A default that is neither present nor in the world, e.g. a deleted character. */}
-          {speaker !== NARRATOR_SPEAKER &&
-            !present.includes(speaker) &&
-            !others.some((c) => c.slug === speaker) && <option value={speaker}>{speaker}</option>}
-        </select>
-      </label>
+      <SpeakerChips
+        chatId={chatId}
+        speaker={speaker}
+        present={present}
+        others={others}
+        name={name}
+        onPick={setPicked}
+      />
       <div className={styles.composerInner}>
         <textarea
           className={ui.input}
@@ -665,7 +664,9 @@ function Composer({
             onClick={submit}
             disabled={blocked || noProfile}
           >
-            {t('chats.send')}
+            {speaker === NARRATOR_SPEAKER
+              ? t('chats.sendNarrator')
+              : t('chats.sendTo', { name: name(speaker) })}
           </button>
         ) : (
           // Nothing written: the picked character (or the narrator) just takes their turn.
@@ -683,5 +684,67 @@ function Composer({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Who takes the next turn: a chip per character present, the narrator, and someone else from
+ * the world. The chips are one radio group, so the arrow keys move between them.
+ */
+function SpeakerChips({
+  chatId,
+  speaker,
+  present,
+  others,
+  name,
+  onPick,
+}: {
+  chatId: string;
+  speaker: string;
+  present: string[];
+  others: CharacterSummary[];
+  name: (slug: string) => string;
+  onPick: (slug: string) => void;
+}) {
+  const { t } = useTranslation();
+  // Someone not on stage who was picked, or is the default (e.g. a deleted character).
+  const extra = speaker !== NARRATOR_SPEAKER && !present.includes(speaker) ? speaker : null;
+  const chips = [
+    ...present.map((slug) => ({ value: slug, label: name(slug) })),
+    ...(extra ? [{ value: extra, label: name(extra) }] : []),
+    { value: NARRATOR_SPEAKER, label: t('chats.narrator') },
+  ];
+  const rest = others.filter((c) => c.slug !== extra);
+  return (
+    <fieldset className={`${styles.composerInner} ${styles.chips}`}>
+      <legend className={ui.hint}>{t('chats.nextTurn')}</legend>
+      {chips.map((chip) => (
+        <label key={chip.value} className={styles.chip}>
+          <input
+            type="radio"
+            name={`speaker-${chatId}`}
+            value={chip.value}
+            checked={speaker === chip.value}
+            onChange={() => onPick(chip.value)}
+          />
+          {chip.label}
+        </label>
+      ))}
+      {rest.length > 0 && (
+        <select
+          className={styles.chip}
+          aria-label={t('chats.someoneElse')}
+          value=""
+          onChange={(e) => e.target.value && onPick(e.target.value)}
+        >
+          <option value="">{t('chats.someoneElse')}</option>
+          {rest.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </fieldset>
   );
 }

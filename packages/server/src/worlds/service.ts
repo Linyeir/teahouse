@@ -7,6 +7,7 @@ import {
   type CanonFile,
   type CharacterImage,
   type CharacterSummary,
+  sanitizeColor,
   sanitizeTheme,
   type World,
 } from '@teahouse/shared';
@@ -390,6 +391,7 @@ export class WorldService {
       summary: stringValue(doc.data.summary),
       greetings: stringList(doc.data.greetings),
       images,
+      color: sanitizeColor(doc.data.color),
     };
     return { summary, body: doc.body };
   }

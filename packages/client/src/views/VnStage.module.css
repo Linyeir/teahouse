@@ -22,6 +22,8 @@
 
 .sprites {
   position: absolute;
+  /* Its own layer: a speaker in front of the others stays behind the textbox. */
+  z-index: 0;
   inset: 0 2%;
   display: flex;
   justify-content: center;
@@ -49,7 +51,34 @@
 }
 
 .dim {
-  opacity: var(--vn-sprite-dim);
+  /* Darker, not see-through: translucent sprites turn into ghosts on photos. */
+  filter: brightness(var(--vn-sprite-dim));
+}
+
+/* Tapping a sprite picks who speaks next. */
+.sprite button {
+  all: unset;
+  pointer-events: auto;
+  cursor: pointer;
+  height: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Four or more overlap, the one speaking in front. */
+.crowd {
+  gap: 0;
+}
+
+.crowd .sprite + .sprite {
+  margin-left: -6%;
+}
+
+.speaking {
+  position: relative;
+  z-index: 1;
 }
 
 .placeholder {
@@ -65,6 +94,11 @@
   justify-content: center;
   font-family: var(--vn-font);
   font-size: 2rem;
+}
+
+.picked img,
+.picked .placeholder {
+  filter: drop-shadow(0 0 6px var(--color-accent));
 }
 
 .textboxFrame {
@@ -145,11 +179,24 @@
   line-height: 1.4;
   padding: 0.15em 0.8em;
   border-radius: var(--vn-textbox-radius);
-  background: var(--vn-name-bg);
+  background: var(--name-light, var(--vn-name-bg));
   color: var(--vn-name-color);
   font-family: var(--font-body);
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .name {
+    background: var(--name-dark, var(--vn-name-bg));
+  }
+}
+
+/* The user's own name: an outline, so characters keep the color. */
+.name.userName {
+  background: var(--vn-textbox-bg);
+  color: var(--vn-textbox-color);
+  box-shadow: inset 0 0 0 1.5px currentColor;
 }
 
 .unknown {
@@ -253,4 +300,93 @@
   .textboxFrame {
     height: 36%;
   }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Editing the message on the page, in place of the textbox. */
+.editor {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: max(1.6em, 1.4rem) 0.8em 0.6em;
+  background: var(--vn-textbox-bg);
+  border: var(--vn-textbox-border);
+  border-radius: var(--vn-textbox-radius);
+}
+
+.editor textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  font-family: var(--vn-font);
+  font-size: 1rem;
+  background: rgb(0 0 0 / 25%);
+  color: var(--vn-textbox-color);
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Tools of the message on the page, under the stage. */
+.tools {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.menuList {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 2;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
+}
+
+.menuList button {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  line-height: 44px;
+  border-radius: 6px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.menuList button:hover,
+.menuList button:focus-visible {
+  background: var(--color-bg);
 }
