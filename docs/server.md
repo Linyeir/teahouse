@@ -4,7 +4,7 @@ The Teahouse server stores your worlds and chats and serves the web client. Apps
 
 ## The image
 
-Each release is published for amd64 and arm64 as `ghcr.io/linyeir/teahouse:latest`. To stay on one line of releases, use a version tag such as `:0.4`. The repository's [compose.yaml](../compose.yaml) matches the Quickstart, with `build: .` added so that you can build from a checkout. The `teahouse-data` volume holds the database and, unless you configure another place, the world folders.
+Each release is published for amd64 and arm64 as `ghcr.io/linyeir/teahouse:latest`. To stay on one line of releases, use a version tag such as `:0.5`. The repository's [compose.yaml](../compose.yaml) matches the Quickstart, with `build: .` added so that you can build from a checkout. The `teahouse-data` volume holds the database and, unless you configure another place, the world folders.
 
 ## Models and profiles
 

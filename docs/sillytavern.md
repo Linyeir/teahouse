@@ -10,7 +10,7 @@ Lorebook logic (secondary keys, `selective`, `constant`, depth, order, recursion
 
 Teahouse works with any endpoint that offers OpenAI-compatible chat completion. It doesn't support text completion or SillyTavern presets.
 
-Chat logs, presets, sprite folders and World Info outside a card can't be imported yet ([#99](https://github.com/Linyeir/teahouse/issues/99), [#103](https://github.com/Linyeir/teahouse/issues/103)).
+Chat logs, presets, sprite folders and World Info outside a card can't be imported yet ([#99](https://github.com/Linyeir/teahouse/issues/99), [#103](https://github.com/Linyeir/teahouse/issues/103)). To bring a story over anyway, export the chat as text and give it to an AI agent together with [Converting chats into a world](converting-chats.md): the agent writes a world folder from it, with characters, places and the story so far.
 
 ## What works differently
 

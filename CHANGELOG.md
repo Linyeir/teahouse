@@ -2,13 +2,16 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [Unreleased]
+## [0.5.0] - 2026-11-21
+
+**Updating:** apps and server can be updated in any order, but the sample worlds, your own themes and `themePreset:` in a world need a 0.5.0 server. The database does not change.
 
 ### Added
 
 - **Themes:** under **Settings → Appearance** you pick one of nine themes and whether Teahouse is light, dark or follows the system. Standard, Nord and Catppuccin come in light and dark; Sakura, Halftone (a 90s comic) and Picture book are light; Dracula, Cyberpunk and Gothic are dark. The choice is saved per device and applied before the first paint, so nothing flashes on load. The themed looks are inspired by [charredbutter's SillyTavern themes](https://ko-fi.com/charredbutter/shop) and come with their own fonts (all under the SIL Open Font License), which a device downloads only once a theme uses them. ([#111](https://github.com/Linyeir/teahouse/issues/111))
 - **Sample worlds:** the worlds page offers three ready-made worlds to load: Haru no Yado (a mountain teahouse), Ironbay (a 90s comic city) and Mossbrook Wood (a picture-book forest). Each has two characters with mood images, backgrounds and its own theme, and loads as an ordinary world you can change. ([#126](https://github.com/Linyeir/teahouse/issues/126))
 - **Your own themes:** a theme packed as a ZIP (its CSS, fonts and images) can be uploaded under **Settings → Appearance**. It appears in the theme list on every signed-in device, works offline, and a world can name it with `themePreset:`. A theme may only set the documented tokens and load files from its own package; anything else is skipped, and the app says what. [Theming](docs/theming.md#build-your-own-theme) has a guide with a complete example. ([#127](https://github.com/Linyeir/teahouse/issues/127))
+- [Converting chats into a world](docs/converting-chats.md) is a guide you give to an AI agent together with your existing chats (plain text or Markdown): the agent writes a world folder from them, which you copy to the server's worlds folder. [Coming from SillyTavern](docs/sillytavern.md) links to it.
 - A world can name its theme with `themePreset:` in `world.md`. While you are on that world's page or in one of its chats, the app switches to it; **Let worlds choose their theme** in the settings turns this off. ([#111](https://github.com/Linyeir/teahouse/issues/111))
 
 ### Changed
@@ -251,6 +254,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.5.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.5.0
 [0.4.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.2
 [0.4.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.0

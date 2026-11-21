@@ -9,7 +9,7 @@
 You play scenes with characters on your own server, with the model of your choice. When a scene ends, Teahouse proposes what the world should remember, such as who met whom and what was promised. You decide what stays. The world is a folder of Markdown files in a Git repository, so you can edit it in any editor and undo any change.
 
 > [!NOTE]
-> Teahouse is in early development. The latest release is [0.4.2](https://github.com/Linyeir/teahouse/releases/tag/v0.4.2), and the [changelog](CHANGELOG.md) lists what changed.
+> Teahouse is in early development. The latest release is [0.5.0](https://github.com/Linyeir/teahouse/releases/tag/v0.5.0), and the [changelog](CHANGELOG.md) lists what changed.
 
 ## What makes it different
 
