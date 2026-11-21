@@ -4,12 +4,30 @@
   min-height: 320px;
   background: var(--vn-stage-bg);
   overflow: hidden;
-  border-radius: var(--radius);
+  border: var(--vn-stage-border);
+  border-radius: var(--vn-stage-radius);
+  box-shadow: var(--vn-stage-shadow);
+  clip-path: var(--vn-stage-clip);
+  transform: var(--vn-stage-transform);
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
   aspect-ratio: 16 / 9;
   max-height: 100%;
+}
+
+/* A strip of tape across the top edge, in themes that set --vn-tape. */
+.stage::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: -6px;
+  left: calc(50% - 60px);
+  width: 120px;
+  height: 26px;
+  background: var(--vn-tape);
+  transform: rotate(-3deg);
+  pointer-events: none;
 }
 
 .background {
@@ -125,6 +143,9 @@
   color: var(--vn-textbox-color);
   border: var(--vn-textbox-border);
   border-radius: var(--vn-textbox-radius);
+  box-shadow: var(--vn-textbox-shadow);
+  backdrop-filter: var(--vn-textbox-blur);
+  clip-path: var(--vn-textbox-clip);
   font-family: var(--vn-font);
   font-size: var(--vn-font-size);
   line-height: 1.5;
@@ -171,7 +192,7 @@
   z-index: 1;
   top: 0;
   left: 1em;
-  transform: translateY(-50%);
+  transform: translateY(-50%) var(--vn-name-transform);
   max-width: calc(100% - 2em);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -179,17 +200,20 @@
   line-height: 1.4;
   padding: 0.15em 0.8em;
   border-radius: var(--vn-textbox-radius);
-  background: var(--name-light, var(--vn-name-bg));
-  color: var(--vn-name-color);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
+  background: var(--vn-name-fill, var(--name-light, var(--vn-name-bg)));
+  color: var(--vn-name-fill-text, var(--name-text-light, var(--vn-name-color)));
+  border: var(--vn-name-border);
+  box-shadow: var(--vn-name-shadow);
+  clip-path: var(--vn-name-clip);
+  text-transform: var(--vn-name-case);
+  font-family: var(--vn-name-font);
+  font-size: var(--vn-name-size);
   font-weight: 600;
 }
 
-@media (prefers-color-scheme: dark) {
-  .name {
-    background: var(--name-dark, var(--vn-name-bg));
-  }
+:root[data-theme="dark"] .name {
+  background: var(--vn-name-fill, var(--name-dark, var(--vn-name-bg)));
+  color: var(--vn-name-fill-text, var(--name-text-dark, var(--vn-name-color)));
 }
 
 /* The user's own name: an outline, so characters keep the color. */
@@ -223,6 +247,11 @@
 
 .line {
   display: block;
+  color: var(--vn-speech-color, inherit);
+}
+
+.line.narration {
+  color: var(--vn-narration-color, inherit);
 }
 
 .line + .line {
@@ -293,12 +322,14 @@
     aspect-ratio: 3 / 4;
   }
 
+  /* At most 1rem, smaller where the theme asks for it. */
   .textbox {
-    font-size: 1rem;
+    font-size: min(var(--vn-font-size), 1rem);
   }
 
   .textboxFrame {
-    height: 36%;
+    height: 40%;
+    max-height: 50%;
   }
 }
 
@@ -368,7 +399,7 @@
   min-width: 140px;
   padding: 4px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
 }

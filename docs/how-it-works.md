@@ -69,7 +69,7 @@ When you end a scene **with canon**, the model reads the scene and the files tha
 - additions to the files of characters, places and lore,
 - new aliases, when the scene called someone by another name.
 
-<p align="center"><img src="images/review.png" alt="The canon review: the scene's title and summary at the top, then one card per file with what changes, and Accept and Reject buttons." width="720"></p>
+<p align="center"><img src="images/review.webp" alt="The canon review: the scene's title and summary at the top, then one card per file with what changes, and Accept and Reject buttons." width="720"></p>
 
 The review starts with the title and summary of the scene. Below that, each file has a card that says in words what changes, such as "Adds to „Relationships“". **Raw diff** shows the exact text. You accept, edit or reject each file, and Teahouse saves the accepted files together as one change in the history of the world.
 
@@ -89,7 +89,7 @@ After many scenes, a world collects small inconsistencies. **Tidy up the canon**
 - names that appear in several events but have no file,
 - names that the events use for a file but that are missing from its aliases and tags.
 
-<p align="center"><img src="images/cleanup.png" alt="The cleanup review: a card for the lighthouse file with a warning that it contradicts Tomas's file, quoting what Tomas's file says." width="720"></p>
+<p align="center"><img src="images/cleanup.webp" alt="The cleanup review: a card for the bridge file with a warning that it contradicts Juniper's file, quoting what Juniper's file says." width="720"></p>
 
 You review the suggestions in the same way as the changes after a scene. A fix for a contradiction quotes what the other file says, so you can decide which side is right. When two character files are merged, the name of the removed file becomes an alias, and its chats move to the character that stays.
 

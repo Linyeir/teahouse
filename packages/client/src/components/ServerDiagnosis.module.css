@@ -44,7 +44,7 @@
 .accept {
   margin: 0 0 8px;
   padding: 8px 10px;
-  border: 1px solid var(--color-border);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius);
   color: var(--color-text);
 }

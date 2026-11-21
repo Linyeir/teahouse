@@ -1,0 +1,66 @@
+[
+  {
+    "name": "kaito-neutral",
+    "engine": "illustrious",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/kaito-neutral-raw.png",
+    "prompt": "masterpiece, best quality, 1boy, messy dark brown hair, grey-green eyes, blue paint smudge on cheek, looking at viewer, open eyes, calm expression, closed mouth, slight smile",
+    "seed": 11,
+    "denoise": 0.6
+  },
+  {
+    "name": "kaito-amused",
+    "engine": "illustrious",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/kaito-neutral-raw.png",
+    "prompt": "masterpiece, best quality, 1boy, messy dark brown hair, grey-green eyes, blue paint smudge on cheek, looking at viewer, open eyes, grin, open mouth, happy, laughing",
+    "seed": 11,
+    "denoise": 0.6
+  },
+  {
+    "name": "kaito-angry",
+    "engine": "illustrious",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/kaito-neutral-raw.png",
+    "prompt": "masterpiece, best quality, 1boy, messy dark brown hair, grey-green eyes, blue paint smudge on cheek, looking at viewer, open eyes, angry, frown, v-shaped eyebrows, clenched teeth",
+    "seed": 11,
+    "denoise": 0.6
+  },
+  {
+    "name": "kaito-sad",
+    "engine": "illustrious",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/kaito-neutral-raw.png",
+    "prompt": "masterpiece, best quality, 1boy, messy dark brown hair, grey-green eyes, blue paint smudge on cheek, looking at viewer, sad, looking down, eyebrows raised, sad smile",
+    "seed": 11,
+    "denoise": 0.6
+  },
+  {
+    "name": "gearwright-neutral",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair, a thin mustache and a glowing red brass lens over one eye, cold confident expression, mouth closed.",
+    "seed": 11,
+    "denoise": 0.9
+  },
+  {
+    "name": "gearwright-amused",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair, a thin mustache and a glowing red brass lens over one eye, evil laugh, mouth wide open, head tilted back slightly.",
+    "seed": 11,
+    "denoise": 0.9
+  },
+  {
+    "name": "gearwright-angry",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair, a thin mustache and a glowing red brass lens over one eye, enraged, snarling, teeth bared, eyebrow pulled down hard.",
+    "seed": 11,
+    "denoise": 0.9
+  },
+  {
+    "name": "gearwright-sad",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair, a thin mustache and a glowing red brass lens over one eye, bitter and defeated, eyes cast down, mouth turned down.",
+    "seed": 11,
+    "denoise": 0.9
+  }
+]

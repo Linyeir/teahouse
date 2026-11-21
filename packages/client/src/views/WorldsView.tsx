@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { CardImportResult, World } from '@teahouse/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CardImportResult, InstalledWorld, SampleWorld, World } from '@teahouse/shared';
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
@@ -27,10 +27,61 @@ export function WorldsView() {
           </li>
         ))}
       </ul>
+      <SampleWorlds />
       <CreateWorld />
       <ImportCard worlds={worlds.data ?? []} />
       <ImportWorld />
     </div>
+  );
+}
+
+/** Ready-made worlds with characters, images and a theme, to try Teahouse without a card. */
+function SampleWorlds() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const samples = useQuery({
+    queryKey: ['samples'],
+    queryFn: () => api.get<SampleWorld[]>('/api/samples'),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const load = useMutation({
+    mutationFn: (id: string) => api.post<InstalledWorld>(`/api/samples/${id}`),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['worlds'] });
+      navigate(`/worlds/${result.worldId}`);
+    },
+  });
+  if (!samples.data?.length) return null;
+  return (
+    <section className={`${ui.card} ${ui.form}`} style={{ marginBottom: 'var(--space)' }}>
+      <h3 style={{ margin: 0 }}>{t('worlds.samples')}</h3>
+      <p className={ui.hint} style={{ margin: 0 }}>
+        {t('worlds.samplesHint')}
+      </p>
+      <ul className={ui.list} style={{ margin: 0 }}>
+        {samples.data.map((s) => (
+          <li key={s.id} className={ui.listItem}>
+            <div className={ui.grow}>
+              <strong>{s.name}</strong>
+              {s.themePreset && <span className={ui.badge}>{t(`themes.${s.themePreset}`)}</span>}
+              <div className={ui.hint}>{s.summary}</div>
+            </div>
+            <button
+              className={ui.button}
+              type="button"
+              disabled={load.isPending}
+              onClick={() => load.mutate(s.id)}
+            >
+              {load.isPending && load.variables === s.id
+                ? t('worlds.loadingSample')
+                : t('worlds.loadSample')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ErrorText error={load.error} />
+    </section>
   );
 }
 

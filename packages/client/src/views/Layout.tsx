@@ -25,7 +25,7 @@ export function Layout({ connection }: { connection: ConnectionState }) {
     <div className={`${styles.shell} ${inChat ? styles.inChat : ''}`}>
       <aside className={styles.sidebar}>
         <h1 className={styles.brand}>
-          <img className={styles.logo} src="/favicon.svg" alt="" />
+          <img className={styles.logo} src="/logo-mark.svg" alt="" />
           {t('app.name')}
         </h1>
         <nav className={styles.nav}>

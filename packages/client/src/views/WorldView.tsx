@@ -10,6 +10,7 @@ import { CharacterImages, WorldBackgrounds } from '../components/ImageManager.ts
 import { CharacterRow, GroupChatStart } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
 import { useCharacters, useWorlds } from '../queries.ts';
+import { useWorldTheme } from '../theme.ts';
 import { clearDraft, clearDrafts, setDraft, useDirtyPaths, useDraft } from '../worldDrafts.ts';
 import { CanonCleanup } from './CanonCleanup.tsx';
 import { DiffView } from './SceneParts.tsx';
@@ -46,6 +47,7 @@ export function WorldView() {
   const selected = search.get('file');
   const worlds = useWorlds();
   const world = worlds.data?.find((w) => w.id === worldId);
+  useWorldTheme(world?.themePreset);
   const files = useQuery({
     queryKey: ['worlds', worldId, 'files'],
     queryFn: () => api.get<CanonFile[]>(`/api/worlds/${worldId}/files`),

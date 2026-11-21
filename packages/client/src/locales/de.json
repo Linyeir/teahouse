@@ -19,7 +19,8 @@
     "loading": "Lädt …",
     "confirmDelete": "„%{name}“ löschen?",
     "dismiss": "Schließen",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "quoted": "„%{text}“"
   },
   "auth": {
     "setupTitle": "Willkommen bei Teahouse",
@@ -169,7 +170,19 @@
     "forget": "Vergessen",
     "about": "Über Teahouse",
     "appVersion": "App: Teahouse %{version}",
-    "serverVersion": "Server: Teahouse %{version}"
+    "serverVersion": "Server: Teahouse %{version}",
+    "appearance": "Aussehen",
+    "appearanceHint": "Gilt für dieses Gerät.",
+    "mode": "Hell oder dunkel",
+    "modeSystem": "Wie das System",
+    "modeLight": "Hell",
+    "modeDark": "Dunkel",
+    "theme": "Theme",
+    "onlyLight": "%{name} (nur hell)",
+    "onlyDark": "%{name} (nur dunkel)",
+    "fixedMode": "Dieses Theme gibt es nur in einer Variante.",
+    "worldThemes": "Welten dürfen ihr Theme wählen",
+    "worldThemesHint": "Eine Welt kann in world.md ein Theme nennen. Solange du in dieser Welt bist, nutzt die App es."
   },
   "home": {
     "noWorlds": "Noch keine Welten.",
@@ -219,7 +232,11 @@
     "conflictDeleted": "Diese Datei wurde gelöscht, seit du sie bearbeitest",
     "conflictHint": "Vielleicht durch ein Canon-Update oder in einem anderen Editor. Der Diff zeigt die Datei, wie sie jetzt ist, gegen deine Fassung. Gespeichert wurde nichts.",
     "conflictDiscard": "Meine Änderung verwerfen",
-    "conflictOverwrite": "Meine Fassung trotzdem speichern"
+    "conflictOverwrite": "Meine Fassung trotzdem speichern",
+    "samples": "Beispielwelten",
+    "samplesHint": "Fertige Welten mit Figuren, Bildern und eigenem Theme. Jede geladene Welt ist eine ganz normale Welt, die dir gehört und die du frei ändern kannst.",
+    "loadSample": "Laden",
+    "loadingSample": "Lädt …"
   },
   "scenes": {
     "title": "Szene %{n}",
@@ -364,5 +381,16 @@
     "nothingFound": "Beim letzten Lauf gab es nichts aufzuräumen.",
     "applyNothing": "Nichts übernehmen",
     "counts": "Widersprüche: %{contradictions} · Zusammengeführt: %{merges} · Neu: %{created} · Geändert: %{changed}"
+  },
+  "themes": {
+    "standard": "Standard",
+    "nord": "Nord",
+    "catppuccin": "Catppuccin",
+    "sakura": "Sakura",
+    "halftone": "Halftone",
+    "picturebook": "Bilderbuch",
+    "dracula": "Dracula",
+    "cyberpunk": "Cyberpunk",
+    "gothic": "Gothic"
   }
 }

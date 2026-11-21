@@ -9,8 +9,9 @@
   flex-direction: column;
   gap: var(--space);
   padding: var(--space);
-  border-right: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  border-right: var(--sidebar-border);
+  background: var(--sidebar-background);
+  backdrop-filter: var(--surface-blur);
   overflow-y: auto;
 }
 
@@ -18,7 +19,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-story);
+  font-family: var(--font-brand);
+  text-transform: var(--heading-transform);
+  letter-spacing: var(--heading-spacing);
   font-size: 1.3rem;
   margin: 0;
 }
@@ -86,7 +89,7 @@
 .banner {
   padding: 6px var(--space);
   background: var(--color-surface-muted);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-width) solid var(--color-border);
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
@@ -96,7 +99,7 @@
   align-items: flex-start;
   gap: var(--space);
   padding: 8px var(--space);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-width) solid var(--color-border);
   font-size: 0.9rem;
 }
 
@@ -172,7 +175,7 @@
 
   .tabs {
     display: flex;
-    border-top: 1px solid var(--color-border);
+    border-top: var(--border-width) solid var(--color-border);
     background: var(--color-surface-muted);
     /* Reaches under the gesture bar, into the root's padding for it (global.css). */
     padding-bottom: env(safe-area-inset-bottom);

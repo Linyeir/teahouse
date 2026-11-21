@@ -1,0 +1,730 @@
+/*
+ * Built-in theme presets (docs/theming.md), selected by <html data-preset>. Standard is
+ * global.css itself. Each preset sets its primitives first and maps the semantic tokens to them.
+ * The themed directions are inspired by charredbutter's SillyTavern themes; Nord, Catppuccin and
+ * Dracula use their published (MIT) palettes. Font names come first in each stack; the system
+ * fonts after them stand in where those are not available.
+ */
+
+/* Nord: https://www.nordtheme.com — calm frost, a faint aurora */
+:root[data-preset="nord"] {
+  --nord0: #2e3440;
+  --nord1: #3b4252;
+  --nord2: #434c5e;
+  --nord3: #4c566a;
+  --nord4: #d8dee9;
+  --nord5: #e5e9f0;
+  --nord6: #eceff4;
+  --nord8: #88c0d0;
+  --nord14: #a3be8c;
+  --nord-white: #f8f9fb;
+  --nord10-deep: #46648c;
+  --nord11-light: #eca3aa;
+  --nord-border-light: #c5cdda;
+  --nord-red-dark: #a3434d;
+  --nord-green-dark: #4c6b35;
+  --nord-add-light: #dfe9d6;
+  --nord-remove-light: #f2dadc;
+  --nord-add-dark: #3b4a3f;
+  --nord-remove-dark: #4d3a42;
+  --nord-stage: #242933;
+  --nord-scrim: rgb(46 52 64 / 92%);
+  --nord-scrim-line: rgb(136 192 208 / 45%);
+  --nord-frost-text: #a6d3df;
+  --nord-snow-text: #d8dee9;
+  --nord-aurora-light:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgb(163 190 140 / 22%), transparent 70%),
+    radial-gradient(ellipse 60% 35% at 85% 0%, rgb(180 142 173 / 20%), transparent 70%), #eceff4;
+  --nord-aurora-dark:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgb(163 190 140 / 14%), transparent 70%),
+    radial-gradient(ellipse 60% 35% at 85% 0%, rgb(180 142 173 / 14%), transparent 70%), #2e3440;
+  --nord-frost-edge: 3px solid #88c0d0;
+  --nord-soft: 0 8px 28px rgb(46 52 64 / 18%);
+  --nord-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --color-bg: var(--nord6);
+  --color-surface: var(--nord-white);
+  --color-surface-muted: var(--nord5);
+  --color-border: var(--nord-border-light);
+  --color-text: var(--nord0);
+  --color-text-muted: var(--nord3);
+  --color-accent: var(--nord10-deep);
+  --color-accent-text: var(--nord-white);
+  --color-danger: var(--nord-red-dark);
+  --color-success: var(--nord-green-dark);
+  --color-user-bubble: var(--nord5);
+  --color-diff-add: var(--nord-add-light);
+  --color-diff-remove: var(--nord-remove-light);
+  --font-body: var(--nord-sans);
+  --radius: 6px;
+  --page-background: var(--nord-aurora-light);
+  --vn-stage-bg: var(--nord-stage);
+  --vn-stage-radius: 10px;
+  --vn-stage-shadow: var(--nord-soft);
+  --vn-textbox-bg: var(--nord-scrim);
+  --vn-textbox-color: var(--nord6);
+  --vn-textbox-border: 1px solid var(--nord-scrim-line);
+  --vn-textbox-radius: 8px;
+  --vn-speech-color: var(--nord-frost-text);
+  --vn-narration-color: var(--nord-snow-text);
+  --header-border: var(--nord-frost-edge);
+}
+
+:root[data-preset="nord"][data-theme="dark"] {
+  --color-bg: var(--nord0);
+  --color-surface: var(--nord1);
+  --color-surface-muted: var(--nord2);
+  --color-border: var(--nord3);
+  --color-text: var(--nord6);
+  --color-text-muted: var(--nord4);
+  --color-accent: var(--nord8);
+  --color-accent-text: var(--nord0);
+  --color-danger: var(--nord11-light);
+  --color-success: var(--nord14);
+  --color-user-bubble: var(--nord2);
+  --color-diff-add: var(--nord-add-dark);
+  --color-diff-remove: var(--nord-remove-dark);
+  --page-background: var(--nord-aurora-dark);
+}
+
+/* Catppuccin: https://catppuccin.com — Latte (light) and Mocha (dark), soft and round */
+:root[data-preset="catppuccin"] {
+  --latte-base: #eff1f5;
+  --latte-mantle: #e6e9ef;
+  --latte-crust: #dce0e8;
+  --latte-surface1: #bcc0cc;
+  --latte-subtext1: #5c5f77;
+  --latte-text: #4c4f69;
+  --latte-mauve: #8839ef;
+  --latte-red: #d20f39;
+  --latte-green-text: #2f7a1f;
+  --latte-add: #dcefd6;
+  --latte-remove: #f6d6dd;
+  --mocha-crust: #11111b;
+  --mocha-mantle: #181825;
+  --mocha-base: #1e1e2e;
+  --mocha-surface0: #313244;
+  --mocha-surface1: #45475a;
+  --mocha-subtext0: #a6adc8;
+  --mocha-subtext1: #bac2de;
+  --mocha-text: #cdd6f4;
+  --mocha-mauve: #cba6f7;
+  --mocha-pink: #f5c2e7;
+  --mocha-red: #f38ba8;
+  --mocha-green: #a6e3a1;
+  --mocha-add: #2c3b33;
+  --mocha-remove: #41293a;
+  --mocha-scrim: rgb(30 30 46 / 90%);
+  --mocha-scrim-line: rgb(203 166 247 / 50%);
+  --cat-blobs-light:
+    radial-gradient(circle at 8% 12%, rgb(234 118 203 / 16%), transparent 30%),
+    radial-gradient(circle at 92% 18%, rgb(114 135 253 / 16%), transparent 32%),
+    radial-gradient(circle at 70% 95%, rgb(64 160 43 / 10%), transparent 30%), #e6e9ef;
+  --cat-blobs-dark:
+    radial-gradient(circle at 8% 12%, rgb(245 194 231 / 10%), transparent 30%),
+    radial-gradient(circle at 92% 18%, rgb(180 190 254 / 10%), transparent 32%),
+    radial-gradient(circle at 70% 95%, rgb(166 227 161 / 7%), transparent 30%), #181825;
+  --cat-soft: 0 6px 20px rgb(136 57 239 / 12%);
+  --cat-pop: 0 3px 0 rgb(136 57 239 / 35%);
+  --cat-stage: 0 0 0 4px rgb(203 166 247 / 45%), 0 10px 30px rgb(30 30 46 / 25%);
+  --cat-round: "Nunito", "Varela Round", "Quicksand", system-ui, sans-serif;
+  --cat-name-lift: 0 2px 0 rgb(0 0 0 / 25%);
+
+  --color-bg: var(--latte-mantle);
+  --color-surface: var(--latte-base);
+  --color-surface-muted: var(--latte-crust);
+  --color-border: var(--latte-surface1);
+  --color-text: var(--latte-text);
+  --color-text-muted: var(--latte-subtext1);
+  --color-accent: var(--latte-mauve);
+  --color-accent-text: var(--latte-base);
+  --color-danger: var(--latte-red);
+  --color-success: var(--latte-green-text);
+  --color-user-bubble: var(--latte-crust);
+  --color-diff-add: var(--latte-add);
+  --color-diff-remove: var(--latte-remove);
+  --font-body: var(--cat-round);
+  --font-story: var(--cat-round);
+  --font-heading: var(--cat-round);
+  --font-brand: var(--cat-round);
+  --radius: 16px;
+  --control-radius: var(--pill);
+  --shadow: var(--cat-soft);
+  --shadow-control: var(--cat-pop);
+  --page-background: var(--cat-blobs-light);
+  --vn-stage-bg: var(--mocha-base);
+  --vn-stage-radius: 22px;
+  --vn-stage-shadow: var(--cat-stage);
+  --vn-textbox-bg: var(--mocha-scrim);
+  --vn-textbox-color: var(--mocha-text);
+  --vn-textbox-border: 2px solid var(--mocha-scrim-line);
+  --vn-textbox-radius: 20px;
+  --vn-speech-color: var(--mocha-pink);
+  --vn-narration-color: var(--mocha-subtext1);
+  --vn-name-shadow: var(--cat-name-lift);
+  --vn-name-size: 0.95rem;
+}
+
+:root[data-preset="catppuccin"][data-theme="dark"] {
+  --color-bg: var(--mocha-mantle);
+  --color-surface: var(--mocha-base);
+  --color-surface-muted: var(--mocha-surface0);
+  --color-border: var(--mocha-surface1);
+  --color-text: var(--mocha-text);
+  --color-text-muted: var(--mocha-subtext0);
+  --color-accent: var(--mocha-mauve);
+  --color-accent-text: var(--mocha-crust);
+  --color-danger: var(--mocha-red);
+  --color-success: var(--mocha-green);
+  --color-user-bubble: var(--mocha-surface0);
+  --color-diff-add: var(--mocha-add);
+  --color-diff-remove: var(--mocha-remove);
+  --page-background: var(--cat-blobs-dark);
+}
+
+/* Sakura: soft pink, frosted glass, petals everywhere, rounded type */
+:root[data-preset="sakura"] {
+  --sakura-50: #fdf3f6;
+  --sakura-100: #f9e3ea;
+  --sakura-200: #f0c9d6;
+  --sakura-600: #b04a6e;
+  --sakura-700: #8f6070;
+  --sakura-800: #7a4a5c;
+  --sakura-900: #4a2b36;
+  --sakura-ink: #9c2f5c;
+  --sakura-white: #ffffff;
+  --sakura-red: #b3263e;
+  --sakura-green: #3f7a4a;
+  --sakura-add: #e3f1e3;
+  --sakura-remove: #f8dbe0;
+  --sakura-glass: rgb(255 255 255 / 68%);
+  --sakura-glass-strong: rgb(255 250 252 / 86%);
+  --sakura-glass-line: 2px solid rgb(201 90 133 / 45%);
+  --sakura-glow: 0 8px 30px rgb(176 74 110 / 18%);
+  --sakura-stage:
+    0 0 0 6px rgb(255 255 255 / 85%), 0 0 0 8px rgb(201 90 133 / 35%),
+    0 18px 44px rgb(176 74 110 / 30%);
+  --sakura-ribbon:
+    radial-gradient(circle at 20% 50%, #f7a8c4 0 7px, transparent 8px),
+    radial-gradient(circle at 50% 40%, #fbc6d8 0 8px, transparent 9px),
+    radial-gradient(circle at 80% 55%, #f39bbd 0 6px, transparent 7px);
+  --sakura-blur: blur(12px);
+  --sakura-header: linear-gradient(90deg, rgb(242 160 192 / 60%), rgb(255 255 255 / 45%) 70%);
+  --sakura-sidebar:
+    radial-gradient(ellipse 9px 6px at 20% 30%, rgb(255 255 255 / 85%), transparent 70%),
+    radial-gradient(ellipse 7px 5px at 75% 55%, rgb(255 255 255 / 80%), transparent 70%),
+    radial-gradient(ellipse 8px 5px at 40% 80%, rgb(255 255 255 / 75%), transparent 70%),
+    radial-gradient(ellipse 6px 4px at 85% 15%, rgb(255 255 255 / 80%), transparent 70%),
+    linear-gradient(180deg, #fbe0ea, #f5c8d8);
+  --sakura-pink-line: 2px solid rgb(201 90 133 / 45%);
+  --sakura-header-line: 2px solid rgb(201 90 133 / 30%);
+  --sakura-petals:
+    radial-gradient(ellipse 9px 6px at 12% 18%, rgb(240 150 180 / 70%), transparent 70%),
+    radial-gradient(ellipse 7px 5px at 78% 9%, rgb(240 150 180 / 60%), transparent 70%),
+    radial-gradient(ellipse 10px 6px at 64% 72%, rgb(240 150 180 / 55%), transparent 70%),
+    radial-gradient(ellipse 7px 4px at 28% 84%, rgb(240 150 180 / 60%), transparent 70%),
+    radial-gradient(ellipse 8px 5px at 45% 35%, rgb(240 150 180 / 45%), transparent 70%),
+    radial-gradient(ellipse 6px 4px at 90% 55%, rgb(240 150 180 / 55%), transparent 70%),
+    radial-gradient(ellipse 9px 5px at 5% 60%, rgb(240 150 180 / 50%), transparent 70%),
+    radial-gradient(circle at 100% 0%, rgb(247 180 205 / 85%), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgb(244 196 214 / 90%), transparent 45%),
+    linear-gradient(160deg, #fff6f9, #f8e0ea);
+  --sakura-name: linear-gradient(135deg, #c95a85, #a3406a);
+  --sakura-name-shadow: 0 4px 12px rgb(163 64 106 / 35%);
+  --sakura-round:
+    "Zen Maru Gothic", "M PLUS Rounded 1c", "Nunito", "Varela Round", system-ui, sans-serif;
+
+  --color-bg: var(--sakura-50);
+  --color-surface: var(--sakura-glass);
+  --color-surface-muted: var(--sakura-100);
+  --color-border: var(--sakura-200);
+  --color-text: var(--sakura-900);
+  --color-text-muted: var(--sakura-800);
+  --color-accent: var(--sakura-600);
+  --color-accent-text: var(--sakura-white);
+  --color-danger: var(--sakura-red);
+  --color-success: var(--sakura-green);
+  --color-user-bubble: var(--sakura-100);
+  --color-diff-add: var(--sakura-add);
+  --color-diff-remove: var(--sakura-remove);
+  --font-body: var(--sakura-round);
+  --font-story: var(--sakura-round);
+  --font-heading: var(--sakura-round);
+  --font-brand: var(--sakura-round);
+  --radius: 18px;
+  --control-radius: var(--pill);
+  --shadow: var(--sakura-glow);
+  --surface-blur: var(--sakura-blur);
+  --page-background: var(--sakura-petals);
+  --header-background: var(--sakura-header);
+  --sidebar-background: var(--sakura-sidebar);
+  --sidebar-border: var(--sakura-pink-line);
+  --header-border: var(--sakura-header-line);
+  --chip-radius: var(--pill);
+  --vn-tape: var(--sakura-ribbon);
+  --vn-stage-bg: var(--sakura-200);
+  --vn-stage-radius: 26px;
+  --vn-stage-shadow: var(--sakura-stage);
+  --vn-textbox-bg: var(--sakura-glass-strong);
+  --vn-textbox-color: var(--sakura-900);
+  --vn-textbox-border: var(--sakura-glass-line);
+  --vn-textbox-radius: 22px;
+  --vn-textbox-shadow: var(--sakura-glow);
+  --vn-textbox-blur: var(--sakura-blur);
+  --vn-speech-color: var(--sakura-ink);
+  --vn-narration-color: var(--sakura-700);
+  --vn-name-fill: var(--sakura-name);
+  --vn-name-fill-text: var(--sakura-white);
+  --vn-name-shadow: var(--sakura-name-shadow);
+  --vn-name-font: var(--sakura-round);
+  --vn-name-size: 0.95rem;
+  --vn-font-size: 1.08rem;
+  color-scheme: light;
+}
+
+/* Halftone: a 90s comic — inked panels, hard shadows, caption boxes, a dot screen */
+:root[data-preset="halftone"] {
+  --ht-paper: #fbf3df;
+  --ht-white: #ffffff;
+  --ht-cream: #fff3c4;
+  --ht-ink: #111111;
+  --ht-ink-soft: #383838;
+  --ht-magenta: #c8006e;
+  --ht-yellow: #ffd31a;
+  --ht-red: #c4141c;
+  --ht-green: #1f7a2e;
+  --ht-add: #d8f1d0;
+  --ht-remove: #fbd5d5;
+  --ht-thick: 3px;
+  --ht-ink-line: 3px solid #111111;
+  --ht-ink-line-heavy: 4px solid #111111;
+  --ht-hard: 5px 5px 0 #111111;
+  --ht-hard-small: 3px 3px 0 #111111;
+  --ht-hard-stage: 9px 9px 0 #111111;
+  --ht-dots:
+    linear-gradient(90deg, #fbf3df00 0, #fbf3df 22%, #fbf3df 78%, #fbf3df00 100%),
+    radial-gradient(circle, #23b8e6 2.2px, transparent 2.5px) 0 0 / 11px 11px, #fbf3df;
+  --ht-header:
+    radial-gradient(circle, rgb(0 0 0 / 14%) 1.2px, transparent 1.4px) 0 0 / 6px 6px, #ffd31a;
+  --ht-sidebar:
+    radial-gradient(circle, rgb(255 255 255 / 45%) 1.6px, transparent 1.9px) 0 0 / 8px 8px, #4fd0f2;
+  --ht-caption: skewX(-10deg) rotate(-2deg);
+  --ht-display: "Bangers", Impact, "Haettenschweiler", "Arial Narrow Bold", sans-serif;
+  --ht-body: "Comic Neue", "Comic Sans MS", "Chalkboard SE", "Trebuchet MS", sans-serif;
+  --ht-caps: uppercase;
+  --ht-spacing: 0.06em;
+  --ht-corner: 2px;
+
+  --color-bg: var(--ht-paper);
+  --color-surface: var(--ht-white);
+  --color-surface-muted: var(--ht-cream);
+  --color-border: var(--ht-ink);
+  --color-text: var(--ht-ink);
+  --color-text-muted: var(--ht-ink-soft);
+  --color-accent: var(--ht-magenta);
+  --color-accent-text: var(--ht-white);
+  --color-danger: var(--ht-red);
+  --color-success: var(--ht-green);
+  --color-user-bubble: var(--ht-cream);
+  --color-diff-add: var(--ht-add);
+  --color-diff-remove: var(--ht-remove);
+  --font-body: var(--ht-body);
+  --font-story: var(--ht-body);
+  --font-heading: var(--ht-display);
+  --font-brand: var(--ht-display);
+  --heading-transform: var(--ht-caps);
+  --heading-spacing: var(--ht-spacing);
+  --radius: var(--ht-corner);
+  --chip-radius: var(--ht-corner);
+  --border-width: var(--ht-thick);
+  --shadow: var(--ht-hard);
+  --shadow-control: var(--ht-hard-small);
+  --control-font: var(--ht-display);
+  --control-transform: var(--ht-caps);
+  --control-spacing: var(--ht-spacing);
+  --page-background: var(--ht-dots);
+  --header-background: var(--ht-header);
+  --header-border: var(--ht-ink-line-heavy);
+  --sidebar-background: var(--ht-sidebar);
+  --sidebar-border: var(--ht-ink-line-heavy);
+  --vn-stage-bg: var(--ht-ink);
+  --vn-stage-border: var(--ht-ink-line-heavy);
+  --vn-stage-radius: var(--ht-corner);
+  --vn-stage-shadow: var(--ht-hard-stage);
+  --vn-textbox-bg: var(--ht-white);
+  --vn-textbox-color: var(--ht-ink);
+  --vn-textbox-border: var(--ht-ink-line);
+  --vn-textbox-radius: var(--ht-corner);
+  --vn-textbox-shadow: var(--ht-hard);
+  --vn-speech-color: var(--ht-magenta);
+  --vn-narration-color: var(--ht-ink-soft);
+  --vn-name-fill: var(--ht-yellow);
+  --vn-name-fill-text: var(--ht-ink);
+  --vn-name-border: var(--ht-ink-line);
+  --vn-name-shadow: var(--ht-hard-small);
+  --vn-name-transform: var(--ht-caption);
+  --vn-name-case: var(--ht-caps);
+  --vn-name-font: var(--ht-display);
+  --vn-name-size: 1.15rem;
+  --vn-font-size: 1rem;
+  color-scheme: light;
+}
+
+/* Picture book: a handwritten journal — ruled paper, a red margin, blue ink, washi tape */
+:root[data-preset="picturebook"] {
+  --pb-paper: #fbf7ec;
+  --pb-page: #fffdf6;
+  --pb-note: #fff6cf;
+  --pb-line: #8f7d5c;
+  --pb-ink: #2b2a3a;
+  --pb-ink-soft: #55513f;
+  --pb-blue: #2346a8;
+  --pb-juniper: #3e6a49;
+  --pb-white: #fffdf7;
+  --pb-red: #a3322a;
+  --pb-add: #e0ebcf;
+  --pb-remove: #f2d8cc;
+  --pb-tape:
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 25%) 0 4px, transparent 4px 9px),
+    rgb(240 196 104 / 88%);
+  --pb-tape-ends: polygon(
+    0 8%,
+    4% 0,
+    8% 10%,
+    12% 0,
+    100% 0,
+    96% 92%,
+    100% 100%,
+    92% 90%,
+    88% 100%,
+    0 100%,
+    4% 50%
+  );
+  --pb-tilt: rotate(-2.5deg);
+  --pb-stage-tilt: rotate(-0.4deg);
+  --pb-polaroid: 12px solid #fffdf8;
+  --pb-photo-shadow: 0 2px 3px rgb(60 40 20 / 20%), 0 14px 30px rgb(60 40 20 / 22%);
+  --pb-note-shadow: 1px 2px 0 rgb(60 40 20 / 12%), 0 6px 14px rgb(60 40 20 / 10%);
+  --pb-ruled-page:
+    repeating-linear-gradient(transparent 0 27px, rgb(90 130 190 / 22%) 27px 28px), #fbf7ec;
+  --pb-kraft: repeating-linear-gradient(transparent 0 27px, rgb(90 70 40 / 10%) 27px 28px), #ead8b1;
+  --pb-ruled-box:
+    linear-gradient(
+      90deg,
+      transparent 0 0.7em,
+      rgb(214 80 80 / 55%) 0.7em calc(0.7em + 2px),
+      transparent 0
+    ),
+    repeating-linear-gradient(
+      transparent 0 calc(1.6em - 1px),
+      rgb(90 130 190 / 30%) calc(1.6em - 1px) 1.6em
+    )
+    0 0.35em,
+    #fffdf6;
+  --pb-hand: "Patrick Hand", "Kalam", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  --pb-script: "Caveat", "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
+  --pb-sketchy: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --pb-box-line: 1px solid #cdbb94;
+  --pb-header-line: 2px dashed rgb(43 42 58 / 35%);
+  --pb-sidebar-line: 3px double rgb(90 70 40 / 45%);
+
+  --color-bg: var(--pb-paper);
+  --color-surface: var(--pb-page);
+  --color-surface-muted: var(--pb-note);
+  --color-border: var(--pb-line);
+  --color-text: var(--pb-ink);
+  --color-text-muted: var(--pb-ink-soft);
+  --color-accent: var(--pb-juniper);
+  --color-accent-text: var(--pb-white);
+  --color-danger: var(--pb-red);
+  --color-success: var(--pb-juniper);
+  --color-user-bubble: var(--pb-note);
+  --color-diff-add: var(--pb-add);
+  --color-diff-remove: var(--pb-remove);
+  --font-body: var(--pb-hand);
+  --font-story: var(--pb-hand);
+  --font-heading: var(--pb-script);
+  --font-brand: var(--pb-script);
+  --radius: var(--pb-sketchy);
+  --control-radius: var(--pb-sketchy);
+  --chip-radius: var(--pb-sketchy);
+  --border-width: 2px;
+  --shadow: var(--pb-note-shadow);
+  --control-font: var(--pb-hand);
+  --page-background: var(--pb-ruled-page);
+  --header-border: var(--pb-header-line);
+  --sidebar-background: var(--pb-kraft);
+  --sidebar-border: var(--pb-sidebar-line);
+  --vn-stage-bg: var(--pb-note);
+  --vn-stage-border: var(--pb-polaroid);
+  --vn-stage-radius: 3px;
+  --vn-stage-shadow: var(--pb-photo-shadow);
+  --vn-stage-transform: var(--pb-stage-tilt);
+  --vn-tape: var(--pb-tape);
+  --vn-textbox-bg: var(--pb-ruled-box);
+  --vn-textbox-color: var(--pb-ink);
+  --vn-textbox-border: var(--pb-box-line);
+  --vn-textbox-radius: 3px;
+  --vn-textbox-shadow: var(--pb-note-shadow);
+  --vn-speech-color: var(--pb-blue);
+  --vn-narration-color: var(--pb-ink-soft);
+  --vn-name-fill: var(--pb-tape);
+  --vn-name-fill-text: var(--pb-ink);
+  --vn-name-clip: var(--pb-tape-ends);
+  --vn-name-transform: var(--pb-tilt);
+  --vn-name-font: var(--pb-script);
+  --vn-name-size: 1.35rem;
+  --vn-font: var(--pb-hand);
+  --vn-font-size: 1.3rem;
+  color-scheme: light;
+}
+
+/* Dracula: https://draculatheme.com — purple and pink, string-yellow speech */
+:root[data-preset="dracula"] {
+  --dracula-darker: #191a21;
+  --dracula-dark: #21222c;
+  --dracula-bg: #282a36;
+  --dracula-raised: #343746;
+  --dracula-line: #44475a;
+  --dracula-fg: #f8f8f2;
+  --dracula-muted: #bfc3dc;
+  --dracula-purple: #bd93f9;
+  --dracula-yellow: #f1fa8c;
+  --dracula-red: #ff5555;
+  --dracula-green: #50fa7b;
+  --dracula-add: #273d30;
+  --dracula-remove: #45283a;
+  --dracula-scrim: rgb(33 34 44 / 92%);
+  --dracula-scrim-line: 1px solid rgb(189 147 249 / 55%);
+  --dracula-glow: 0 0 0 1px rgb(189 147 249 / 35%), 0 0 30px rgb(255 121 198 / 18%);
+  --dracula-night:
+    radial-gradient(ellipse at 0% 0%, rgb(189 147 249 / 16%), transparent 45%),
+    radial-gradient(ellipse at 100% 100%, rgb(255 121 198 / 12%), transparent 45%), #21222c;
+  --dracula-edge: 2px solid #bd93f9;
+  --dracula-mono: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+
+  --color-bg: var(--dracula-dark);
+  --color-surface: var(--dracula-bg);
+  --color-surface-muted: var(--dracula-raised);
+  --color-border: var(--dracula-line);
+  --color-text: var(--dracula-fg);
+  --color-text-muted: var(--dracula-muted);
+  --color-accent: var(--dracula-purple);
+  --color-accent-text: var(--dracula-darker);
+  --color-danger: var(--dracula-red);
+  --color-success: var(--dracula-green);
+  --color-user-bubble: var(--dracula-raised);
+  --color-diff-add: var(--dracula-add);
+  --color-diff-remove: var(--dracula-remove);
+  --font-heading: var(--dracula-mono);
+  --font-brand: var(--dracula-mono);
+  --page-background: var(--dracula-night);
+  --sidebar-background: var(--dracula-darker);
+  --header-border: var(--dracula-edge);
+  --vn-stage-bg: var(--dracula-darker);
+  --vn-stage-shadow: var(--dracula-glow);
+  --vn-textbox-bg: var(--dracula-scrim);
+  --vn-textbox-color: var(--dracula-fg);
+  --vn-textbox-border: var(--dracula-scrim-line);
+  --vn-speech-color: var(--dracula-yellow);
+  --vn-narration-color: var(--dracula-muted);
+  --vn-name-font: var(--dracula-mono);
+  color-scheme: dark;
+}
+
+/* Cyberpunk: neon on black, cut corners, scanlines and a grid */
+:root[data-preset="cyberpunk"] {
+  --cp-black: #07070d;
+  --cp-panel: #10101b;
+  --cp-raised: #191927;
+  --cp-edge: #2b3550;
+  --cp-text: #e4f6ff;
+  --cp-muted: #93a6bd;
+  --cp-cyan: #00e5ff;
+  --cp-cyan-soft: #6ff1ff;
+  --cp-pink: #ff2a6d;
+  --cp-green: #39ff88;
+  --cp-add: #0f3326;
+  --cp-remove: #3d1222;
+  --cp-scrim: rgb(7 7 13 / 90%);
+  --cp-glow: 0 0 0 1px rgb(0 229 255 / 30%), 0 0 18px rgb(0 229 255 / 12%);
+  --cp-control-glow: 0 0 12px rgb(0 229 255 / 45%);
+  --cp-inner-glow: inset 0 0 24px rgb(0 229 255 / 18%), inset 0 -2px 0 #ff2a6d;
+  --cp-stage-glow: 0 0 0 1px #00e5ff, 0 0 26px rgb(0 229 255 / 30%), 0 0 60px rgb(255 42 109 / 18%);
+  --cp-cut: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  --cp-cut-large: polygon(
+    22px 0,
+    100% 0,
+    100% calc(100% - 22px),
+    calc(100% - 22px) 100%,
+    0 100%,
+    0 22px
+  );
+  --cp-tag: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  --cp-grid:
+    repeating-linear-gradient(transparent 0 2px, rgb(0 0 0 / 35%) 2px 3px),
+    linear-gradient(rgb(0 229 255 / 7%) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgb(0 229 255 / 7%) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(ellipse at 85% 0%, rgb(255 42 109 / 22%), transparent 50%),
+    radial-gradient(ellipse at 0% 100%, rgb(0 229 255 / 14%), transparent 50%), #07070d;
+  --cp-header: linear-gradient(90deg, rgb(255 42 109 / 18%), transparent 40%), #0b0b14;
+  --cp-sidebar: repeating-linear-gradient(transparent 0 2px, rgb(0 0 0 / 30%) 2px 3px), #0b0b14;
+  --cp-display: "Orbitron", "Rajdhani", ui-monospace, "DejaVu Sans Mono", monospace;
+  --cp-sans: "Rajdhani", "Bahnschrift", "DIN Alternate", system-ui, sans-serif;
+  --cp-caps: uppercase;
+  --cp-spacing: 0.1em;
+  --cp-textbox-border: 1px solid rgb(0 229 255 / 80%);
+  --cp-pink-line: 2px solid #ff2a6d;
+  --cp-cyan-line: 1px solid rgb(0 229 255 / 45%);
+
+  --color-bg: var(--cp-black);
+  --color-surface: var(--cp-panel);
+  --color-surface-muted: var(--cp-raised);
+  --color-border: var(--cp-edge);
+  --color-text: var(--cp-text);
+  --color-text-muted: var(--cp-muted);
+  --color-accent: var(--cp-cyan);
+  --color-accent-text: var(--cp-black);
+  --color-danger: var(--cp-pink);
+  --color-success: var(--cp-green);
+  --color-user-bubble: var(--cp-raised);
+  --color-diff-add: var(--cp-add);
+  --color-diff-remove: var(--cp-remove);
+  --font-body: var(--cp-sans);
+  --font-story: var(--cp-sans);
+  --font-heading: var(--cp-display);
+  --font-brand: var(--cp-display);
+  --heading-transform: var(--cp-caps);
+  --heading-spacing: var(--cp-spacing);
+  --radius: 0;
+  --chip-radius: 0;
+  --shadow: var(--cp-glow);
+  --shadow-control: var(--cp-control-glow);
+  --control-clip: var(--cp-cut);
+  --control-font: var(--cp-display);
+  --control-transform: var(--cp-caps);
+  --control-spacing: var(--cp-spacing);
+  --page-background: var(--cp-grid);
+  --header-background: var(--cp-header);
+  --header-border: var(--cp-pink-line);
+  --sidebar-background: var(--cp-sidebar);
+  --sidebar-border: var(--cp-cyan-line);
+  --vn-stage-bg: var(--cp-black);
+  --vn-stage-radius: 0;
+  --vn-stage-shadow: var(--cp-stage-glow);
+  --vn-textbox-bg: var(--cp-scrim);
+  --vn-textbox-color: var(--cp-text);
+  --vn-textbox-border: var(--cp-textbox-border);
+  --vn-textbox-radius: 0;
+  --vn-textbox-shadow: var(--cp-inner-glow);
+  --vn-textbox-clip: var(--cp-cut-large);
+  --vn-speech-color: var(--cp-cyan-soft);
+  --vn-narration-color: var(--cp-muted);
+  --vn-name-fill: var(--cp-pink);
+  --vn-name-fill-text: var(--cp-black);
+  --vn-name-clip: var(--cp-tag);
+  --vn-name-case: var(--cp-caps);
+  --vn-name-font: var(--cp-display);
+  --vn-name-size: 0.8rem;
+  color-scheme: dark;
+}
+
+/* Gothic: gold frames on deep wine and black, a damask lattice, engraved capitals */
+:root[data-preset="gothic"] {
+  --goth-black: #110a0d;
+  --goth-wine: #1c1015;
+  --goth-wine-raised: #27151d;
+  --goth-wine-line: #4d2c37;
+  --goth-parchment: #ecdcc6;
+  --goth-parchment-muted: #b8a38c;
+  --goth-gold: #cfa95e;
+  --goth-gold-light: #e8cf93;
+  --goth-rose: #e57088;
+  --goth-sage: #9fc58d;
+  --goth-add: #213022;
+  --goth-remove: #3f1a24;
+  --goth-scrim: rgb(22 10 15 / 92%);
+  --goth-frame: inset 0 0 0 3px rgb(17 10 13), inset 0 0 0 4px rgb(207 169 94 / 55%);
+  --goth-card: 0 0 0 1px rgb(207 169 94 / 14%), 0 10px 28px rgb(0 0 0 / 45%);
+  --goth-stage:
+    0 0 0 1px #110a0d, 0 0 0 3px #cfa95e, 0 0 0 6px #110a0d, 0 0 0 7px rgb(207 169 94 / 60%),
+    0 18px 40px rgb(0 0 0 / 60%);
+  --goth-plate: 0 0 0 3px #110a0d, 0 0 0 4px rgb(207 169 94 / 60%);
+  --goth-damask:
+    radial-gradient(ellipse at 50% -10%, rgb(130 30 60 / 35%), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgb(60 10 25 / 55%), transparent 60%),
+    repeating-linear-gradient(45deg, rgb(207 169 94 / 5%) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(-45deg, rgb(207 169 94 / 5%) 0 1px, transparent 1px 24px), #110a0d;
+  --goth-header: linear-gradient(180deg, #1f1117, #150b10);
+  --goth-gold-line: 1px solid rgb(207 169 94 / 55%);
+  --goth-gold-double: 3px double rgb(207 169 94 / 55%);
+  --goth-serif:
+    "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --goth-caps: "Cinzel", "Trajan Pro", "Cormorant Garamond", Georgia, serif;
+  --goth-upper: uppercase;
+  --goth-spacing: 0.12em;
+  --goth-textbox-border: 1px solid rgb(207 169 94 / 60%);
+  --goth-plate-border: 1px solid #cfa95e;
+
+  --color-bg: var(--goth-black);
+  --color-surface: var(--goth-wine);
+  --color-surface-muted: var(--goth-wine-raised);
+  --color-border: var(--goth-wine-line);
+  --color-text: var(--goth-parchment);
+  --color-text-muted: var(--goth-parchment-muted);
+  --color-accent: var(--goth-gold);
+  --color-accent-text: var(--goth-black);
+  --color-danger: var(--goth-rose);
+  --color-success: var(--goth-sage);
+  --color-user-bubble: var(--goth-wine-raised);
+  --color-diff-add: var(--goth-add);
+  --color-diff-remove: var(--goth-remove);
+  --font-body: var(--goth-serif);
+  --font-story: var(--goth-serif);
+  --font-heading: var(--goth-caps);
+  --font-brand: var(--goth-caps);
+  --heading-transform: var(--goth-upper);
+  --heading-spacing: var(--goth-spacing);
+  --radius: 1px;
+  --chip-radius: 1px;
+  --shadow: var(--goth-card);
+  --control-font: var(--goth-caps);
+  --control-transform: var(--goth-upper);
+  --control-spacing: var(--goth-spacing);
+  --page-background: var(--goth-damask);
+  --header-background: var(--goth-header);
+  --header-border: var(--goth-gold-double);
+  --sidebar-border: var(--goth-gold-line);
+  --vn-stage-bg: var(--goth-black);
+  --vn-stage-radius: 1px;
+  --vn-stage-shadow: var(--goth-stage);
+  --vn-textbox-bg: var(--goth-scrim);
+  --vn-textbox-color: var(--goth-parchment);
+  --vn-textbox-border: var(--goth-textbox-border);
+  --vn-textbox-radius: 1px;
+  --vn-textbox-shadow: var(--goth-frame);
+  --vn-speech-color: var(--goth-gold-light);
+  --vn-narration-color: var(--goth-parchment-muted);
+  --vn-name-fill: var(--goth-wine);
+  --vn-name-fill-text: var(--goth-gold);
+  --vn-name-border: var(--goth-plate-border);
+  --vn-name-shadow: var(--goth-plate);
+  --vn-name-case: var(--goth-upper);
+  --vn-name-font: var(--goth-caps);
+  --vn-name-size: 0.85rem;
+  --vn-font-size: 1.2rem;
+  color-scheme: dark;
+}
+
+/* Phones: the comic and notebook type is large; the text box there has less room. */
+@media (max-width: 720px) {
+  :root[data-preset="halftone"] {
+    --vn-font-size: 0.85rem;
+    --vn-name-size: 0.9rem;
+  }
+
+  :root[data-preset="picturebook"] {
+    --vn-font-size: 1.1rem;
+    --vn-name-size: 1.15rem;
+  }
+}

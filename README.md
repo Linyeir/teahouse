@@ -4,7 +4,7 @@
 
 <p align="center"><strong>AI roleplay in the style of a visual novel, in a world that keeps track of your story.</strong></p>
 
-<p align="center"><img src="docs/images/novel.png" alt="A scene in Teahouse's novel view: Mira and the harbor captain on a pier at night, with Mira's line in a text box below them." width="800"></p>
+<p align="center"><img src="docs/images/teahouse.webp" alt="Teahouse on a desktop and a phone. On the desktop, a picture-book world in the notebook theme: a bear and a fox in a honey shop, the fox's line handwritten on ruled paper. On the phone, a comic world in the Halftone theme: a hero and a villain on a rooftop, with the villain's line in an inked panel." width="800"></p>
 
 You play scenes with characters on your own server, with the model of your choice. When a scene ends, Teahouse proposes what the world should remember, such as who met whom and what was promised. You decide what stays. The world is a folder of Markdown files in a Git repository, so you can edit it in any editor and undo any change.
 
@@ -43,7 +43,7 @@ You need Docker and an LLM endpoint: LM Studio or llama.cpp on your machine, or 
 
 2. Open http://localhost:8787 and choose a password.
 3. Under **Profiles**, add a profile: pick a preset, enter the model (or **Load models**) and, for OpenRouter, the API key. For LM Studio or llama.cpp on the same machine, use `http://host.docker.internal:1234/v1` or `:8080/v1`, because inside Docker `localhost` is the container itself.
-4. Under **Worlds**, **Import character card** (PNG or JSON, V1 to V3), or create a **New world** and add a character.
+4. Under **Worlds**, load one of the **Sample worlds**, **Import character card** (PNG or JSON, V1 to V3), or create a **New world** and add a character.
 5. Pick a greeting, **Start chat**, and write your first line.
 
 When the scene is over, press **End scene** and choose **with canon**. Teahouse lists what it would add to the world, file by file, and you decide on each one.

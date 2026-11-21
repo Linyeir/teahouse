@@ -1,0 +1,34 @@
+[
+  {
+    "name": "gearwright-amused-m31",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair and a thick grey handlebar mustache above his lip. A round glowing red brass lens replaces his right eye, on the left side of the image; his other eye is normal. Evil laugh, grinning widely under the mustache, teeth showing.",
+    "seed": 31,
+    "denoise": 0.8
+  },
+  {
+    "name": "gearwright-amused-m32",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair and a thick grey handlebar mustache above his lip. A round glowing red brass lens replaces his right eye, on the left side of the image; his other eye is normal. Evil laugh, grinning widely under the mustache, teeth showing.",
+    "seed": 32,
+    "denoise": 0.8
+  },
+  {
+    "name": "gearwright-amused-m33",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair and a thick grey handlebar mustache above his lip. A round glowing red brass lens replaces his right eye, on the left side of the image; his other eye is normal. Evil laugh, grinning widely under the mustache, teeth showing.",
+    "seed": 33,
+    "denoise": 0.8
+  },
+  {
+    "name": "gearwright-amused-m34",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/gearwright-neutral-raw.png",
+    "prompt": "1990s American superhero comic book art, bold ink outlines, flat colors, halftone shading. Face of a middle-aged villain with grey slicked-back hair and a thick grey handlebar mustache above his lip. A round glowing red brass lens replaces his right eye, on the left side of the image; his other eye is normal. Evil laugh, grinning widely under the mustache, teeth showing.",
+    "seed": 34,
+    "denoise": 0.8
+  }
+]

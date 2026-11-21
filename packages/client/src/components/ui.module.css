@@ -44,7 +44,7 @@
   font: inherit;
   color: var(--color-text);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius);
   padding: 8px 10px;
   width: 100%;
@@ -62,9 +62,13 @@ textarea.input {
 
 .button {
   font: inherit;
+  font-family: var(--control-font);
+  text-transform: var(--control-transform);
+  letter-spacing: var(--control-spacing);
   cursor: pointer;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  clip-path: var(--control-clip);
+  border-radius: var(--control-radius);
+  border: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
   padding: 7px 14px;
@@ -77,6 +81,7 @@ textarea.input {
 
 .primary {
   composes: button;
+  box-shadow: var(--shadow-control);
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-accent-text);
@@ -96,8 +101,10 @@ textarea.input {
 }
 
 .card {
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--surface-blur);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius);
   padding: var(--space);
 }
@@ -131,6 +138,10 @@ textarea.input {
   color: var(--color-danger);
 }
 
+.success {
+  color: var(--color-success);
+}
+
 .actions {
   display: flex;
   gap: 8px;
@@ -156,10 +167,11 @@ textarea.input {
 }
 
 .dialog {
+  box-shadow: var(--shadow);
   max-width: min(420px, calc(100vw - 2 * var(--space)));
   color: var(--color-text);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius);
   padding: calc(var(--space) * 1.5);
 }
@@ -168,6 +180,7 @@ textarea.input {
 @media (max-width: 720px) {
   .sheet {
     margin: auto 0 0;
+    padding-bottom: calc(var(--space) * 1.5 + env(safe-area-inset-bottom));
     width: 100%;
     max-width: 100%;
     border-radius: var(--radius) var(--radius) 0 0;

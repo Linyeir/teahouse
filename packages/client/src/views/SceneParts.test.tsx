@@ -76,7 +76,7 @@ describe('canon proposal review', () => {
     expect(html).toContain('The tavern deal');
     expect(html).toContain('Ash agreed.');
     expect(html).toContain('2 changes: 1 new, 1 changed');
-    expect(html).toContain('Adds to „Relationships“');
+    expect(html).toContain('Adds to “Relationships”');
     expect(html).toContain('2 files still need a decision');
   });
 
@@ -131,7 +131,7 @@ describe('canon proposal review', () => {
     );
     expect(html).toContain('Contradicts characters/mira.md:');
     expect(html).toContain('<q>Never set foot there.</q>');
-    expect(html).toContain('Fixes a contradiction in „Keepers“');
+    expect(html).toContain('Fixes a contradiction in “Keepers”');
     expect(html).toContain('The Fox');
     expect(html).toContain('Goes into characters/mira.md; this file is deleted');
   });

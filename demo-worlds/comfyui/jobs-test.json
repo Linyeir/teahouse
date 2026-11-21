@@ -1,0 +1,44 @@
+[
+  {
+    "name": "hana-neutral",
+    "engine": "illustrious",
+    "kind": "sprite",
+    "seed": 101,
+    "prompt": "masterpiece, best quality, amazing quality, 1girl, solo, young woman, standing, cowboy shot, facing viewer, black hair, short bob, cherry blossom hair ornament, brown eyes, gentle smile, pink kimono, floral print kimono, red obi, white apron, hands together, simple background, grey background, plain background"
+  },
+  {
+    "name": "sakura-teahouse",
+    "engine": "illustrious",
+    "kind": "bg",
+    "seed": 102,
+    "prompt": "masterpiece, best quality, amazing quality, no humans, scenery, indoors, japanese teahouse, tatami, low wooden table, teapot, teacups, paper lantern, open shoji, garden, cherry blossoms, falling petals, afternoon, sunlight, soft lighting, pastel colors, visual novel background"
+  },
+  {
+    "name": "sparrow-neutral",
+    "engine": "zimage",
+    "kind": "sprite",
+    "seed": 201,
+    "prompt": "1990s American superhero comic book character art. A young woman superhero called Static Sparrow. Athletic build, short spiky platinum hair, determined face. She wears a teal bodysuit with bright yellow lightning-bolt stripes, a short yellow cape, fingerless gloves and orange goggles pushed up on her forehead. Small blue sparks of electricity crackle around her hands. Standing in a confident heroic pose, fists on her hips, body turned slightly toward the viewer. Framed from the knees up, centered. Bold black ink outlines, heavy shadows, flat saturated colors, Ben-Day halftone dot shading. Plain flat light grey background, no shadow on the ground, no text, no speech bubbles."
+  },
+  {
+    "name": "ironbay-rooftop",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 202,
+    "prompt": "1990s American superhero comic book background panel, no people, no text, no speech bubbles, wide landscape, eye-level view. A city rooftop at night with an old water tower and an air vent, a giant skyline of skyscrapers behind it, a searchlight beam sweeping across purple clouds, lit windows everywhere. Bold black ink lines, flat saturated colors, Ben-Day halftone dots, dramatic lighting."
+  },
+  {
+    "name": "bramble-neutral",
+    "engine": "zimage",
+    "kind": "sprite",
+    "seed": 301,
+    "prompt": "Classic children's picture book illustration. A large, gentle brown bear called Bramble, standing upright on his hind legs like a person. He wears small round reading glasses, a knitted mustard-yellow scarf and a green apron with a pocket holding a honey dipper. Kind, calm expression, paws resting on his round belly, body turned slightly toward the viewer. Framed from the knees up, centered. Soft watercolor painting with delicate ink outlines, gentle washes, visible paper texture, warm muted earthy colors. Plain flat light grey background, no shadow on the ground, no text."
+  },
+  {
+    "name": "mossbrook-honeyshop",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 302,
+    "prompt": "Classic children's picture book illustration, no animals, no people, no text, wide landscape, eye-level view. The inside of a cozy honey shop built into the roots of a giant old tree. Wooden shelves full of honey jars glowing amber, a crackling fireplace, a round wooden door, dried herbs hanging from the low ceiling, a worn armchair. Soft watercolor painting with delicate ink outlines, gentle washes, visible paper texture, warm muted earthy colors."
+  }
+]

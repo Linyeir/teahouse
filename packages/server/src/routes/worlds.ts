@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { importCard } from '../cards/import.ts';
 import { ArchiveError, exportWorld, importWorld } from '../worlds/archive.ts';
 import { assetFilePath } from '../worlds/paths.ts';
+import { installSample, listSamples, SampleNotFoundError } from '../worlds/samples.ts';
 import { contentSha, FileConflictError, slug } from '../worlds/service.ts';
 import { HttpError, type Services, typed } from './context.ts';
 
@@ -77,6 +78,22 @@ export async function worldRoutes(app: FastifyInstance, { db, worlds }: Services
 
   r.post('/api/worlds', { schema: { body: worldInput } }, async ({ body }) =>
     worlds.create(body.name),
+  );
+
+  r.get('/api/samples', async () => listSamples());
+
+  r.post(
+    '/api/samples/:sample',
+    { schema: { params: z.object({ sample: z.string().min(1).max(100) }) } },
+    async ({ params }) => {
+      try {
+        return await installSample(db, worlds, params.sample);
+      } catch (err) {
+        if (err instanceof SampleNotFoundError)
+          throw new HttpError(404, 'not_found', 'No such sample world');
+        throw err;
+      }
+    },
   );
 
   r.get('/api/worlds/:id/files', { schema: { params } }, async ({ params }) =>

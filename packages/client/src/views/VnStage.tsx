@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { assetUrl } from '../api.ts';
 import { formatStory, speakerName } from '../components/Beats.tsx';
 import ui from '../components/ui.module.css';
-import { namePreset } from '../nameColors.ts';
+import { NAME_TEXT, namePreset } from '../nameColors.ts';
 import { stageKeyAction, type VnPage, vnPages } from '../vn.ts';
 import styles from './VnStage.module.css';
 
@@ -532,7 +532,12 @@ function nameBadge(
   if (color) return { '--name-light': color, '--name-dark': color } as CSSProperties;
   if (themed) return undefined;
   const preset = namePreset(speaker);
-  return { '--name-light': preset.light, '--name-dark': preset.dark } as CSSProperties;
+  return {
+    '--name-light': preset.light,
+    '--name-dark': preset.dark,
+    '--name-text-light': NAME_TEXT.light,
+    '--name-text-dark': NAME_TEXT.dark,
+  } as CSSProperties;
 }
 
 /** A page as one sentence for screen readers: who speaks, then the text. */

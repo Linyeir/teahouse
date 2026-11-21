@@ -1,0 +1,61 @@
+[
+  {
+    "name": "sakura-teahouse",
+    "engine": "illustrious",
+    "kind": "bg",
+    "seed": 103,
+    "negative": "text, letters, kanji, calligraphy, signature, watermark, people, humans, character, lowres",
+    "prompt": "masterpiece, best quality, amazing quality, no humans, scenery, visual novel background, soft lighting, pastel colors, indoors, japanese teahouse, tatami, low wooden table, teapot, teacups, paper lantern, open shoji, garden, cherry blossoms, falling petals, afternoon, sunlight, plain walls"
+  },
+  {
+    "name": "sakura-path",
+    "engine": "illustrious",
+    "kind": "bg",
+    "seed": 104,
+    "negative": "text, letters, kanji, calligraphy, signature, watermark, people, humans, character, lowres",
+    "prompt": "masterpiece, best quality, amazing quality, no humans, scenery, visual novel background, soft lighting, pastel colors, outdoors, stone path, village, cherry trees, cherry blossoms, stone lantern, glowing lanterns, wooden houses, tiled roof, mountains, dusk, pink sky, purple sky, falling petals"
+  },
+  {
+    "name": "sakura-shrine",
+    "engine": "illustrious",
+    "kind": "bg",
+    "seed": 105,
+    "negative": "text, letters, kanji, calligraphy, signature, watermark, people, humans, character, lowres",
+    "prompt": "masterpiece, best quality, amazing quality, no humans, scenery, visual novel background, soft lighting, pastel colors, outdoors, night, stone stairs, shrine, red torii, paper lanterns, glowing, cherry blossoms, falling petals, starry sky, deep blue sky"
+  },
+  {
+    "name": "ironbay-newsroom",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 203,
+    "prompt": "1990s American superhero comic book background panel, no people, no text, no speech bubbles, no signs, wide landscape, eye-level view. Bold black ink lines, flat saturated colors, Ben-Day halftone dots, dramatic lighting. A busy 1990s newspaper office during the day, desks with chunky beige computers and stacks of paper, a big window with a view of the city skyline, a wall clock, sunlight through blinds."
+  },
+  {
+    "name": "ironbay-lair",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 204,
+    "prompt": "1990s American superhero comic book background panel, no people, no text, no speech bubbles, no signs, wide landscape, eye-level view. Bold black ink lines, flat saturated colors, Ben-Day halftone dots, dramatic lighting. A villain's secret workshop inside an old clock tower, huge rotating brass gears, glowing green tubes, workbenches covered in tools and half-built robots, a large round clock face window glowing from behind."
+  },
+  {
+    "name": "mossbrook-honeyshop",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 303,
+    "prompt": "Classic children's picture book illustration, no animals, no people, no text, wide landscape, eye-level view. Soft watercolor painting with delicate ink outlines, gentle washes, visible paper texture, warm muted earthy colors. The cozy interior of a small honey shop hollowed out inside the roots of a giant old tree, seen from inside: curved earthen walls with tree roots, wooden shelves full of honey jars glowing amber, a crackling stone fireplace, a round green wooden door, dried herbs hanging from the low root ceiling, a worn armchair, warm firelight."
+  },
+  {
+    "name": "mossbrook-clearing",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 304,
+    "prompt": "Classic children's picture book illustration, no animals, no people, no text, wide landscape, eye-level view. Soft watercolor painting with delicate ink outlines, gentle washes, visible paper texture, warm muted earthy colors. A sunny forest clearing with a ring of red-capped mushrooms, a little brook with stepping stones, wildflowers, tall old trees with moss, soft rays of light through the leaves."
+  },
+  {
+    "name": "mossbrook-bridge",
+    "engine": "zimage",
+    "kind": "bg",
+    "seed": 305,
+    "prompt": "Classic children's picture book illustration, no animals, no people, no text, wide landscape, eye-level view. Soft watercolor painting with delicate ink outlines, gentle washes, visible paper texture, warm muted earthy colors. An old mossy stone bridge over a brook in the forest at dusk during light rain, a single lantern glowing on a post, puddles, ferns, misty trees fading into the distance."
+  }
+]

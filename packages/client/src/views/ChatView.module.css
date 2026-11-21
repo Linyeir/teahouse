@@ -4,7 +4,8 @@
   align-items: center;
   gap: 4px var(--space);
   padding: var(--space);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--header-background);
+  border-bottom: var(--header-border);
 }
 
 /* Back to the chats, on phones (where the tab bar is hidden in a chat). */
@@ -84,7 +85,7 @@
 }
 
 .composer {
-  border-top: 1px solid var(--color-border);
+  border-top: var(--border-width) solid var(--color-border);
   padding: var(--space);
 }
 
@@ -118,11 +119,15 @@
   align-items: center;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--chip-radius);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
+  font-family: var(--control-font);
+  text-transform: var(--control-transform);
+  letter-spacing: var(--control-spacing);
+  box-shadow: var(--shadow-control);
   font-size: 0.9rem;
   cursor: pointer;
 }

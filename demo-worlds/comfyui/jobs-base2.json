@@ -1,0 +1,23 @@
+[
+  {
+    "name": "kaito-neutral",
+    "engine": "illustrious",
+    "kind": "sprite",
+    "seed": 401,
+    "prompt": "masterpiece, best quality, amazing quality, 1boy, solo, young man, standing, cowboy shot, facing viewer, looking at viewer, messy dark brown hair, short low ponytail, grey-green eyes, paint on cheek, blue paint smudge, dark indigo haori, light grey kimono, satchel strap across chest, paintbrushes in bag, holding scroll, relaxed, calm expression, closed mouth, simple background, grey background, plain background"
+  },
+  {
+    "name": "gearwright-neutral",
+    "engine": "zimage",
+    "kind": "sprite",
+    "seed": 501,
+    "prompt": "1990s American superhero comic book character art. A middle-aged supervillain inventor called The Gearwright. Tall and broad, grey slicked-back hair, a thin mustache, one eye replaced by a glowing red brass lens. He wears a long dark green coat over a brass mechanical harness with exposed gears and pipes, his right arm is mechanical with clawed brass fingers. Standing upright with his hands behind his back, body turned slightly toward the viewer, a cold confident look. Framed from the knees up, centered. Bold black ink outlines, heavy shadows, flat saturated colors, Ben-Day halftone dot shading. Plain flat light grey background, no shadow on the ground, no text, no speech bubbles."
+  },
+  {
+    "name": "juniper-neutral",
+    "engine": "zimage",
+    "kind": "sprite",
+    "seed": 601,
+    "prompt": "Classic children's picture book illustration. A slender red fox called Juniper, standing upright on her hind legs like a person, a travelling peddler. She wears a patched brown travelling coat with many pockets, a dark red neckerchief and a wide-brimmed hat with a feather, a small brass lantern hanging from her belt and a large backpack full of trinkets. Clever, curious expression, bushy tail curled around her legs, body turned slightly toward the viewer. Framed from the knees up, centered. Soft watercolor painting with delicate ink outlines, gentle washes, visible paper texture, warm muted earthy colors. Plain flat light grey background, no shadow on the ground, no text."
+  }
+]

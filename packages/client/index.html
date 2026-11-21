@@ -7,6 +7,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Teahouse</title>
+    <!-- Applies the stored theme before the first paint (src/theme.ts has the same rules). -->
+    <script>
+      (() => {
+        var only = { sakura: "light", halftone: "light", picturebook: "light", dracula: "dark", cyberpunk: "dark", gothic: "dark" };
+        var known = ["standard", "nord", "catppuccin"].concat(Object.keys(only));
+        var mode, preset;
+        try {
+          mode = localStorage.getItem("teahouse.theme");
+          preset = localStorage.getItem("teahouse.preset");
+        } catch (_e) {}
+        if (known.indexOf(preset) < 0) preset = "standard";
+        if (mode !== "light" && mode !== "dark") {
+          mode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        var root = document.documentElement;
+        root.dataset.preset = preset;
+        root.dataset.theme = only[preset] || mode;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

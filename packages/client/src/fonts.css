@@ -1,0 +1,25 @@
+/*
+ * Fonts of the built-in themes (themes.css), from Fontsource, all under the SIL Open Font
+ * License. Latin only. A browser downloads a font file only once a theme uses it.
+ */
+@import "@fontsource/bangers/latin-400.css";
+@import "@fontsource/comic-neue/latin-400.css";
+@import "@fontsource/comic-neue/latin-400-italic.css";
+@import "@fontsource/comic-neue/latin-700.css";
+@import "@fontsource/patrick-hand/latin-400.css";
+@import "@fontsource/caveat/latin-600.css";
+@import "@fontsource/caveat/latin-700.css";
+@import "@fontsource/cinzel/latin-400.css";
+@import "@fontsource/cinzel/latin-600.css";
+@import "@fontsource/cormorant-garamond/latin-400.css";
+@import "@fontsource/cormorant-garamond/latin-400-italic.css";
+@import "@fontsource/cormorant-garamond/latin-600.css";
+@import "@fontsource/orbitron/latin-500.css";
+@import "@fontsource/orbitron/latin-700.css";
+@import "@fontsource/rajdhani/latin-500.css";
+@import "@fontsource/rajdhani/latin-600.css";
+@import "@fontsource/zen-maru-gothic/latin-400.css";
+@import "@fontsource/zen-maru-gothic/latin-700.css";
+@import "@fontsource/nunito/latin-400.css";
+@import "@fontsource/nunito/latin-400-italic.css";
+@import "@fontsource/nunito/latin-700.css";
