@@ -35,6 +35,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Theme fonts are fetched when a theme first uses them, then kept for offline use.
+        globIgnores: ['**/assets/*-latin-*.woff2'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/[^/]*-latin-[^/]*\.woff2$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'theme-fonts' },
+          },
+        ],
         navigateFallback: '/index.html',
         // The API is never served from the cache; offline data lives in IndexedDB.
         navigateFallbackDenylist: [/^\/api\//],

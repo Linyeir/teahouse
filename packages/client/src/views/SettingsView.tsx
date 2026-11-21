@@ -3,6 +3,7 @@ import { type Device, type Profile, type Settings, TEAHOUSE_VERSION } from '@tea
 import { type FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, setToken } from '../api.ts';
+import { AppearanceSettings } from '../components/AppearanceSettings.tsx';
 import { ConnectionSettings } from '../components/ConnectionSettings.tsx';
 import { ErrorText, Field } from '../components/Field.tsx';
 import { PairDevice } from '../components/PairDevice.tsx';
@@ -130,6 +131,8 @@ export function SettingsView() {
           </option>
         ))}
       </select>
+
+      <AppearanceSettings />
 
       <h3>{t('settings.devices')}</h3>
       <ul className={ui.list}>

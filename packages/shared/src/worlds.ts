@@ -14,6 +14,8 @@ export const world = z.object({
   summary: z.string(),
   /** Theme token overrides from `theme:` in world.md, e.g. `vn-textbox-bg: "#102030cc"`. */
   theme: z.record(z.string(), z.string()),
+  /** `themePreset:` in world.md: the theme the app switches to in this world, if valid. */
+  themePreset: z.string().nullable(),
   /** `defaultBackground:` in world.md: the background a chat starts with until the narrator picks one. */
   defaultBackground: z.string().nullable(),
 });
@@ -122,20 +124,15 @@ export const DEFAULT_IMAGE_LABELS = [
  * `url(` and characters that could end a declaration are refused.
  */
 export const THEME_TOKENS = [
-  'color-bg',
-  'color-surface',
-  'color-text',
-  'color-text-muted',
-  'color-accent',
-  'font-body',
-  'font-story',
   'vn-stage-bg',
   'vn-textbox-bg',
   'vn-textbox-color',
   'vn-textbox-border',
   'vn-textbox-radius',
+  'vn-textbox-shadow',
   'vn-name-bg',
   'vn-name-color',
+  'vn-name-font',
   'vn-font',
   'vn-font-size',
   'vn-sprite-height',

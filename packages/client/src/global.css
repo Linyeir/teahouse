@@ -1,30 +1,114 @@
+/*
+ * Theme tokens, contract v1 (docs/theming.md). Primitives (--sand-*, --ink-*, --tea-*, …) hold
+ * raw values; the semantic tokens below use only primitives. Presets in themes.css set both.
+ * main.tsx and the inline script in index.html set <html data-theme="light|dark" data-preset>.
+ */
 :root {
-  --color-bg: #f6f3ee;
-  --color-surface: #ffffff;
-  --color-surface-muted: #efeae2;
-  --color-border: #d9d2c6;
-  --color-text: #2b2620;
-  --color-text-muted: #6f665a;
-  --color-accent: #7a4e2d;
-  --color-accent-text: #ffffff;
-  --color-danger: #a33b2b;
-  --color-success: #2f6b3a;
-  --color-user-bubble: #e8dfd2;
-  --color-diff-add: #dcefd9;
-  --color-diff-remove: #f5dcd7;
+  /* Primitives: Standard */
+  --sand-0: #ffffff;
+  --sand-50: #f6f3ee;
+  --sand-100: #efeae2;
+  --sand-150: #e8dfd2;
+  --sand-200: #d9d2c6;
+  --sand-500: #6f665a;
+  --sand-900: #2b2620;
+  --ink-950: #1b1916;
+  --ink-900: #24211d;
+  --ink-850: #2d2a25;
+  --ink-825: #34302a;
+  --ink-800: #3d3831;
+  --ink-400: #a69c8e;
+  --ink-100: #ece6dc;
+  --tea-700: #7a4e2d;
+  --tea-300: #d29a6a;
+  --red-700: #a33b2b;
+  --red-300: #e0715f;
+  --red-100: #f5dcd7;
+  --red-900: #45272a;
+  --green-700: #2f6b3a;
+  --green-300: #8fcf98;
+  --green-100: #dcefd9;
+  --green-900: #23392a;
+  --stage-brown: #3a332b;
+  --scrim-dark: rgb(28 24 20 / 88%);
+  --line-light: rgb(255 255 255 / 18%);
+  --none: none;
+  --zero: 0;
+  --one-px: 1px;
+  --transparent: transparent;
+  --pill: 999px;
+  --no-turn: rotate(0deg);
+
+  /* Semantic: colors */
+  --color-bg: var(--sand-50);
+  --color-surface: var(--sand-0);
+  --color-surface-muted: var(--sand-100);
+  --color-border: var(--sand-200);
+  --color-text: var(--sand-900);
+  --color-text-muted: var(--sand-500);
+  --color-accent: var(--tea-700);
+  --color-accent-text: var(--sand-0);
+  --color-danger: var(--red-700);
+  --color-success: var(--green-700);
+  --color-user-bubble: var(--sand-150);
+  --color-diff-add: var(--green-100);
+  --color-diff-remove: var(--red-100);
+
+  /* Semantic: type, shape and surfaces */
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-story: Georgia, "Iowan Old Style", serif;
+  --font-heading: var(--font-body);
+  --font-brand: var(--font-story);
+  --heading-transform: var(--none);
+  --heading-spacing: var(--zero);
   --radius: 8px;
   --space: 12px;
+  --border-width: var(--one-px);
+  --shadow: var(--none);
+  --shadow-control: var(--none);
+  --surface-blur: var(--none);
+  --control-clip: var(--none);
+  --control-radius: var(--radius);
+  --control-font: var(--font-body);
+  --control-transform: var(--none);
+  --control-spacing: var(--zero);
+  --chip-radius: var(--pill);
+  --page-background: var(--color-bg);
+  --header-background: var(--transparent);
+  --header-border: var(--border-width) solid var(--color-border);
+  --sidebar-background: var(--color-surface-muted);
+  --sidebar-border: var(--border-width) solid var(--color-border);
 
   /* Visual novel view. Worlds can override these (docs/theming.md). */
-  --vn-stage-bg: #3a332b;
-  --vn-textbox-bg: rgb(28 24 20 / 88%);
-  --vn-textbox-color: #f3ece1;
-  --vn-textbox-border: 1px solid rgb(255 255 255 / 18%);
+  --vn-stage-bg: var(--stage-brown);
+  --vn-textbox-bg: var(--scrim-dark);
+  --vn-textbox-color: var(--ink-100);
+  --vn-textbox-border: 1px solid var(--line-light);
   --vn-textbox-radius: 10px;
+  --vn-textbox-shadow: var(--none);
+  --vn-textbox-blur: var(--none);
+  --vn-textbox-clip: var(--none);
+  --vn-stage-border: var(--none);
+  --vn-stage-radius: var(--radius);
+  --vn-stage-shadow: var(--none);
+  --vn-stage-clip: var(--none);
+  --vn-stage-transform: var(--none);
+  --vn-tape: var(--transparent);
+  /* Unset (initial): speech and narration use --vn-textbox-color. */
+  --vn-speech-color: initial;
+  --vn-narration-color: initial;
   --vn-name-bg: var(--color-accent);
   --vn-name-color: var(--color-accent-text);
+  --vn-name-font: var(--font-body);
+  /* Unset (initial): characters keep their own badge colors. Set, every badge uses these. */
+  --vn-name-fill: initial;
+  --vn-name-fill-text: initial;
+  --vn-name-size: 0.85rem;
+  --vn-name-case: var(--none);
+  --vn-name-transform: var(--no-turn);
+  --vn-name-border: var(--none);
+  --vn-name-shadow: var(--none);
+  --vn-name-clip: var(--none);
   --vn-font: var(--font-story);
   --vn-font-size: 1.1rem;
   --vn-sprite-height: 78%;
@@ -32,23 +116,21 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #1b1916;
-    --color-surface: #24211d;
-    --color-surface-muted: #2d2a25;
-    --color-border: #3d3831;
-    --color-text: #ece6dc;
-    --color-text-muted: #a69c8e;
-    --color-accent: #d29a6a;
-    --color-accent-text: #1b1916;
-    --color-danger: #e0715f;
-    --color-success: #8fcf98;
-    --color-user-bubble: #34302a;
-    --color-diff-add: #23392a;
-    --color-diff-remove: #45272a;
-    color-scheme: dark;
-  }
+:root[data-theme="dark"] {
+  --color-bg: var(--ink-950);
+  --color-surface: var(--ink-900);
+  --color-surface-muted: var(--ink-850);
+  --color-border: var(--ink-800);
+  --color-text: var(--ink-100);
+  --color-text-muted: var(--ink-400);
+  --color-accent: var(--tea-300);
+  --color-accent-text: var(--ink-950);
+  --color-danger: var(--red-300);
+  --color-success: var(--green-300);
+  --color-user-bubble: var(--ink-825);
+  --color-diff-add: var(--green-900);
+  --color-diff-remove: var(--red-900);
+  color-scheme: dark;
 }
 
 * {
@@ -69,11 +151,25 @@ body,
 }
 
 body {
-  background: var(--color-bg);
+  background: var(--page-background);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  text-transform: var(--heading-transform);
+  letter-spacing: var(--heading-spacing);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-accent);
 }
 
 a {

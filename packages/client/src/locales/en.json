@@ -169,7 +169,19 @@
     "forget": "Forget",
     "about": "About",
     "appVersion": "App: Teahouse %{version}",
-    "serverVersion": "Server: Teahouse %{version}"
+    "serverVersion": "Server: Teahouse %{version}",
+    "appearance": "Appearance",
+    "appearanceHint": "Saved on this device.",
+    "mode": "Light or dark",
+    "modeSystem": "Like the system",
+    "modeLight": "Light",
+    "modeDark": "Dark",
+    "theme": "Theme",
+    "onlyLight": "%{name} (light only)",
+    "onlyDark": "%{name} (dark only)",
+    "fixedMode": "This theme has only one mode.",
+    "worldThemes": "Let worlds choose their theme",
+    "worldThemesHint": "A world can name a theme in world.md. While you are in that world, the app uses it."
   },
   "home": {
     "noWorlds": "No worlds yet.",
@@ -364,5 +376,16 @@
     "nothingFound": "The last run found nothing to tidy up.",
     "applyNothing": "Commit nothing",
     "counts": "Contradictions: %{contradictions} · Merged: %{merges} · New: %{created} · Changed: %{changed}"
+  },
+  "themes": {
+    "standard": "Standard",
+    "nord": "Nord",
+    "catppuccin": "Catppuccin",
+    "sakura": "Sakura",
+    "halftone": "Halftone",
+    "picturebook": "Picture book",
+    "dracula": "Dracula",
+    "cyberpunk": "Cyberpunk",
+    "gothic": "Gothic"
   }
 }

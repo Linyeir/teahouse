@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, NAME_PRESETS, namePreset } from './nameColors.ts';
+import { contrast, NAME_PRESETS, NAME_TEXT, namePreset } from './nameColors.ts';
 
-// --vn-name-color is --color-accent-text: see global.css.
-const TEXT_LIGHT = '#ffffff';
-const TEXT_DARK = '#1b1916';
+const TEXT_LIGHT = NAME_TEXT.light;
+const TEXT_DARK = NAME_TEXT.dark;
 
 describe('name presets', () => {
   it('pass 4.5:1 against the badge text in both themes', () => {

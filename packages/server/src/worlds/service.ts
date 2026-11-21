@@ -7,6 +7,7 @@ import {
   type CanonFile,
   type CharacterImage,
   type CharacterSummary,
+  isThemePreset,
   sanitizeColor,
   sanitizeTheme,
   type World,
@@ -122,7 +123,7 @@ export class WorldService {
     await repo.ensure();
     await repo.commitAll(`Create world ${name}`);
     this.#folders.set(id, folder);
-    return { id, name, folder, summary: '', theme: {}, defaultBackground: null };
+    return { id, name, folder, summary: '', theme: {}, themePreset: null, defaultBackground: null };
   }
 
   /** Folder of a world, rescanning once if the ID is unknown. */
@@ -433,6 +434,7 @@ export class WorldService {
       name: stringValue(doc.data.name, folder),
       summary: stringValue(doc.data.summary),
       theme: sanitizeTheme(doc.data.theme),
+      themePreset: isThemePreset(doc.data.themePreset) ? doc.data.themePreset : null,
       defaultBackground:
         typeof doc.data.defaultBackground === 'string' ? doc.data.defaultBackground : null,
     };

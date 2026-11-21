@@ -71,7 +71,7 @@ Each character can have several images, one per mood. Open the character's file 
 
 Backgrounds belong to the world. You upload them on the world overview with a short description, and the model reads these descriptions to pick a background for the scene. `defaultBackground:` in `world.md` sets the background that is shown before the model picks one.
 
-`color:` in a character file sets the color of that character's name badge. [Theming](theming.md) explains how a world can change the colors and fonts of the whole view.
+`color:` in a character file sets the color of that character's name badge. `themePreset:` in `world.md` picks the theme the app switches to in that world, and [Theming](theming.md) explains how a world can change single colors and fonts of the novel view.
 
 ## Character cards
 

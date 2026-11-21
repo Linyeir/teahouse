@@ -23,6 +23,36 @@ importers:
 
   packages/client:
     dependencies:
+      '@fontsource/bangers':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/caveat':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/cinzel':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/comic-neue':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/cormorant-garamond':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/nunito':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/orbitron':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/patrick-hand':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/rajdhani':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/zen-maru-gothic':
+        specifier: ^5.3.1
+        version: 5.3.1
       '@tanstack/query-async-storage-persister':
         specifier: ^5.104.1
         version: 5.104.1
@@ -1274,6 +1304,36 @@ packages:
 
   '@fastify/websocket@11.3.3':
     resolution: {integrity: sha512-NBJoykKpFwrdX9Ezod1rt30p5NoPFu7vgeuUowSM3JVI5/hFNRPhetqkWMTiF/ifIzctwitbJut1gZ6FDg1mwQ==}
+
+  '@fontsource/bangers@5.3.0':
+    resolution: {integrity: sha512-tSRpmWwkqrO9PCqo9wjA/99/5sLOIWm5cf51G3ooEHd8qZus8sVSSJoWp/7EvM5rIgZMjKRG6XtY9yeisKxE7g==}
+
+  '@fontsource/caveat@5.3.0':
+    resolution: {integrity: sha512-eHTfzQxFSW9ABERRLNruHoNJmKed2J7pqTUc5lp4a4POMgXGKpxmWj3d9Hz10kmAg6iuTTLe6UagbA4bnsmfQw==}
+
+  '@fontsource/cinzel@5.3.0':
+    resolution: {integrity: sha512-KEOYTsrRppW0uRIPWBDPrQgunCS6f8u4nzZxYRBfo9SCknKojLYjK7B0ZoVmJhyVLefz271ZQRF9EOpHZlfhRw==}
+
+  '@fontsource/comic-neue@5.3.0':
+    resolution: {integrity: sha512-uZsyUTExw8tCySNhL65dN6rEUhASMPGintSS5Kw/ZkrQTK1vcAgramzOLT/mZKtZ+EXr03MHj0s5osVVJITCow==}
+
+  '@fontsource/cormorant-garamond@5.3.0':
+    resolution: {integrity: sha512-weuGsCirGVWBWqpt6YUp0yLThTe4G8YO45noq8wxeJCRvEpq5lFrxNMFSTxcyOyV5k5otzJ8guDzYegdYlcLMQ==}
+
+  '@fontsource/nunito@5.3.0':
+    resolution: {integrity: sha512-vw9TaTQJ/zpEpKrsODuPmOvaVjXgdda6B+xXA4YqjrdeJ62MLgVoDerdRXFQHyBnSCt2yQ2nHKCHPP/Pv7Xq4Q==}
+
+  '@fontsource/orbitron@5.3.0':
+    resolution: {integrity: sha512-+BhPsbUAo/AF7sRcf+TEexm+EWWkgTiR9Zwb7AhYIPkc5oplfvw0C45Oc2xlKPhwVEmxG8hHuA6/Ansbl+Bc6w==}
+
+  '@fontsource/patrick-hand@5.3.0':
+    resolution: {integrity: sha512-V8C38IlIFfdWg0Xtri3F7sLCVpm069rUwn6w4n+oyn38gt7H4arOJmuReg3tAw1Q6jHqZp89wTnAAJagq4Atxw==}
+
+  '@fontsource/rajdhani@5.3.0':
+    resolution: {integrity: sha512-oBJgSIibWJvVBKseme1JczqPLoDHN97LHti4uh0LjfcJqQoVmnQQlRKIpEjTJV559rmVQ6qbVZZwKwk2wkBTtw==}
+
+  '@fontsource/zen-maru-gothic@5.3.1':
+    resolution: {integrity: sha512-DtDKg44WTu44VuUWIJq8oAdCMHkkKrlpUaYHPbBQQkr8eZUNUjdWtzTJM3QIVlYYqdUPZN0Oy2a20EbxPJnF/g==}
 
   '@isaacs/cliui@9.0.0':
     resolution: {integrity: sha512-AokJm4tuBHillT+FpMtxQ60n8ObyXBatq7jD2/JA9dxbDDokKQm8KMht5ibGzLVU9IJDIKK4TPKgMHEYMn3lMg==}
@@ -4603,6 +4663,26 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@fontsource/bangers@5.3.0': {}
+
+  '@fontsource/caveat@5.3.0': {}
+
+  '@fontsource/cinzel@5.3.0': {}
+
+  '@fontsource/comic-neue@5.3.0': {}
+
+  '@fontsource/cormorant-garamond@5.3.0': {}
+
+  '@fontsource/nunito@5.3.0': {}
+
+  '@fontsource/orbitron@5.3.0': {}
+
+  '@fontsource/patrick-hand@5.3.0': {}
+
+  '@fontsource/rajdhani@5.3.0': {}
+
+  '@fontsource/zen-maru-gothic@5.3.1': {}
 
   '@isaacs/cliui@9.0.0': {}
 

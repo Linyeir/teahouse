@@ -1,8 +1,10 @@
 /**
  * Name badge colors in the novel view. A character without `color:` gets one of these by
- * slug. Each has a variant per theme, with at least 4.5:1 against the badge text
- * (`--vn-name-color`: white in the light theme, near black in the dark one).
+ * slug. Each has a variant per mode, with at least 4.5:1 against NAME_TEXT of that mode, which
+ * the badge uses with them whatever the theme preset.
  */
+export const NAME_TEXT = { light: '#ffffff', dark: '#1b1916' } as const;
+
 export const NAME_PRESETS = [
   { light: '#8e3b46', dark: '#e79aa3' },
   { light: '#2f6b3a', dark: '#8fcf98' },

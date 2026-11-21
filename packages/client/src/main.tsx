@@ -11,7 +11,12 @@ import { getServer, isApp } from './api.ts';
 import { registerOfflineMutations } from './mutations.ts';
 import { holdWhileStreaming } from './persist.ts';
 import './global.css';
+import './fonts.css';
+import './themes.css';
 import './i18n.ts';
+import { initTheme } from './theme.ts';
+
+initTheme();
 
 /**
  * How long the local copy is kept without a sync. It doubles as the queries' gcTime, which

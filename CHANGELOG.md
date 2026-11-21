@@ -2,6 +2,21 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
+## [Unreleased]
+
+### Added
+
+- **Themes:** under **Settings → Appearance** you pick one of nine themes and whether Teahouse is light, dark or follows the system. Standard, Nord and Catppuccin come in light and dark; Sakura, Halftone (a 90s comic) and Picture book are light; Dracula, Cyberpunk and Gothic are dark. The choice is saved per device and applied before the first paint, so nothing flashes on load. The themed looks are inspired by [charredbutter's SillyTavern themes](https://ko-fi.com/charredbutter/shop) and come with their own fonts (all under the SIL Open Font License), which a device downloads only once a theme uses them. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+- A world can name its theme with `themePreset:` in `world.md`. While you are on that world's page or in one of its chats, the app switches to it; **Let worlds choose their theme** in the settings turns this off. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+
+### Changed
+
+- The theme tokens are now a documented contract ("stable v1") in [Theming](docs/theming.md). A world's `theme:` can also set `vn-textbox-shadow` and `vn-name-font`. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+
+### Removed
+
+- A world's `theme:` no longer accepts `color-bg`, `color-surface`, `color-text`, `color-text-muted`, `color-accent`, `font-body` and `font-story`. They only ever reached the inside of the stage, where nothing used them. Use `themePreset:` for the colors of the whole app, or the `vn-*` tokens for the novel view. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+
 ## [0.4.2] - 2026-11-21
 
 **Updating:** apps and server can be updated in any order, but **Tidy up the canon** needs a 0.4.2 server. The server changes its database on start (canon proposals now belong to a world) and backs it up first.

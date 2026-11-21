@@ -26,6 +26,7 @@ import { type EditVariables, editKey, type SendVariables, sendKey } from '../mut
 import { useOnline } from '../offline.ts';
 import { shownContent } from '../placeholders.ts';
 import { backgroundsQuery, chatPathQuery, useCharacters, useWorlds } from '../queries.ts';
+import { useWorldTheme } from '../theme.ts';
 import styles from './ChatView.module.css';
 import sceneStyles from './Scene.module.css';
 import { EndScene, MemoryMarker, NewScene, ProposalReview } from './SceneParts.tsx';
@@ -75,6 +76,7 @@ export function ChatView() {
   const characters = useCharacters(worldId);
   const worlds = useWorlds();
   const world = worlds.data?.find((w) => w.id === worldId);
+  useWorldTheme(world?.themePreset);
   const backgrounds = useQuery(backgroundsQuery(worldId));
   const settings = useQuery({
     queryKey: ['settings'],
