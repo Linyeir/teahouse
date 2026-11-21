@@ -94,7 +94,7 @@ later versions. They are defined in `packages/client/src/global.css`; the built-
 | `--color-bg` | warm off-white / near black | Page background |
 | `--color-surface` | white / dark grey | Cards, inputs, dialogs |
 | `--color-surface-muted` | light sand / darker grey | Sidebar, badges, banners |
-| `--color-border` | sand / grey | Borders of cards and inputs |
+| `--color-border` | sand / grey | Borders of cards and dividers |
 | `--color-text` | dark brown / light beige | Body text |
 | `--color-text-muted` | | Hints, secondary text |
 | `--color-accent` | brown / amber | Main buttons, highlights |
@@ -104,6 +104,9 @@ later versions. They are defined in `packages/client/src/global.css`; the built-
 | `--color-user-bubble` | | Your own lines in the log view |
 | `--color-diff-add` | pale green | Added lines in canon diffs |
 | `--color-diff-remove` | pale red | Removed lines in canon diffs |
+| `--color-control-border` | `--color-text-muted` | Borders of inputs, checkboxes and outlined buttons (at least 3:1 against `--color-bg` and `--color-surface`) |
+| `--color-focus` | `--color-accent` | Ring around the control that has keyboard focus |
+| `--color-hover` | faint dark / light wash | Background of list and menu items under the pointer |
 | `--font-body` | system UI font | Interface text |
 | `--font-story` | Georgia | Story text |
 | `--font-heading` | `--font-body` | Headings |

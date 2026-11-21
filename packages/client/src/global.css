@@ -32,6 +32,8 @@
   --green-900: #23392a;
   --stage-brown: #3a332b;
   --scrim-dark: rgb(28 24 20 / 88%);
+  --wash-dark: rgb(43 38 32 / 7%);
+  --wash-light: rgb(236 230 220 / 8%);
   --line-light: rgb(255 255 255 / 18%);
   --none: none;
   --zero: 0;
@@ -54,6 +56,10 @@
   --color-user-bubble: var(--sand-150);
   --color-diff-add: var(--green-100);
   --color-diff-remove: var(--red-100);
+  /* Borders of inputs, checkboxes and outlined buttons: 3:1 against bg and surface. */
+  --color-control-border: var(--color-text-muted);
+  --color-focus: var(--color-accent);
+  --color-hover: var(--wash-dark);
 
   /* Semantic: type, shape and surfaces */
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -131,6 +137,7 @@
   --color-user-bubble: var(--ink-825);
   --color-diff-add: var(--green-900);
   --color-diff-remove: var(--red-900);
+  --color-hover: var(--wash-light);
   color-scheme: dark;
 }
 
@@ -171,6 +178,32 @@ h3 {
 input[type="checkbox"],
 input[type="radio"] {
   accent-color: var(--color-accent);
+}
+
+/* The button of a file input looks like any other button (ui.module.css .button). */
+input[type="file"]::file-selector-button {
+  font: inherit;
+  font-family: var(--control-font);
+  text-transform: var(--control-transform);
+  letter-spacing: var(--control-spacing);
+  cursor: pointer;
+  clip-path: var(--control-clip);
+  border-radius: var(--control-radius);
+  border: var(--border-width) solid var(--color-control-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 7px 14px;
+  margin-right: var(--space);
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: var(--color-hover);
+}
+
+/* Every control shows the same ring on keyboard focus. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 a {
