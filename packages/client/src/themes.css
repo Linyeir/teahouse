@@ -319,6 +319,7 @@
   --color-surface: var(--ht-white);
   --color-surface-muted: var(--ht-cream);
   --color-border: var(--ht-ink);
+  --color-control-border: var(--ht-ink);
   --color-text: var(--ht-ink);
   --color-text-muted: var(--ht-ink-soft);
   --color-accent: var(--ht-magenta);
@@ -432,6 +433,7 @@
   --color-surface: var(--pb-page);
   --color-surface-muted: var(--pb-note);
   --color-border: var(--pb-line);
+  --color-control-border: var(--pb-line);
   --color-text: var(--pb-ink);
   --color-text-muted: var(--pb-ink-soft);
   --color-accent: var(--pb-juniper);

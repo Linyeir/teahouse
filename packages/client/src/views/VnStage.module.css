@@ -184,7 +184,7 @@
 }
 
 .textbox:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
 }
 
 .name {
@@ -308,7 +308,7 @@
 }
 
 .controls button:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: -4px;
 }
 
@@ -454,6 +454,6 @@
 }
 
 .titleCard:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: -4px;
 }

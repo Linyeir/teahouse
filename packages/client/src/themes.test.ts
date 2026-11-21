@@ -110,6 +110,18 @@ describe.each(combos)('theme %s (%s)', (preset, mode) => {
       expect(contrast(hex(fg), hex(back)), label).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  // WCAG 1.4.11: the edges of controls and the focus ring need 3:1 against what is around them.
+  it('keeps control borders and the focus ring visible (3:1)', () => {
+    const pairs: [string, Rgba, Rgba][] = [];
+    for (const name of ['color-control-border', 'color-focus']) {
+      pairs.push([`${name} on bg`, over(get(name), bg), bg]);
+      pairs.push([`${name} on surface`, over(get(name), surface), surface]);
+    }
+    for (const [label, fg, back] of pairs) {
+      expect(contrast(hex(fg), hex(back)), label).toBeGreaterThanOrEqual(3);
+    }
+  });
 });
 
 /** Tokens of contract v1: everything global.css declares on :root after the primitives. */

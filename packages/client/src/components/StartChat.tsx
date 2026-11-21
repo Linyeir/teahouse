@@ -85,7 +85,7 @@ export function CharacterRow({
           </select>
         )}
         <button
-          className={`${ui.primary} ${styles.start}`}
+          className={`${ui.button} ${styles.start}`}
           type="button"
           disabled={start.isPending}
           onClick={() =>

@@ -44,7 +44,7 @@
   font: inherit;
   color: var(--color-text);
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-control-border);
   border-radius: var(--radius);
   padding: 8px 10px;
   width: 100%;
@@ -68,10 +68,14 @@ textarea.input {
   cursor: pointer;
   clip-path: var(--control-clip);
   border-radius: var(--control-radius);
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-control-border);
   background: var(--color-surface);
   color: var(--color-text);
   padding: 7px 14px;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-hover);
 }
 
 .button:disabled {
@@ -87,6 +91,20 @@ textarea.input {
   color: var(--color-accent-text);
 }
 
+.primary:hover:not(:disabled) {
+  background: var(--color-accent);
+  filter: brightness(1.08);
+}
+
+/* A disabled main button must not look like one that works. */
+.primary:disabled {
+  opacity: 1;
+  box-shadow: none;
+  background: var(--color-surface-muted);
+  border-color: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
 .danger {
   composes: button;
   color: var(--color-danger);
@@ -98,6 +116,10 @@ textarea.input {
   background: transparent;
   padding: 4px 8px;
   color: var(--color-text-muted);
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--color-text);
 }
 
 .card {

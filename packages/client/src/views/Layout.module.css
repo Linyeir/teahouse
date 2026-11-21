@@ -44,6 +44,12 @@
   color: var(--color-text-muted);
 }
 
+.navLink:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+/* The open page: a pill in the surface color. */
 .navLink[aria-current="page"] {
   background: var(--color-surface);
   color: var(--color-text);
@@ -64,6 +70,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* The open chat: a bar in the accent color, unlike the pill of the open page. */
+.chatLink[aria-current="page"] {
+  background: none;
+  border-left-color: var(--color-accent);
+}
+
+.chatLink[aria-current="page"]:hover {
+  background: var(--color-hover);
 }
 
 .main {
