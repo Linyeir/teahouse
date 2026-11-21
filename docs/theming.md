@@ -107,6 +107,8 @@ later versions. They are defined in `packages/client/src/global.css`; the built-
 | `--color-control-border` | `--color-text-muted` | Borders of inputs, checkboxes and outlined buttons (at least 3:1 against `--color-bg` and `--color-surface`) |
 | `--color-focus` | `--color-accent` | Ring around the control that has keyboard focus |
 | `--color-hover` | faint dark / light wash | Background of list and menu items under the pointer |
+| `--color-danger-text` | white / near black | Text on the danger color, e.g. a dialog's Delete button |
+| `--color-backdrop` | translucent black | Behind an open dialog |
 | `--font-body` | system UI font | Interface text |
 | `--font-story` | Georgia | Story text |
 | `--font-heading` | `--font-body` | Headings |
@@ -163,4 +165,13 @@ later versions. They are defined in `packages/client/src/global.css`; the built-
 | `--vn-sprite-dim` | `0.55` | See above |
 
 A test checks that every theme defines these tokens, that text (also spoken lines and narration)
-keeps a contrast of at least 4.5:1, and that this list matches `global.css`.
+keeps a contrast of at least 4.5:1, that control borders and the focus ring keep at least 3:1,
+and that this list matches `global.css`.
+
+## Building blocks
+
+Dialogs (`Dialog`, `ConfirmDialog`), menus (`Menu`) and symbol buttons (`IconButton`) live in
+`packages/client/src/components/` and are styled in `ui.module.css`. They take every color from
+the tokens above, never a fixed value, so each theme reaches them; a test fails on a fixed color
+in `ui.module.css`. Use them instead of the browser's `prompt()` and `confirm()`, which a test
+also rules out.

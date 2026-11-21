@@ -1,22 +1,30 @@
+/* One row, also on a phone: title, view switch, End scene and the ⋯ menu. */
 .header {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px var(--space);
-  padding: var(--space);
+  gap: 4px 8px;
+  padding: 6px var(--space);
   background: var(--header-background);
   border-bottom: var(--header-border);
 }
 
+.header > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-block: 4px;
+}
+
 /* Back to the chats, on phones (where the tab bar is hidden in a chat). */
 .back {
+  flex: 0 0 auto;
   font-size: 1.5rem;
   line-height: 1;
   text-decoration: none;
 }
 
 .title {
-  flex: 1 1 160px;
+  flex: 1 1 0;
+  min-width: 0;
   margin: 0;
   font-size: 1.1rem;
   overflow: hidden;

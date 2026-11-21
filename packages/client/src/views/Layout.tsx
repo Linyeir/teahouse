@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { Chat } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet, useMatch } from 'react-router';
+import { Link, NavLink, Outlet, useMatch } from 'react-router';
 import { api } from '../api.ts';
 import { OfflineDiagnosis } from '../components/ServerDiagnosis.tsx';
 import { ChatsIcon, ProfilesIcon, SettingsIcon, WorldsIcon } from '../components/TabIcons.tsx';
@@ -25,8 +25,10 @@ export function Layout({ connection }: { connection: ConnectionState }) {
     <div className={`${styles.shell} ${inChat ? styles.inChat : ''}`}>
       <aside className={styles.sidebar}>
         <h1 className={styles.brand}>
-          <img className={styles.logo} src="/logo-mark.svg" alt="" />
-          {t('app.name')}
+          <Link className={styles.brandLink} to="/">
+            <img className={styles.logo} src="/logo-mark.svg" alt="" />
+            {t('app.name')}
+          </Link>
         </h1>
         <nav className={styles.nav}>
           <NavLink className={styles.navLink} to="/worlds">
