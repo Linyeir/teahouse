@@ -6,10 +6,13 @@ import ui from './ui.module.css';
 export function Field({
   label,
   hint,
+  status,
   children,
 }: {
   label: string;
   hint?: string;
+  /** A short state under the control, such as "Saved". */
+  status?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -18,6 +21,7 @@ export function Field({
       {label}
       {children}
       {hint && <span className={ui.hint}>{hint}</span>}
+      {status}
     </label>
   );
 }
