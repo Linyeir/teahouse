@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api.ts';
 import { ErrorText, Field } from '../components/Field.tsx';
+import { useStartChat } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
-import { useWorlds } from '../queries.ts';
+import { pushToast } from '../notices.ts';
+import { charactersQuery, useWorlds } from '../queries.ts';
 
 export function WorldsView() {
   const { t } = useTranslation();
@@ -132,6 +134,9 @@ export function ImportCard({ worlds, worldId }: { worlds: World[]; worldId?: str
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState(worldId ?? NEW_WORLD);
+  // A new key empties the file input after an import.
+  const [formKey, setFormKey] = useState(0);
+  const startChat = useStartChat();
 
   const upload = useMutation({
     mutationFn: () => {
@@ -140,9 +145,32 @@ export function ImportCard({ worlds, worldId }: { worlds: World[]; worldId?: str
       if (file) form.append('file', file);
       return api.upload<CardImportResult>('/api/import/card', form);
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       void queryClient.invalidateQueries({ queryKey: ['worlds'] });
-      navigate(`/worlds/${result.worldId}`);
+      if (!target) {
+        navigate(`/worlds/${result.worldId}`);
+        return;
+      }
+      // Into a world that exists: the form starts over, and a toast offers the new character.
+      setFile(null);
+      setFormKey((k) => k + 1);
+      const world = worlds.find((w) => w.id === result.worldId)?.name ?? '';
+      const characters = await queryClient
+        .fetchQuery({ ...charactersQuery(result.worldId), staleTime: 0 })
+        .catch(() => []);
+      const name =
+        characters.find((c) => c.slug === result.characterSlug)?.name ?? result.characterSlug;
+      pushToast(t('worlds.imported', { name, world }), {
+        action: {
+          label: t('worlds.startChat'),
+          onClick: () =>
+            startChat.mutate({
+              worldId: result.worldId,
+              characterSlug: result.characterSlug,
+              greetingIndex: 0,
+            }),
+        },
+      });
     },
   });
 
@@ -153,6 +181,7 @@ export function ImportCard({ worlds, worldId }: { worlds: World[]; worldId?: str
 
   return (
     <form
+      key={formKey}
       className={`${ui.card} ${ui.form}`}
       onSubmit={onSubmit}
       style={{ marginTop: 'var(--space)' }}

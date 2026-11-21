@@ -3,8 +3,10 @@ import type { Chat } from '@teahouse/shared';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useMatch } from 'react-router';
 import { api } from '../api.ts';
+import { IconButton } from '../components/IconButton.tsx';
 import { OfflineDiagnosis } from '../components/ServerDiagnosis.tsx';
 import { ChatsIcon, ProfilesIcon, SettingsIcon, WorldsIcon } from '../components/TabIcons.tsx';
+import ui from '../components/ui.module.css';
 import type { ConnectionState } from '../events.ts';
 import { dismissNotice, useNotices } from '../notices.ts';
 import { useOnline } from '../offline.ts';
@@ -65,26 +67,59 @@ export function Layout({ connection }: { connection: ConnectionState }) {
             <span>{mismatch}</span>
           </div>
         )}
-        {notices.map((notice) => (
-          <div
-            key={notice.id}
-            className={`${styles.notice} ${styles[notice.kind]}`}
-            role={notice.kind === 'info' ? 'status' : 'alert'}
-          >
-            <span>{notice.text}</span>
-            <button
-              className={styles.dismiss}
-              type="button"
-              aria-label={t('common.dismiss')}
-              onClick={() => dismissNotice(notice.id)}
+        {notices
+          .filter((n) => n.kind !== 'toast')
+          .map((notice) => (
+            <div
+              key={notice.id}
+              className={`${styles.notice} ${styles[notice.kind]}`}
+              role={notice.kind === 'info' ? 'status' : 'alert'}
             >
-              ×
-            </button>
-          </div>
-        ))}
+              <span>{notice.text}</span>
+              <button
+                className={styles.dismiss}
+                type="button"
+                aria-label={t('common.dismiss')}
+                onClick={() => dismissNotice(notice.id)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
         <div className={styles.scroll}>
           <Outlet />
         </div>
+        {notices
+          .filter((n) => n.kind === 'toast')
+          .map((toast) => (
+            <div key={toast.id} className={styles.toast} role="status">
+              <div className={styles.toastBody}>
+                <strong>{toast.text}</strong>
+                {toast.lines && toast.lines.length > 0 && (
+                  <ul className={styles.toastLines}>
+                    {toast.lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {toast.action && (
+                <button
+                  className={ui.button}
+                  type="button"
+                  onClick={() => {
+                    dismissNotice(toast.id);
+                    toast.action?.onClick();
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              )}
+              <IconButton label={t('common.dismiss')} onClick={() => dismissNotice(toast.id)}>
+                ×
+              </IconButton>
+            </div>
+          ))}
       </main>
       <nav className={styles.tabs}>
         <NavLink className={styles.tab} to="/" end>
