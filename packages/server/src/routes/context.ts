@@ -7,6 +7,7 @@ import type { Generator } from '../generation.ts';
 import type { Hub } from '../hub.ts';
 import type { Memory } from '../memory.ts';
 import type { Scenes } from '../scenes.ts';
+import type { ThemeStore } from '../themes/store.ts';
 import type { WorldService } from '../worlds/service.ts';
 
 export interface Services {
@@ -18,6 +19,7 @@ export interface Services {
   scenes: Scenes;
   proposals: CanonProposals;
   pairing: Pairing;
+  themes: ThemeStore;
 }
 
 export const typed = (app: FastifyInstance) => app.withTypeProvider<ZodTypeProvider>();

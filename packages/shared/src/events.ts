@@ -17,7 +17,9 @@ export type ServerEvent =
   /** The world's canon cleanup proposal changed: started, written, decided or applied. */
   | { type: 'cleanup.changed'; worldId: string }
   /** A device was paired or signed out. */
-  | { type: 'devices.changed' };
+  | { type: 'devices.changed' }
+  /** A theme was uploaded or removed. */
+  | { type: 'themes.changed' };
 
 /** Client → server messages on the WebSocket. */
 export type ClientEvent = { type: 'generation.stop'; messageId: string };

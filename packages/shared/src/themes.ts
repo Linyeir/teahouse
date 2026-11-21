@@ -27,12 +27,66 @@ export function isThemePreset(value: unknown): value is ThemePresetId {
 
 /** The mode a preset is shown in, given the user's preference and the device setting. */
 export function resolveThemeMode(
-  preset: ThemePresetId,
+  preset: string,
   preference: ThemeModePreference,
   systemDark: boolean,
+  custom: readonly Pick<CustomTheme, 'id' | 'modes'>[] = [],
 ): ThemeMode {
   const modes: readonly ThemeMode[] =
-    THEME_PRESETS.find((p) => p.id === preset)?.modes ?? THEME_PRESETS[0].modes;
+    THEME_PRESETS.find((p) => p.id === preset)?.modes ??
+    custom.find((t) => t.id === preset)?.modes ??
+    THEME_PRESETS[0].modes;
   const wanted: ThemeMode = preference === 'system' ? (systemDark ? 'dark' : 'light') : preference;
   return modes.includes(wanted) ? wanted : (modes[0] ?? 'light');
+}
+
+/**
+ * IDs of uploaded themes (docs/theming.md, "Build your own theme"): lowercase letters, digits
+ * and dashes. A world names one with `themePreset:` like a built-in preset.
+ */
+export const THEME_ID = /^[a-z0-9][a-z0-9-]{0,62}$/;
+
+export function isThemeId(value: unknown): value is string {
+  return typeof value === 'string' && THEME_ID.test(value);
+}
+
+/** An uploaded theme as the server lists it. Its CSS is fetched separately. */
+export interface CustomTheme {
+  id: string;
+  name: string;
+  author: string | null;
+  modes: ThemeMode[];
+  /** Changes when the theme's CSS changes, so devices know to fetch it again. */
+  hash: string;
+}
+
+/**
+ * Something the server left out of an uploaded theme, or changed. The theme is installed
+ * anyway; the app says what happened in plain words.
+ */
+export type ThemeNoteCode =
+  /** A property that is not a custom property (`--name`): only variables are allowed. */
+  | 'not-variable'
+  /** A value that could load something from outside the package. */
+  | 'blocked-value'
+  /** `url()` pointing at a file that is not in the package. */
+  | 'missing-file'
+  /** A rule other than `:root { … }` blocks, e.g. a selector or an at-rule. */
+  | 'unsupported-rule'
+  /** theme.json is not valid JSON or has fields of the wrong kind. */
+  | 'bad-manifest'
+  /** A font named in theme.json that the package does not contain. */
+  | 'missing-font'
+  /** The ID was taken, so the theme got a new one. */
+  | 'renamed';
+
+export interface ThemeNote {
+  code: ThemeNoteCode;
+  /** The property, file, rule or new ID the note is about. */
+  detail: string;
+}
+
+export interface InstalledTheme {
+  theme: CustomTheme;
+  notes: ThemeNote[];
 }

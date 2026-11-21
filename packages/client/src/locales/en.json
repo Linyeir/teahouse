@@ -190,7 +190,35 @@
     "onlyDark": "%{name} (dark only)",
     "fixedMode": "This theme has only one mode.",
     "worldThemes": "Let worlds choose their theme",
-    "worldThemesHint": "A world can name a theme in world.md. While you are in that world, the app uses it."
+    "worldThemesHint": "A world can name a theme in world.md. While you are in that world, the app uses it.",
+    "customThemes": "Your themes",
+    "customThemesHint": "They work on all your devices, offline too. The guide shows how to build one.",
+    "customThemesGuide": "Guide: build your own theme",
+    "uploadTheme": "Upload theme (.zip)",
+    "uploadingTheme": "Uploading …",
+    "uploadOffline": "Uploading needs a connection to the server.",
+    "themeBy": "by %{author}",
+    "removeTheme": "Remove",
+    "confirmRemoveTheme": "Remove “%{name}”?",
+    "themeInstalled": "“%{name}” is installed and active.",
+    "themeRenamed": "The name was taken; worlds name it with themePreset: %{id}.",
+    "themeUndo": "Undo",
+    "themeNote": {
+      "not-variable": "Skipped, not a variable: %{items}.",
+      "blocked-value": "Skipped, could load something from outside: %{items}.",
+      "missing-file": "Skipped, the file is not in the package: %{items}.",
+      "unsupported-rule": "Skipped, only :root blocks work: %{items}.",
+      "bad-manifest": "theme.json is partly invalid: %{items}.",
+      "missing-font": "Font missing from the package: %{items}."
+    },
+    "themeError": {
+      "not-zip": "This is not a ZIP file.",
+      "no-theme-css": "The package has no theme.css.",
+      "too-large": "The package is larger than 50 MB.",
+      "too-many-files": "The package has more than 500 files.",
+      "other": "The upload did not work: %{message}"
+    },
+    "removeThemeHint": "Worlds that name it use their usual theme then."
   },
   "home": {
     "noWorlds": "No worlds yet.",
