@@ -297,25 +297,7 @@ Lorebook logic such as secondary keys, `selective`, `constant`, depth, order and
 - **World export:** archive of the Git repository, assets and related chats. This is also the exchange format for sharing worlds.
 - **Server backup:** back up the data volume
 
-## 13. Versions
-
-Each version ends with something that is actually usable.
-
-| Version | Content | Result |
-|---|---|---|
-| **v0.1** | Server, profiles, OpenAI-compatible adapter, worlds as Markdown plus Git, card import, template layers, scenes, Active Memory, canon with diff review, memory test run, plain web chat | The core memory promise is testable |
-| **v0.2** | Tag markup and parser, VN view with character images and backgrounds, theme token layer, world export | It feels like a visual novel |
-| **v0.3** | Tauri apps for desktop and Android, sync, offline use, device pairing via QR code | Playing across devices |
-| **v0.4.0** | One character per LLM call with the user picking who talks next, group chats, recovery from stuck states after a crash, security docs | Group chats on the owner's devices, without known holes |
-| **v0.4.1** | Papercuts of daily use, UI contract (tokens, lint guard) | Nothing gets in the way of an evening's play |
-| **v0.5** | Turn and scene end rendering and flow, well-formed narration | Every turn looks right and flows right |
-| **v0.6** | First-run path, README and docs, measured claims, public launch | A stranger reaches a good first scene in under 10 minutes |
-| **v0.7** | Canon retrieval and its eval, world page and file editor, image slots, ST library import, templates as world files | Memory that finds things, worlds you edit here |
-| **later** | Embeddings, fork world, text completion, ST preset import, ST chat import with a memory path | — |
-
-The [milestones](https://github.com/Linyeir/teahouse/milestones) hold the issues of each version.
-
-### Cut for now
+## 13. Cut for now
 
 Planned for v0.4 originally, cut in the council review of 2026-10-23:
 
@@ -325,15 +307,6 @@ Planned for v0.4 originally, cut in the council review of 2026-10-23:
 | Themes as plugins | Themes are data on a frozen token set ([#111](https://github.com/Linyeir/teahouse/issues/111)); fonts and layout variants are not needed for that | Themes need something presets cannot express |
 | Beat swipes | Need assistant prefill, which not all endpoints support; regenerating the whole reply covers it | The supported endpoints all handle prefill, or users ask for it over whole-reply swipes |
 | Pose and image choice call | One more LLM call per turn for little gain while `mood` labels work; latency matters more | Worlds with large sprite sets show that `mood` alone picks the wrong images |
-
-### Order within v0.1
-
-1. Server skeleton, profiles, OpenAI-compatible adapter, plain chat with one character
-2. Worlds as Markdown plus Git, card import
-3. Scenes, Active Memory, canon proposal with diff review
-4. **Memory test run:** a few reference chats with fact questions ("What is Mira's brother called?") that are checked automatically after summarization and canon update. The basis for any later prompt tuning.
-
-In v0.1 the narrator writes plain prose without tags. The web chat shows it as is.
 
 ## 14. Related projects
 
