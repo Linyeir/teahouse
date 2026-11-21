@@ -14,6 +14,7 @@ import { api } from '../api.ts';
 import { Dialog } from '../components/Dialog.tsx';
 import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
+import { pushToast } from '../notices.ts';
 import { backgroundsQuery, useCharacters, useWorlds } from '../queries.ts';
 import styles from './Scene.module.css';
 
@@ -419,7 +420,25 @@ export function ProposalReview({ chatId, sceneId }: { chatId: string; sceneId: s
     queryFn: () => api.get<CanonProposal | null>(target.base),
   });
   const apply = useMutation({
-    mutationFn: () => api.post(`${target.base}/apply`),
+    // The accepted files, as they were when committed, for the toast afterwards.
+    mutationFn: async () => {
+      const accepted = proposal.data?.files.filter((f) => f.decision === 'accepted') ?? [];
+      await api.post(`${target.base}/apply`);
+      return accepted;
+    },
+    onSuccess: (accepted) => {
+      if (accepted.length === 0) return;
+      pushToast(t('scenes.learned', { count: accepted.length }), {
+        lines: accepted.map((f) =>
+          t('scenes.learnedLine', {
+            name: fileName(f),
+            state: t(
+              `scenes.learnedState.${f.after === null ? 'merged' : f.before === null ? 'new' : 'changed'}`,
+            ),
+          }),
+        ),
+      });
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: target.queryKey });
       void queryClient.invalidateQueries({ queryKey: ['chat', chatId] });

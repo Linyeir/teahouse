@@ -149,7 +149,7 @@
     }
   },
   "settings": {
-    "userName": "Your name ({{user}})",
+    "userName": "Your name in stories",
     "outputLanguage": "Story language",
     "narratorProfile": "Narrator profile",
     "firstProfile": "First profile",
@@ -206,6 +206,7 @@
     "target": "Into",
     "newWorldFromCard": "A new world",
     "import": "Import",
+    "imported": "%{name} is now in %{world}.",
     "files": "Files",
     "characters": "Characters",
     "noCharacters": "No characters yet. Import a card or add a file in characters/.",
@@ -306,7 +307,15 @@
     "reviewWaiting": "The canon changes of this scene are waiting for your decision.",
     "openReview": "Review canon changes",
     "viewScene": "View scene",
-    "rawDiff": "Raw diff",
+    "rawDiff": "Show raw",
+    "learned_one": "The world learned 1 thing",
+    "learned_other": "The world learned %{count} things",
+    "learnedLine": "%{name}: %{state}",
+    "learnedState": {
+      "new": "new",
+      "changed": "updated",
+      "merged": "merged into another file"
+    },
     "conflictHint": "This file changed while the proposal was waiting. Edit it and resolve the marked parts, then accept it.",
     "acceptAll": "Accept all",
     "rejectAll": "Reject all",

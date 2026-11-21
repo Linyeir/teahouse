@@ -94,6 +94,7 @@
 }
 
 .main {
+  position: relative;
   min-width: 0;
   overflow: hidden;
   display: flex;
@@ -156,6 +157,38 @@
   color: inherit;
   cursor: pointer;
   padding: 0 4px;
+}
+
+/* Confirms that something worked (notices.ts pushToast), over the bottom of the page. */
+.toast {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: var(--space);
+  transform: translateX(-50%);
+  width: min(480px, calc(100% - 2 * var(--space)));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px var(--space);
+  box-shadow: var(--shadow);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-width) solid var(--color-border);
+  border-left: 3px solid var(--color-success);
+  border-radius: var(--radius);
+}
+
+.toastBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.toastLines {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
 }
 
 /* On phones a tab bar at the bottom takes the place of the sidebar. */

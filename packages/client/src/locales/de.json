@@ -149,7 +149,7 @@
     }
   },
   "settings": {
-    "userName": "Dein Name ({{user}})",
+    "userName": "Dein Name in Geschichten",
     "outputLanguage": "Sprache der Geschichte",
     "narratorProfile": "Profil für den Erzähler",
     "firstProfile": "Erstes Profil",
@@ -206,6 +206,7 @@
     "target": "In",
     "newWorldFromCard": "Eine neue Welt",
     "import": "Importieren",
+    "imported": "%{name} ist jetzt in %{world}.",
     "files": "Dateien",
     "characters": "Figuren",
     "noCharacters": "Noch keine Figuren. Importiere eine Karte oder lege eine Datei in characters/ an.",
@@ -306,7 +307,15 @@
     "reviewWaiting": "Die Canon-Änderungen dieser Szene warten auf deine Entscheidung.",
     "openReview": "Canon-Änderungen prüfen",
     "viewScene": "Szene ansehen",
-    "rawDiff": "Rohes Diff",
+    "rawDiff": "Rohfassung zeigen",
+    "learned_one": "Die Welt hat sich 1 Sache gemerkt",
+    "learned_other": "Die Welt hat sich %{count} Dinge gemerkt",
+    "learnedLine": "%{name}: %{state}",
+    "learnedState": {
+      "new": "neu",
+      "changed": "ergänzt",
+      "merged": "in eine andere Datei übernommen"
+    },
     "conflictHint": "Diese Datei hat sich geändert, während der Vorschlag wartete. Bearbeite sie, löse die markierten Stellen auf und übernimm sie dann.",
     "acceptAll": "Alle übernehmen",
     "rejectAll": "Alle ablehnen",

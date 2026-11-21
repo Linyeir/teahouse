@@ -4,7 +4,11 @@ import { useSyncExternalStore } from 'react';
 export interface Notice {
   id: number;
   text: string;
-  kind: 'info' | 'warning' | 'error';
+  kind: 'info' | 'warning' | 'error' | 'toast';
+  /** For a toast: plain lines under the text, e.g. one per changed file. */
+  lines?: string[];
+  /** For a toast: one action, such as starting a chat. */
+  action?: { label: string; onClick: () => void };
 }
 
 let notices: Notice[] = [];
@@ -16,6 +20,18 @@ const emit = () => {
 
 export function pushNotice(text: string, kind: Notice['kind'] = 'info'): void {
   notices = [...notices, { id: nextId++, text, kind }];
+  emit();
+}
+
+/**
+ * Confirms that something worked, at the bottom of the screen until dismissed. A new toast
+ * replaces the one before.
+ */
+export function pushToast(text: string, extra: Pick<Notice, 'lines' | 'action'> = {}): void {
+  notices = [
+    ...notices.filter((n) => n.kind !== 'toast'),
+    { id: nextId++, text, kind: 'toast', ...extra },
+  ];
   emit();
 }
 
