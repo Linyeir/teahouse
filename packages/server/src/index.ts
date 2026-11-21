@@ -18,6 +18,7 @@ const app = await buildApp({
   worlds,
   clientDir: config.clientDir,
   corsOrigins: config.corsOrigins,
+  themesDir: join(config.dataDir, 'themes'),
   logger: { level: 'info' },
 });
 app.addHook('onClose', () => watcher.stop());

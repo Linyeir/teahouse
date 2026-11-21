@@ -1,7 +1,8 @@
 # Theming
 
 Teahouse styles its interface with CSS variables ("tokens"). You pick a theme and light or dark
-under **Settings → Appearance**. The choice is saved on each device.
+under **Settings → Appearance**. The choice is saved on each device. You can also
+[build your own theme](#build-your-own-theme) and upload it there.
 
 ## Themes
 
@@ -43,7 +44,8 @@ themePreset: nord
 ```
 
 The names are `standard`, `nord`, `catppuccin`, `sakura`, `halftone`, `picturebook`,
-`dracula`, `cyberpunk` and `gothic`. An unknown name is ignored.
+`dracula`, `cyberpunk` and `gothic`, plus the ID of any theme you uploaded (see
+[Build your own theme](#build-your-own-theme)). An unknown name is ignored.
 
 ## Tokens a world can override
 
@@ -175,3 +177,141 @@ Dialogs (`Dialog`, `ConfirmDialog`), menus (`Menu`) and symbol buttons (`IconBut
 the tokens above, never a fixed value, so each theme reaches them; a test fails on a fixed color
 in `ui.module.css`. Use them instead of the browser's `prompt()` and `confirm()`, which a test
 also rules out.
+
+## Build your own theme
+
+A theme of your own is a ZIP file with a `theme.css` that sets the tokens above, an optional
+`theme.json`, and the fonts and images it uses. Upload it under **Settings → Appearance → Upload
+theme**. It shows up in the theme list on every device signed in to your server, works offline
+like the built-in ones, and a world can name it with `themePreset:`. **Remove** takes it away
+again.
+
+### A complete example
+
+Lantern is a theme in light and dark with its own font and a background picture. The package
+holds four files:
+
+```
+lantern.zip
+├── theme.json
+├── theme.css
+├── fonts/
+│   └── lora.woff2
+└── images/
+    └── paper.webp
+```
+
+`theme.json` names the theme and its font:
+
+```json
+{
+  "id": "lantern",
+  "name": "Lantern",
+  "author": "Your name",
+  "modes": ["light", "dark"],
+  "fonts": [
+    { "family": "Lora", "file": "fonts/lora.woff2", "weight": "400 700" }
+  ]
+}
+```
+
+`theme.css` sets the tokens. The first block applies to both modes, the second only to dark:
+
+```css
+:root {
+  /* Primitives: the palette, used only inside this file. */
+  --lantern-paper: #f6efe2;
+  --lantern-card: #fffaf0;
+  --lantern-line: #e2d3b8;
+  --lantern-ink: #2f2418;
+  --lantern-ink-soft: #6b5843;
+  --lantern-amber: #a8550f;
+  --lantern-night: #16120d;
+
+  /* Interface tokens. */
+  --color-bg: var(--lantern-paper);
+  --color-surface: var(--lantern-card);
+  --color-surface-muted: #efe4d0;
+  --color-border: var(--lantern-line);
+  --color-text: var(--lantern-ink);
+  --color-text-muted: var(--lantern-ink-soft);
+  --color-accent: var(--lantern-amber);
+  --color-accent-text: #ffffff;
+  --color-user-bubble: #f3e3c6;
+  --font-story: "Lora", Georgia, serif;
+  --font-heading: "Lora", Georgia, serif;
+  --radius: 12px;
+  --shadow: 0 6px 20px rgb(80 50 20 / 12%);
+  --page-background: url(images/paper.webp) center / cover, var(--lantern-paper);
+
+  /* Novel view. */
+  --vn-textbox-bg: rgb(255 250 240 / 92%);
+  --vn-textbox-color: var(--lantern-ink);
+  --vn-textbox-border: 2px solid var(--lantern-line);
+  --vn-name-fill: var(--lantern-amber);
+  --vn-name-fill-text: #ffffff;
+  --vn-font: "Lora", Georgia, serif;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: var(--lantern-night);
+  --color-surface: #221b14;
+  --color-surface-muted: #2c2319;
+  --color-border: #3d3124;
+  --color-text: #f1e6d4;
+  --color-text-muted: #c4b197;
+  --color-accent: #f0a050;
+  --color-accent-text: var(--lantern-night);
+  --color-user-bubble: #3a2c1c;
+  --page-background: var(--lantern-night);
+  --vn-textbox-bg: rgb(22 18 13 / 90%);
+  --vn-textbox-color: #f1e6d4;
+  --vn-textbox-border: 2px solid #3d3124;
+  --vn-name-fill-text: var(--lantern-night);
+  --vn-name-fill: #f0a050;
+}
+```
+
+Get Lora (or any font you like) as a `.woff2` file, for example from
+[Fontsource](https://fontsource.org/fonts/lora), and pick any picture for `paper.webp`. Then pack
+the four files into a ZIP (a zipped folder works too) and upload it. A world uses it with
+`themePreset: lantern`.
+
+The quickest way to start is to copy one of the built-in themes from
+[`themes.css`](../packages/client/src/themes.css): a block such as
+`:root[data-preset="nord"] { … }` works in `theme.css` as it is.
+
+### theme.json
+
+Every field is optional.
+
+| Field | Meaning | Without it |
+|---|---|---|
+| `id` | The name worlds use with `themePreset:` (letters, digits and dashes) | Made from `name` |
+| `name` | The name in the theme list | The ID, or the CSS file's name |
+| `author` | Shown under the name in the settings | Nothing shown |
+| `modes` | `["light"]`, `["dark"]` or both | Guessed from the blocks in `theme.css` |
+| `fonts` | Fonts in the package: `family`, `file`, and optionally `weight` (`400`, `"400 700"`, `bold`) and `style` (`normal`, `italic`) | No fonts of its own |
+
+If the ID is taken, by a built-in theme or one you uploaded before, the new theme gets a number
+(`lantern-2`, "Lantern (2)"). To replace a theme, remove the old one first.
+
+### What theme.css may contain
+
+A theme from someone else must not reach out to other servers or change Teahouse beyond its
+looks, so `theme.css` is held to a few rules:
+
+- Only blocks for `:root`, optionally with `[data-theme="light"]` or `[data-theme="dark"]`, and
+  `[data-preset="…"]` as in the built-in themes.
+- Inside them, only custom properties (`--name: value`) and `color-scheme`. Rules for other
+  selectors, `@import`, `@media` and `@font-face` are left out; fonts go in `theme.json`.
+- `url()` may only name a file in the package, by a relative path. Images can be PNG, JPEG,
+  WebP, AVIF, GIF or SVG; fonts WOFF2, WOFF, TTF or OTF. Addresses on the web, `image-set()`,
+  backslash escapes and `<` `>` `{` `}` in values are left out.
+- At most 50 MB unpacked and 500 files.
+
+Anything that breaks a rule is skipped, and the rest of the theme is installed. The app says
+what it left out, for example "Skipped, could load something from outside: https://…".
+Teahouse styles its interface only through the tokens, and their names stay stable, so a theme
+keeps working across updates. If you miss a token for something you want to change,
+[open an issue](https://github.com/Linyeir/teahouse/issues).

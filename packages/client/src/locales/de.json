@@ -190,7 +190,35 @@
     "onlyDark": "%{name} (nur dunkel)",
     "fixedMode": "Dieses Theme gibt es nur in einer Variante.",
     "worldThemes": "Welten dürfen ihr Theme wählen",
-    "worldThemesHint": "Eine Welt kann in world.md ein Theme nennen. Solange du in dieser Welt bist, nutzt die App es."
+    "worldThemesHint": "Eine Welt kann in world.md ein Theme nennen. Solange du in dieser Welt bist, nutzt die App es.",
+    "customThemes": "Eigene Themes",
+    "customThemesHint": "Gelten auf allen deinen Geräten und funktionieren auch offline. Wie man eines baut, steht in der Anleitung.",
+    "customThemesGuide": "Anleitung: Eigenes Theme bauen",
+    "uploadTheme": "Theme hochladen (.zip)",
+    "uploadingTheme": "Wird hochgeladen …",
+    "uploadOffline": "Hochladen geht nur mit Verbindung zum Server.",
+    "themeBy": "von %{author}",
+    "removeTheme": "Entfernen",
+    "confirmRemoveTheme": "„%{name}“ entfernen?",
+    "themeInstalled": "„%{name}“ ist installiert und aktiv.",
+    "themeRenamed": "Den Namen gab es schon, Welten nennen es mit themePreset: %{id}.",
+    "themeUndo": "Rückgängig",
+    "themeNote": {
+      "not-variable": "Übersprungen, weil keine Variable: %{items}.",
+      "blocked-value": "Übersprungen, weil es etwas von außen laden könnte: %{items}.",
+      "missing-file": "Übersprungen, weil die Datei im Paket fehlt: %{items}.",
+      "unsupported-rule": "Übersprungen, weil nur :root-Blöcke gehen: %{items}.",
+      "bad-manifest": "theme.json ist teilweise ungültig: %{items}.",
+      "missing-font": "Schrift fehlt im Paket: %{items}."
+    },
+    "themeError": {
+      "not-zip": "Das ist keine ZIP-Datei.",
+      "no-theme-css": "Im Paket fehlt die Datei theme.css.",
+      "too-large": "Das Paket ist größer als 50 MB.",
+      "too-many-files": "Das Paket enthält mehr als 500 Dateien.",
+      "other": "Hochladen hat nicht geklappt: %{message}"
+    },
+    "removeThemeHint": "Welten, die es nennen, nutzen dann ihr normales Theme."
   },
   "home": {
     "noWorlds": "Noch keine Welten.",

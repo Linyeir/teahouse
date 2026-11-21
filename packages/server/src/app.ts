@@ -1,3 +1,6 @@
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fastifyCors from '@fastify/cors';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
@@ -24,10 +27,12 @@ import { profileRoutes } from './routes/profiles.ts';
 import { proposalRoutes } from './routes/proposals.ts';
 import { settingsRoutes } from './routes/settings.ts';
 import { syncRoutes } from './routes/sync.ts';
+import { themeRoutes } from './routes/themes.ts';
 import { versionRoutes } from './routes/version.ts';
 import { worldRoutes } from './routes/worlds.ts';
 import { wsRoutes } from './routes/ws.ts';
 import { SceneError, Scenes } from './scenes.ts';
+import { ThemeStore } from './themes/store.ts';
 import { PathError } from './worlds/paths.ts';
 import { WorldNotFoundError, type WorldService } from './worlds/service.ts';
 
@@ -57,6 +62,8 @@ export interface AppOptions {
   logger?: FastifyServerOptions['logger'];
   /** Extra origins allowed to call the API from a browser, besides the Tauri apps. */
   corsOrigins?: string[];
+  /** Where uploaded themes live; a temporary folder when not given (tests). */
+  themesDir?: string;
 }
 
 /** Whether a route pattern (not a request URL) belongs to the API and so needs a device token. */
@@ -79,6 +86,7 @@ export async function buildApp({
   tools,
   logger = false,
   corsOrigins = [],
+  themesDir,
 }: AppOptions) {
   const app = Fastify({ logger });
   app.setValidatorCompiler(validatorCompiler);
@@ -132,6 +140,7 @@ export async function buildApp({
     generator,
     proposals,
     pairing: new Pairing(),
+    themes: new ThemeStore(themesDir ?? (await mkdtemp(join(tmpdir(), 'teahouse-themes-')))),
     scenes: new Scenes(db, worlds, hub, generator, proposals, completeFn),
   };
 
@@ -198,6 +207,7 @@ export async function buildApp({
     proposalRoutes,
     settingsRoutes,
     syncRoutes,
+    themeRoutes,
     versionRoutes,
     wsRoutes,
   ]) {

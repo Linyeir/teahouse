@@ -1,7 +1,7 @@
 import { cp, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isThemePreset, type SampleWorld } from '@teahouse/shared';
+import { isThemeId, type SampleWorld } from '@teahouse/shared';
 import type { Db } from '../db/index.ts';
 import { installWorld } from './archive.ts';
 import { parseDocument, stringifyDocument, stringValue } from './frontmatter.ts';
@@ -25,7 +25,7 @@ export async function listSamples(dir = SAMPLES_DIR): Promise<SampleWorld[]> {
       id: entry.name,
       name: stringValue(doc.data.name, entry.name),
       summary: stringValue(doc.data.summary),
-      themePreset: isThemePreset(doc.data.themePreset) ? doc.data.themePreset : null,
+      themePreset: isThemeId(doc.data.themePreset) ? doc.data.themePreset : null,
     });
   }
   return samples.sort((a, b) => a.name.localeCompare(b.name));
