@@ -100,7 +100,7 @@ export function AuthView() {
     };
     return (
       <div className={ui.page} style={{ maxWidth: 420, paddingTop: '15vh' }}>
-        <img className={ui.logo} src="/favicon.svg" alt="" />
+        <img className={ui.logo} src="/logo-mark.svg" alt="" />
         <h1 className={ui.title}>{t('auth.connectTitle')}</h1>
         <p className={ui.muted}>{canScan ? t('auth.connectHintScan') : t('auth.connectHint')}</p>
         <div className={ui.form} style={{ marginBottom: 16 }}>
@@ -181,7 +181,7 @@ function PasswordForm() {
 
   return (
     <>
-      <img className={ui.logo} src="/favicon.svg" alt="" />
+      <img className={ui.logo} src="/logo-mark.svg" alt="" />
       <h1 className={ui.title}>{setup ? t('auth.setupTitle') : t('auth.loginTitle')}</h1>
       {setup && <p className={ui.muted}>{t('auth.setupHint')}</p>}
       <form className={ui.form} onSubmit={onSubmit}>
@@ -234,7 +234,7 @@ function CodeForm() {
 
   return (
     <>
-      <img className={ui.logo} src="/favicon.svg" alt="" />
+      <img className={ui.logo} src="/logo-mark.svg" alt="" />
       <h1 className={ui.title}>{t('auth.pairTitle')}</h1>
       <p className={ui.muted}>{t('auth.pairHint')}</p>
       <div className={ui.form} style={{ marginBottom: 16 }}>
@@ -289,7 +289,7 @@ export function PairView({ onDone }: { onDone: () => void }) {
 
   return (
     <div className={ui.page} style={{ maxWidth: 420, paddingTop: '15vh' }}>
-      <img className={ui.logo} src="/favicon.svg" alt="" />
+      <img className={ui.logo} src="/logo-mark.svg" alt="" />
       <h1 className={ui.title}>{t('auth.pairTitle')}</h1>
       {code ? (
         <form className={ui.form} onSubmit={onSubmit}>

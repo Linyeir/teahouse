@@ -25,8 +25,9 @@
   --red-300: #e0715f;
   --red-100: #f5dcd7;
   --red-900: #45272a;
-  --green-700: #2f6b3a;
-  --green-300: #8fcf98;
+  /* The logo's tea green (#0F3A2E, #1A4D3D), lightened for text. */
+  --green-700: #1d6b52;
+  --green-300: #8fd1b4;
   --green-100: #dcefd9;
   --green-900: #23392a;
   --stage-brown: #3a332b;
@@ -174,4 +175,9 @@ input[type="radio"] {
 
 a {
   color: inherit;
+}
+
+/* The logo mark is dark green; on dark themes a faint light edge keeps it visible. */
+:root[data-theme="dark"] img[src="/logo-mark.svg"] {
+  filter: drop-shadow(0 0 0.6px rgb(227 233 198 / 90%)) drop-shadow(0 0 6px rgb(227 233 198 / 25%));
 }

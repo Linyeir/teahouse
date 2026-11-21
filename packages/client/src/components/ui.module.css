@@ -138,6 +138,10 @@ textarea.input {
   color: var(--color-danger);
 }
 
+.success {
+  color: var(--color-success);
+}
+
 .actions {
   display: flex;
   gap: 8px;
@@ -176,6 +180,7 @@ textarea.input {
 @media (max-width: 720px) {
   .sheet {
     margin: auto 0 0;
+    padding-bottom: calc(var(--space) * 1.5 + env(safe-area-inset-bottom));
     width: 100%;
     max-width: 100%;
     border-radius: var(--radius) var(--radius) 0 0;

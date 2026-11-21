@@ -112,7 +112,7 @@ export function SettingsView() {
         </label>
         <ErrorText error={save.error} />
         <div className={ui.actions}>
-          {save.isSuccess && <span className={ui.muted}>{t('settings.saved')}</span>}
+          {save.isSuccess && <span className={ui.success}>{t('settings.saved')}</span>}
           <button className={ui.primary} type="submit" disabled={save.isPending}>
             {t('common.save')}
           </button>
