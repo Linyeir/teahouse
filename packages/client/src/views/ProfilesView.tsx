@@ -10,6 +10,7 @@ import {
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.ts';
+import { ConfirmDialog } from '../components/Dialog.tsx';
 import { ErrorText, Field } from '../components/Field.tsx';
 import ui from '../components/ui.module.css';
 
@@ -94,6 +95,7 @@ export function ProfilesView() {
     queryFn: () => api.get<Profile[]>('/api/profiles'),
   });
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [deleting, setDeleting] = useState<Profile | null>(null);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['profiles'] });
 
   const save = useMutation({
@@ -181,15 +183,7 @@ export function ProfilesView() {
               <button className={ui.ghost} type="button" onClick={() => detect.mutate(p.id)}>
                 {t('profiles.detect')}
               </button>
-              <button
-                className={ui.ghost}
-                type="button"
-                onClick={() => {
-                  if (window.confirm(t('common.confirmDelete', { name: p.name }))) {
-                    remove.mutate(p.id);
-                  }
-                }}
-              >
+              <button className={ui.ghost} type="button" onClick={() => setDeleting(p)}>
                 {t('common.delete')}
               </button>
               <button className={ui.button} type="button" onClick={() => setDraft(fromProfile(p))}>
@@ -206,6 +200,16 @@ export function ProfilesView() {
       >
         {t('profiles.new')}
       </button>
+      {deleting && (
+        <ConfirmDialog
+          danger
+          title={t('common.confirmDelete', { name: deleting.name })}
+          confirm={t('common.delete')}
+          pending={remove.isPending}
+          onConfirm={() => remove.mutate(deleting.id, { onSettled: () => setDeleting(null) })}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </div>
   );
 }

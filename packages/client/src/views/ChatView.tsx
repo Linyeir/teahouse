@@ -12,13 +12,15 @@ import {
   type Settings,
   sceneStage,
 } from '@teahouse/shared';
-import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { Fragment, type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 import { v7 as uuidv7 } from 'uuid';
 import { api } from '../api.ts';
 import { BeatsText, formatStory, messageBeats, moodsBefore } from '../components/Beats.tsx';
+import { ConfirmDialog, Dialog } from '../components/Dialog.tsx';
 import { ErrorBanner, GenerationError, NoProfileNotice } from '../components/ErrorBanner.tsx';
+import { Menu } from '../components/Menu.tsx';
 import ui from '../components/ui.module.css';
 import { onDraftRestored, readDraft, restoreDraft, writeDraft } from '../drafts.ts';
 import { useConnection } from '../events.ts';
@@ -87,6 +89,7 @@ export function ChatView() {
     queryFn: () => api.get<Profile[]>('/api/profiles'),
   });
   const [ending, setEnding] = useState(false);
+  const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null);
   // Who takes the next turn, picked with the chips or a sprite; null follows the default.
   const [picked, setPicked] = useState<{ chatId: string; slug: string } | null>(null);
   const pickedSlug = picked?.chatId === chatId ? picked.slug : null;
@@ -234,30 +237,39 @@ export function ChatView() {
             {t('scenes.end')}
           </button>
         )}
-        <button
-          className={ui.ghost}
-          type="button"
-          disabled={!online}
-          onClick={() => {
-            const title = window.prompt(t('chats.rename'), data.chat.title)?.trim();
-            if (title) rename.mutate(title);
-          }}
-        >
-          {t('chats.rename')}
-        </button>
-        <button
-          className={ui.ghost}
-          type="button"
-          disabled={!online}
-          onClick={() => {
-            if (window.confirm(t('common.confirmDelete', { name: data.chat.title }))) {
-              remove.mutate();
-            }
-          }}
-        >
-          {t('common.delete')}
-        </button>
+        <Menu
+          label={t('chats.more')}
+          items={[
+            { label: t('chats.rename'), disabled: !online, onSelect: () => setDialog('rename') },
+            {
+              label: t('common.delete'),
+              disabled: !online,
+              danger: true,
+              onSelect: () => setDialog('delete'),
+            },
+          ]}
+        />
       </header>
+      {dialog === 'rename' && (
+        <RenameDialog
+          title={data.chat.title}
+          pending={rename.isPending}
+          onRename={(title) => rename.mutate(title, { onSuccess: () => setDialog(null) })}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'delete' && (
+        <ConfirmDialog
+          danger
+          title={t('common.confirmDelete', { name: data.chat.title })}
+          confirm={t('common.delete')}
+          pending={remove.isPending}
+          onConfirm={() => remove.mutate()}
+          onCancel={() => setDialog(null)}
+        >
+          <p>{t('chats.deleteHint')}</p>
+        </ConfirmDialog>
+      )}
       <div className={`${styles.messages} ${view === 'vn' ? styles.novel : ''}`} ref={scroller}>
         {view === 'vn' && worldId && (
           <>
@@ -842,5 +854,64 @@ function SpeakerChips({
         </select>
       )}
     </fieldset>
+  );
+}
+
+/** Asks for a chat's new title, in place of the browser's `prompt()`. */
+function RenameDialog({
+  title,
+  pending,
+  onRename,
+  onCancel,
+}: {
+  title: string;
+  pending: boolean;
+  onRename: (title: string) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [value, setValue] = useState(title);
+  const formId = useId();
+  const next = value.trim();
+  return (
+    <Dialog
+      title={t('chats.renameTitle')}
+      onCancel={onCancel}
+      actions={
+        <>
+          <button className={ui.button} type="button" onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+          <button
+            className={ui.primary}
+            type="submit"
+            form={formId}
+            disabled={!next || next === title || pending}
+          >
+            {t('chats.rename')}
+          </button>
+        </>
+      }
+    >
+      <form
+        id={formId}
+        className={ui.form}
+        style={{ marginBottom: 'var(--space)' }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (next && next !== title) onRename(next);
+        }}
+      >
+        <label className={ui.field}>
+          {t('chats.titleLabel')}
+          <input
+            className={ui.input}
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </label>
+      </form>
+    </Dialog>
   );
 }

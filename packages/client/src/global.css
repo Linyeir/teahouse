@@ -34,6 +34,7 @@
   --scrim-dark: rgb(28 24 20 / 88%);
   --wash-dark: rgb(43 38 32 / 7%);
   --wash-light: rgb(236 230 220 / 8%);
+  --scrim-backdrop: rgb(0 0 0 / 40%);
   --line-light: rgb(255 255 255 / 18%);
   --none: none;
   --zero: 0;
@@ -60,6 +61,8 @@
   --color-control-border: var(--color-text-muted);
   --color-focus: var(--color-accent);
   --color-hover: var(--wash-dark);
+  --color-danger-text: var(--sand-0);
+  --color-backdrop: var(--scrim-backdrop);
 
   /* Semantic: type, shape and surfaces */
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -138,6 +141,7 @@
   --color-diff-add: var(--green-900);
   --color-diff-remove: var(--red-900);
   --color-hover: var(--wash-light);
+  --color-danger-text: var(--ink-950);
   color-scheme: dark;
 }
 

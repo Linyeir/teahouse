@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBlocker, useParams, useSearchParams } from 'react-router';
 import { api, download, RequestError } from '../api.ts';
-import { Dialog } from '../components/Dialog.tsx';
+import { ConfirmDialog, Dialog } from '../components/Dialog.tsx';
 import { ErrorText } from '../components/Field.tsx';
 import { CharacterImages, WorldBackgrounds } from '../components/ImageManager.tsx';
 import { CharacterRow, GroupChatStart } from '../components/StartChat.tsx';
@@ -311,6 +311,7 @@ function FileEditor({
       onDeleted();
     },
   });
+  const [deleting, setDeleting] = useState(false);
 
   if (file.error) return <ErrorText error={file.error} />;
   if (!file.data) return <p>{t('common.loading')}</p>;
@@ -354,13 +355,7 @@ function FileEditor({
         ) : (
           <>
             {path !== 'world.md' && (
-              <button
-                className={ui.ghost}
-                type="button"
-                onClick={() => {
-                  if (window.confirm(t('common.confirmDelete', { name: path }))) remove.mutate();
-                }}
-              >
+              <button className={ui.ghost} type="button" onClick={() => setDeleting(true)}>
                 {t('common.delete')}
               </button>
             )}
@@ -378,6 +373,18 @@ function FileEditor({
           </>
         )}
       </div>
+      {deleting && (
+        <ConfirmDialog
+          danger
+          title={t('common.confirmDelete', { name: path })}
+          confirm={t('common.delete')}
+          pending={remove.isPending}
+          onConfirm={() => remove.mutate(undefined, { onSettled: () => setDeleting(false) })}
+          onCancel={() => setDeleting(false)}
+        >
+          <p>{t('worlds.deleteFileHint')}</p>
+        </ConfirmDialog>
+      )}
       {conflict ? (
         <div className={styles.conflict}>
           <strong>

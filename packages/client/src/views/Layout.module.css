@@ -26,6 +26,15 @@
   margin: 0;
 }
 
+.brandLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+
 .logo {
   width: 28px;
   height: 28px;

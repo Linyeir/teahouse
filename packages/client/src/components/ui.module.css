@@ -110,6 +110,19 @@ textarea.input {
   color: var(--color-danger);
 }
 
+/* The confirming button of a dialog about deleting: the only filled one. */
+.dangerPrimary {
+  composes: button;
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.dangerPrimary:hover:not(:disabled) {
+  background: var(--color-danger);
+  filter: brightness(1.08);
+}
+
 .ghost {
   composes: button;
   border-color: transparent;
@@ -211,7 +224,7 @@ textarea.input {
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 40%);
+  background: var(--color-backdrop);
 }
 
 .dialog h2 {
@@ -230,4 +243,75 @@ textarea.input {
 
 .banner a {
   text-decoration: none;
+}
+
+/* A square button with only a symbol (IconButton.tsx). */
+.iconButton {
+  composes: ghost;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.iconButton[aria-expanded="true"] {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+/* A list of actions under its button (Menu.tsx). */
+.menuAnchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  box-shadow: var(--shadow);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.menuItem {
+  font: inherit;
+  font-family: var(--control-font);
+  text-transform: var(--control-transform);
+  letter-spacing: var(--control-spacing);
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-text);
+  padding: 8px 12px;
+}
+
+.menuItem:hover:not(:disabled),
+.menuItem:focus-visible {
+  background: var(--color-hover);
+}
+
+.menuItem:focus-visible {
+  outline-offset: -2px;
+}
+
+.menuItem:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.menuDanger {
+  color: var(--color-danger);
 }

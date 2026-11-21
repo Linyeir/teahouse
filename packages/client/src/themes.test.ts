@@ -100,6 +100,7 @@ describe.each(combos)('theme %s (%s)', (preset, mode) => {
       ['muted text on surface', get('color-text-muted'), surface],
       ['muted text on bg', get('color-text-muted'), bg],
       ['accent text on accent', get('color-accent-text'), get('color-accent')],
+      ['danger text on danger', get('color-danger-text'), get('color-danger')],
       ['danger on surface', get('color-danger'), surface],
       ['textbox', get('vn-textbox-color'), textbox],
     ];
