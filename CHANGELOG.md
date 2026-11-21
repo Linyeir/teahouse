@@ -2,7 +2,9 @@
 
 What changed for people who run Teahouse, by version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Each release on GitHub uses its section from this file as release notes.
 
-## [Unreleased]
+## [0.5.0] - 2026-11-21
+
+**Updating:** apps and server can be updated in any order, but the sample worlds, your own themes and `themePreset:` in a world need a 0.5.0 server. The database does not change.
 
 ### Added
 
@@ -252,6 +254,7 @@ Not released as a build. Run from source or with `docker compose`.
 - Canon updates when a scene ends, proposed by the model and reviewed per file as a diff.
 - A memory test run with reference scenes (`pnpm --filter @teahouse/server eval:memory`).
 
+[0.5.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.5.0
 [0.4.2]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.2
 [0.4.1]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Linyeir/teahouse/releases/tag/v0.4.0
