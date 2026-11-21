@@ -7,12 +7,20 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 ### Added
 
 - **Themes:** under **Settings → Appearance** you pick one of nine themes and whether Teahouse is light, dark or follows the system. Standard, Nord and Catppuccin come in light and dark; Sakura, Halftone (a 90s comic) and Picture book are light; Dracula, Cyberpunk and Gothic are dark. The choice is saved per device and applied before the first paint, so nothing flashes on load. The themed looks are inspired by [charredbutter's SillyTavern themes](https://ko-fi.com/charredbutter/shop) and come with their own fonts (all under the SIL Open Font License), which a device downloads only once a theme uses them. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+- **Sample worlds:** the worlds page offers three ready-made worlds to load: Haru no Yado (a mountain teahouse), Ironbay (a 90s comic city) and Mossbrook Wood (a picture-book forest). Each has two characters with mood images, backgrounds and its own theme, and loads as an ordinary world you can change. ([#126](https://github.com/Linyeir/teahouse/issues/126))
 - A world can name its theme with `themePreset:` in `world.md`. While you are on that world's page or in one of its chats, the app switches to it; **Let worlds choose their theme** in the settings turns this off. ([#111](https://github.com/Linyeir/teahouse/issues/111))
 
 ### Changed
 
-- The README shows Teahouse on a desktop and a phone with two of the new themes and real artwork from the demo worlds, instead of placeholder drawings. ([#126](https://github.com/Linyeir/teahouse/issues/126))
+- The README shows Teahouse on a desktop and a phone with two of the new themes and real artwork from the sample worlds, instead of placeholder drawings, and the guide screenshots show the sample worlds too. ([#126](https://github.com/Linyeir/teahouse/issues/126))
 - The theme tokens are now a documented contract ("stable v1") in [Theming](docs/theming.md). A world's `theme:` can also set `vn-textbox-shadow` and `vn-name-font`. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+- The sidebar and sign-in screens show the Teahouse cup without its light tile, so dark themes no longer have a bright block in the corner. Saved and accepted states use a green taken from the logo. ([#113](https://github.com/Linyeir/teahouse/issues/113))
+- On phones, text in the novel view's text box is no larger than 1rem and the box is a little taller, so a reply of a few lines fits without scrolling in every theme. ([#111](https://github.com/Linyeir/teahouse/issues/111))
+
+### Fixed
+
+- In the Android app, the canon review and other full-height sheets no longer slide under the status bar, and bottom sheets keep clear of the gesture bar.
+- The English canon review quotes section names and aliases with English quotation marks (“Relationships”) instead of German ones.
 
 ### Removed
 

@@ -253,7 +253,7 @@ function ProposalNotes({ notes }: { notes: ProposalNote[] }) {
           // biome-ignore lint/suspicious/noArrayIndexKey: notes have no identity of their own
           <li key={i}>
             <span className={styles.filePath}>{note.path}</span>
-            {note.detail && <> · „{note.detail}“</>}:{' '}
+            {note.detail && <> · {t('common.quoted', { text: note.detail })}</>}:{' '}
             {t(`scenes.note.${note.code}`, { defaultValue: note.reason })}
           </li>
         ))}

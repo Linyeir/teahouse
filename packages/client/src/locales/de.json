@@ -19,7 +19,8 @@
     "loading": "Lädt …",
     "confirmDelete": "„%{name}“ löschen?",
     "dismiss": "Schließen",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "quoted": "„%{text}“"
   },
   "auth": {
     "setupTitle": "Willkommen bei Teahouse",

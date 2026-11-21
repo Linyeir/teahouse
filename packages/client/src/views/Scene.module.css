@@ -193,7 +193,9 @@
   height: 100dvh;
   max-height: 100dvh;
   margin: 0 auto;
-  padding: 0;
+  /* Clear of the status and gesture bars where the app is drawn under them (Android). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
   border: 0;
   border-radius: 0;
   background: var(--color-bg);

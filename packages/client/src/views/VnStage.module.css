@@ -322,12 +322,14 @@
     aspect-ratio: 3 / 4;
   }
 
+  /* At most 1rem, smaller where the theme asks for it. */
   .textbox {
-    font-size: 1rem;
+    font-size: min(var(--vn-font-size), 1rem);
   }
 
   .textboxFrame {
-    height: 36%;
+    height: 40%;
+    max-height: 50%;
   }
 }
 
