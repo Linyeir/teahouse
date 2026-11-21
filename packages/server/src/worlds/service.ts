@@ -7,7 +7,7 @@ import {
   type CanonFile,
   type CharacterImage,
   type CharacterSummary,
-  isThemePreset,
+  isThemeId,
   sanitizeColor,
   sanitizeTheme,
   type World,
@@ -434,7 +434,7 @@ export class WorldService {
       name: stringValue(doc.data.name, folder),
       summary: stringValue(doc.data.summary),
       theme: sanitizeTheme(doc.data.theme),
-      themePreset: isThemePreset(doc.data.themePreset) ? doc.data.themePreset : null,
+      themePreset: isThemeId(doc.data.themePreset) ? doc.data.themePreset : null,
       defaultBackground:
         typeof doc.data.defaultBackground === 'string' ? doc.data.defaultBackground : null,
     };

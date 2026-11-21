@@ -4,9 +4,11 @@ import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api.ts';
+import { themeName } from '../components/AppearanceSettings.tsx';
 import { ErrorText, Field } from '../components/Field.tsx';
 import { useStartChat } from '../components/StartChat.tsx';
 import ui from '../components/ui.module.css';
+import { useCustomThemes } from '../customThemes.ts';
 import { pushToast } from '../notices.ts';
 import { charactersQuery, useWorlds } from '../queries.ts';
 
@@ -40,6 +42,7 @@ export function WorldsView() {
 /** Ready-made worlds with characters, images and a theme, to try Teahouse without a card. */
 function SampleWorlds() {
   const { t } = useTranslation();
+  const customThemes = useCustomThemes();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const samples = useQuery({
@@ -66,7 +69,9 @@ function SampleWorlds() {
           <li key={s.id} className={ui.listItem}>
             <div className={ui.grow}>
               <strong>{s.name}</strong>
-              {s.themePreset && <span className={ui.badge}>{t(`themes.${s.themePreset}`)}</span>}
+              {s.themePreset && (
+                <span className={ui.badge}>{themeName(t, s.themePreset, customThemes)}</span>
+              )}
               <div className={ui.hint}>{s.summary}</div>
             </div>
             <button

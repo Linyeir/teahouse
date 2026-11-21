@@ -3,6 +3,7 @@ import type { ChatPath, ServerEvent } from '@teahouse/shared';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { api, getToken, serverUrl, setToken } from './api.ts';
 import { applyUpdate, type PathUpdate, streamBuffers } from './chat-state.ts';
+import { syncCustomThemes } from './customThemes.ts';
 import { setReachable } from './offline.ts';
 import { syncLocalCopy } from './sync.ts';
 import { type NativeSocket, openServerSocket } from './transport.ts';
@@ -58,6 +59,9 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
         setReachable(true);
         // Events may have been missed while disconnected.
         void queryClient.invalidateQueries();
+        void syncCustomThemes().catch(() => {
+          // Retried on the next connect; this device keeps the themes it has.
+        });
         void syncLocalCopy(queryClient).catch(() => {
           // Retried on the next connect; the views fetch what they show anyway.
         });
@@ -70,6 +74,12 @@ export function useServerEvents(queryClient: QueryClient, enabled: boolean): Con
         const event = JSON.parse(String(message.data)) as ServerEvent;
         if (event.type === 'devices.changed') {
           void queryClient.invalidateQueries({ queryKey: ['devices'] });
+          return;
+        }
+        if (event.type === 'themes.changed') {
+          void syncCustomThemes().catch(() => {
+            // Synced again on the next connect.
+          });
           return;
         }
         if (event.type === 'cleanup.changed') {
