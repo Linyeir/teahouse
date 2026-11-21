@@ -43,7 +43,7 @@ You need Docker and an LLM endpoint: LM Studio or llama.cpp on your machine, or 
 
 2. Open http://localhost:8787 and choose a password.
 3. Under **Profiles**, add a profile: pick a preset, enter the model (or **Load models**) and, for OpenRouter, the API key. For LM Studio or llama.cpp on the same machine, use `http://host.docker.internal:1234/v1` or `:8080/v1`, because inside Docker `localhost` is the container itself.
-4. Under **Worlds**, **Import character card** (PNG or JSON, V1 to V3), or create a **New world** and add a character.
+4. Under **Worlds**, load one of the **Sample worlds**, **Import character card** (PNG or JSON, V1 to V3), or create a **New world** and add a character.
 5. Pick a greeting, **Start chat**, and write your first line.
 
 When the scene is over, press **End scene** and choose **with canon**. Teahouse lists what it would add to the world, file by file, and you decide on each one.

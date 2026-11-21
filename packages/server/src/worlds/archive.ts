@@ -162,7 +162,24 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
       .parse(
         JSON.parse(await readFile(join(dir, 'chats.json'), 'utf8').catch(() => '[]')),
       ) as ChatExport[];
+    return await installWorld(db, worlds, worldDir, parsed.data.name, exports);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
+/**
+ * Moves a world folder (with world.md, without .git) into the worlds directory as a new world,
+ * with a fresh repository, and adds its chats. Shared by archive imports and sample worlds.
+ */
+export async function installWorld(
+  db: Db,
+  worlds: WorldService,
+  worldDir: string,
+  name: string,
+  exports: ChatExport[],
+) {
+  {
     const worldDoc = parseDocument(await readFile(join(worldDir, 'world.md'), 'utf8'));
     const oldWorldId = typeof worldDoc.data.id === 'string' ? worldDoc.data.id : null;
     const existing = new Set((await worlds.list()).map((w) => w.id));
@@ -184,16 +201,14 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
     await writeFile(join(worldDir, 'world.md'), stringifyDocument(worldDoc));
     if (copy) await rewriteEventReferences(worldDir, id);
 
-    const folder = await uniqueFolder(worlds, slug(parsed.data.name, 'world'));
+    const folder = await uniqueFolder(worlds, slug(name, 'world'));
     await rename(worldDir, worlds.dir(folder)).catch(async () => {
       // Different file systems: copy instead.
       await cp(worldDir, worlds.dir(folder), { recursive: true });
     });
     const repo = worlds.repo(folder);
     await repo.ensure();
-    await repo.commitAll(
-      copy ? `Import ${parsed.data.name} as a copy` : `Import ${parsed.data.name}`,
-    );
+    await repo.commitAll(copy ? `Import ${name} as a copy` : `Import ${name}`);
 
     db.transaction((tx) => {
       for (const e of exports) {
@@ -258,8 +273,6 @@ export async function importWorld(db: Db, worlds: WorldService, archive: Readabl
     });
     await worlds.list();
     return { worldId, folder, chats: exports.length, copy };
-  } finally {
-    await rm(dir, { recursive: true, force: true });
   }
 }
 

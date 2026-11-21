@@ -231,7 +231,11 @@
     "conflictDeleted": "This file was deleted since you started editing it",
     "conflictHint": "Perhaps by a canon update or in another editor. The diff shows the file as it is now against your version. Nothing was saved.",
     "conflictDiscard": "Discard my edit",
-    "conflictOverwrite": "Save my version anyway"
+    "conflictOverwrite": "Save my version anyway",
+    "samples": "Sample worlds",
+    "samplesHint": "Ready-made worlds with characters, images and their own theme. Each one you load is a normal world of your own that you can change freely.",
+    "loadSample": "Load",
+    "loadingSample": "Loading…"
   },
   "scenes": {
     "title": "Scene %{n}",

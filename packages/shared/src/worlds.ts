@@ -21,6 +21,24 @@ export const world = z.object({
 });
 export type World = z.infer<typeof world>;
 
+/** A sample world shipped with the server, which anyone can load as a world of their own. */
+export const sampleWorld = z.object({
+  id: z.string(),
+  name: z.string(),
+  summary: z.string(),
+  themePreset: z.string().nullable(),
+});
+export type SampleWorld = z.infer<typeof sampleWorld>;
+
+/** What loading a sample (or importing an archive) created. */
+export const installedWorld = z.object({
+  worldId: id,
+  folder: z.string(),
+  chats: z.number().int(),
+  copy: z.boolean(),
+});
+export type InstalledWorld = z.infer<typeof installedWorld>;
+
 /** Path of a canon file relative to its world folder, e.g. `characters/mira.md`. */
 export const canonPath = z
   .string()

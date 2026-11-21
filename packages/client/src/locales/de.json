@@ -231,7 +231,11 @@
     "conflictDeleted": "Diese Datei wurde gelöscht, seit du sie bearbeitest",
     "conflictHint": "Vielleicht durch ein Canon-Update oder in einem anderen Editor. Der Diff zeigt die Datei, wie sie jetzt ist, gegen deine Fassung. Gespeichert wurde nichts.",
     "conflictDiscard": "Meine Änderung verwerfen",
-    "conflictOverwrite": "Meine Fassung trotzdem speichern"
+    "conflictOverwrite": "Meine Fassung trotzdem speichern",
+    "samples": "Beispielwelten",
+    "samplesHint": "Fertige Welten mit Figuren, Bildern und eigenem Theme. Jede geladene Welt ist eine ganz normale Welt, die dir gehört und die du frei ändern kannst.",
+    "loadSample": "Laden",
+    "loadingSample": "Lädt …"
   },
   "scenes": {
     "title": "Szene %{n}",

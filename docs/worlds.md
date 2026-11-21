@@ -2,7 +2,7 @@
 
 A world holds everything that stays between scenes: the setting, the characters, places, lore, and the events that you have played. Teahouse stores it as a folder of Markdown files, which you can open and edit outside the app.
 
-<p align="center"><img src="images/world.png" alt="A world's overview: the file list on the left (characters, places, events, lore), and on the right the characters with Start chat buttons, the Tidy up the canon card and the world's backgrounds." width="800"></p>
+<p align="center"><img src="images/world.webp" alt="A world's overview in the Picture book theme: the file list on the left (characters, places, events, lore), and on the right the characters with Start chat buttons, the Tidy up the canon card and the world's backgrounds." width="800"></p>
 
 ## The files of a world
 
@@ -72,6 +72,16 @@ Each character can have several images, one per mood. Open the character's file 
 Backgrounds belong to the world. You upload them on the world overview with a short description, and the model reads these descriptions to pick a background for the scene. `defaultBackground:` in `world.md` sets the background that is shown before the model picks one.
 
 `color:` in a character file sets the color of that character's name badge. `themePreset:` in `world.md` picks the theme the app switches to in that world, and [Theming](theming.md) explains how a world can change single colors and fonts of the novel view.
+
+## Sample worlds
+
+The worlds page offers three sample worlds to start with, each with two characters, mood images, backgrounds and its own theme:
+
+- **Haru no Yado**: a teahouse in a mountain village in cherry blossom season (Sakura theme, anime style).
+- **Ironbay**: a city in a 90s superhero comic (Halftone theme, comic style).
+- **Mossbrook Wood**: a picture-book forest with talking animals (Picture book theme, watercolor). One of its files contradicts another on purpose, so **Tidy up the canon** has something to find.
+
+**Load** adds a sample as an ordinary world of your own. You can change it freely, and loading it again gives you a fresh copy.
 
 ## Character cards
 
