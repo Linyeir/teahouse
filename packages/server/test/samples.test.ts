@@ -1,5 +1,6 @@
-import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { join, relative, sep } from 'node:path';
 import type {
   CharacterSummary,
   InstalledWorld,
@@ -9,6 +10,7 @@ import type {
 } from '@teahouse/shared';
 import { describe, expect, it } from 'vitest';
 import type { StreamFn } from '../src/generation.ts';
+import { SAMPLES_DIR } from '../src/worlds/samples.ts';
 import { createTestApp } from './helpers.ts';
 
 const stream: StreamFn = async function* () {
@@ -62,6 +64,28 @@ describe('sample worlds', () => {
     expect(b.worldId).not.toBe(a.worldId);
     expect(b.folder).not.toBe(a.folder);
     expect((await ctx.api<World[]>('GET', '/api/worlds')).body).toHaveLength(2);
+  });
+
+  // The sample folders carry the `.gitignore` of a world, which ignores `assets/`: images must be
+  // added with `git add -f`, or they exist on one machine only.
+  it('ships every image a sample refers to in Git', async () => {
+    const files: string[] = [];
+    for (const sample of await readdir(SAMPLES_DIR, { recursive: true })) {
+      if (!sample.endsWith('.md')) continue;
+      const text = await readFile(join(SAMPLES_DIR, sample), 'utf8');
+      const world = sample.split(sep)[0] ?? '';
+      for (const m of text.matchAll(/^\s*file: (assets\/\S+)$/gm)) {
+        if (m[1]) files.push(join(SAMPLES_DIR, world, m[1]));
+      }
+    }
+    expect(files.length).toBeGreaterThan(30);
+    const tracked = execFileSync('git', ['ls-files', '--', ...files], {
+      cwd: SAMPLES_DIR,
+      encoding: 'utf8',
+    });
+    const lines = new Set(tracked.split('\n'));
+    const missing = files.filter((f) => !lines.has(relative(SAMPLES_DIR, f)));
+    expect(missing).toEqual([]);
   });
 
   it('answers 404 for an unknown sample', async () => {
