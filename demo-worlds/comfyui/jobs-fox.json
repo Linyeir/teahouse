@@ -1,0 +1,38 @@
+[
+  {
+    "name": "juniper-neutral",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/juniper-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a clever red fox, curious, clever expression, mouth closed.",
+    "seed": 11,
+    "denoise": 0.8,
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/fox-mask.png"
+  },
+  {
+    "name": "juniper-amused",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/juniper-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a clever red fox, sly amused smile, eyes half closed with mischief.",
+    "seed": 11,
+    "denoise": 0.8,
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/fox-mask.png"
+  },
+  {
+    "name": "juniper-angry",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/juniper-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a clever red fox, angry, snarling with teeth bared, narrowed eyes.",
+    "seed": 11,
+    "denoise": 0.8,
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/fox-mask.png"
+  },
+  {
+    "name": "juniper-sad",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/juniper-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a clever red fox, sad, eyes glistening with tears, looking away, mouth turned down.",
+    "seed": 11,
+    "denoise": 0.8,
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/fox-mask.png"
+  }
+]

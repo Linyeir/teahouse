@@ -11,6 +11,7 @@ What changed for people who run Teahouse, by version. The format follows [Keep a
 
 ### Changed
 
+- The README shows Teahouse on a desktop and a phone with two of the new themes and real artwork from the demo worlds, instead of placeholder drawings. ([#126](https://github.com/Linyeir/teahouse/issues/126))
 - The theme tokens are now a documented contract ("stable v1") in [Theming](docs/theming.md). A world's `theme:` can also set `vn-textbox-shadow` and `vn-name-font`. ([#111](https://github.com/Linyeir/teahouse/issues/111))
 
 ### Removed

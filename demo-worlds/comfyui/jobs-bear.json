@@ -1,0 +1,42 @@
+[
+  {
+    "name": "bramble-neutral",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/bramble-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a gentle brown bear wearing small round reading glasses, kind calm expression, mouth closed.",
+    "seed": 11,
+    "denoise": 0.8,
+    "clipseg": "bear face",
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/bear-mask.png"
+  },
+  {
+    "name": "bramble-amused",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/bramble-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a gentle brown bear wearing small round reading glasses, big warm laugh, mouth open, eyes squeezed shut with joy.",
+    "seed": 11,
+    "denoise": 0.8,
+    "clipseg": "bear face",
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/bear-mask.png"
+  },
+  {
+    "name": "bramble-angry",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/bramble-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a gentle brown bear wearing small round reading glasses, grumpy and cross, deep frown, eyebrows pulled down.",
+    "seed": 11,
+    "denoise": 0.8,
+    "clipseg": "bear face",
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/bear-mask.png"
+  },
+  {
+    "name": "bramble-sad",
+    "engine": "zimage",
+    "source": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/out/bramble-neutral-raw.png",
+    "prompt": "Children's picture book watercolor illustration with delicate ink outlines. Face of a gentle brown bear wearing small round reading glasses, sad, teary eyes, drooping ears, small frown.",
+    "seed": 11,
+    "denoise": 0.8,
+    "clipseg": "bear face",
+    "mask": "/tmp/claude-1000/-home-linyeir-Projects-teahouse--claude-worktrees-readme-screenshot-designs-ef169b/7a48ace1-e2f8-41d6-8d1d-4e99d7979abe/scratchpad/scripts/bear-mask.png"
+  }
+]
